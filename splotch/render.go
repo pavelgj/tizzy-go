@@ -2,6 +2,7 @@ package splotch
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -102,6 +103,21 @@ func Render(screen tcell.Screen, layout LayoutResult, focusedID string, componen
 		
 		label := "[ " + n.Label + " ]"
 		drawText(screen, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, label, style)
+	case *Spinner:
+		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+		
+		borderOffset := 0
+		borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+		if n.Style.Border {
+			borderOffset = 1
+			drawBorder(screen, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		}
+		
+		now := time.Now()
+		frameIdx := int((now.UnixNano() / int64(n.Interval)) % int64(len(n.Frames)))
+		val := n.Frames[frameIdx]
+		
+		drawText(screen, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, val, style)
 	case *Box:
 		if n.Style.ID != "" && n.Style.ID == focusedID {
 			focused = true

@@ -2,6 +2,7 @@ package splotch
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -36,6 +37,14 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 
 	// Set default style
 	a.screen.SetStyle(tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset))
+
+	// Start animation ticker
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond) // 10 FPS
+			a.screen.PostEvent(&EventTick{t: time.Now()})
+		}
+	}()
 
 	for {
 		a.screen.Clear()
@@ -208,6 +217,8 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 					}
 				}
 			}
+		case *EventTick:
+			// Continuous rendering for animations
 		case *tcell.EventResize:
 			a.screen.Sync()
 		}
@@ -369,4 +380,12 @@ func lineColToOffset(text string, line, col int) int {
 		c = len(lines[line])
 	}
 	return offset + c
+}
+
+type EventTick struct {
+	t time.Time
+}
+
+func (e *EventTick) When() time.Time {
+	return e.t
 }
