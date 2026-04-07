@@ -35,6 +35,8 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 	}
 	defer a.screen.Fini()
 
+	a.screen.EnableMouse()
+
 	// Set default style
 	a.screen.SetStyle(tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset))
 
@@ -219,6 +221,35 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 			}
 		case *EventTick:
 			// Continuous rendering for animations
+		case *tcell.EventMouse:
+			mx, my := ev.Position()
+			if ev.Buttons()&tcell.Button1 != 0 {
+				clickedNode := findNodeAt(layout, mx, my)
+				if clickedNode != nil {
+					var nodeStyle Style
+					switch n := clickedNode.(type) {
+					case *Text:
+						nodeStyle = n.Style
+					case *TextInput:
+						nodeStyle = n.Style
+					case *Button:
+						nodeStyle = n.Style
+					case *Spinner:
+						nodeStyle = n.Style
+					case *ProgressBar:
+						nodeStyle = n.Style
+					}
+					if nodeStyle.Focusable && nodeStyle.ID != "" {
+						a.focusedID = nodeStyle.ID
+					}
+
+					if btn, ok := clickedNode.(*Button); ok {
+						if btn.OnClick != nil {
+							btn.OnClick()
+						}
+					}
+				}
+			}
 		case *tcell.EventResize:
 			a.screen.Sync()
 		}
@@ -388,4 +419,17 @@ type EventTick struct {
 
 func (e *EventTick) When() time.Time {
 	return e.t
+}
+
+func findNodeAt(res LayoutResult, x, y int) Node {
+	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
+		// Check children first for nested components
+		for _, child := range res.Children {
+			if n := findNodeAt(child, x, y); n != nil {
+				return n
+			}
+		}
+		return res.Node
+	}
+	return nil
 }
