@@ -145,3 +145,72 @@ func TestRenderTextInputMultiline(t *testing.T) {
 	}
 }
 
+func TestRenderButton(t *testing.T) {
+	s := tcell.NewSimulationScreen("")
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	btn := NewButton(Style{}, "Click", func() {})
+	layout := Layout(btn, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+
+	s.SetSize(20, 5)
+	Render(s, layout, "", nil)
+	s.Show()
+
+	expected := "[ Click ]"
+	for i, c := range expected {
+		mainc, _, _, _ := s.GetContent(i, 0)
+		if mainc != c {
+			t.Errorf("At col %d, expected '%c', got '%c'", i, c, mainc)
+		}
+	}
+}
+
+func TestRenderSpinner(t *testing.T) {
+	s := tcell.NewSimulationScreen("")
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	spinner := NewSpinner(Style{})
+	layout := Layout(spinner, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+
+	s.SetSize(20, 5)
+	Render(s, layout, "", nil)
+	s.Show()
+
+	mainc, _, _, _ := s.GetContent(0, 0)
+	validFrames := map[rune]bool{'|': true, '/': true, '-': true, '\\': true}
+	if !validFrames[mainc] {
+		t.Errorf("Expected one of '|', '/', '-', '\\', got '%c'", mainc)
+	}
+}
+
+func TestRenderProgressBar(t *testing.T) {
+	s := tcell.NewSimulationScreen("")
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	pb := NewProgressBar(Style{Width: 10}, 0.5)
+	layout := Layout(pb, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+
+	s.SetSize(20, 5)
+	Render(s, layout, "", nil)
+	s.Show()
+
+	for i := 0; i < 5; i++ {
+		mainc, _, _, _ := s.GetContent(i, 0)
+		if mainc != '█' {
+			t.Errorf("At col %d, expected '█', got '%c'", i, mainc)
+		}
+	}
+	for i := 5; i < 10; i++ {
+		mainc, _, _, _ := s.GetContent(i, 0)
+		if mainc != '░' {
+			t.Errorf("At col %d, expected '░', got '%c'", i, mainc)
+		}
+	}
+}
+

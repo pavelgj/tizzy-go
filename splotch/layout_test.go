@@ -139,4 +139,40 @@ func TestLayoutCenter(t *testing.T) {
 	}
 }
 
+func TestLayoutButton(t *testing.T) {
+	btn := NewButton(Style{}, "Click", func() {})
+	res := Layout(btn, 10, 20, Constraints{MaxW: 100, MaxH: 100})
+
+	if res.X != 10 || res.Y != 20 {
+		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
+	}
+	if res.W != 9 || res.H != 1 {
+		t.Errorf("Expected W=9, H=1, got W=%d, H=%d", res.W, res.H)
+	}
+}
+
+func TestLayoutSpinner(t *testing.T) {
+	spinner := NewSpinner(Style{})
+	res := Layout(spinner, 10, 20, Constraints{MaxW: 100, MaxH: 100})
+
+	if res.X != 10 || res.Y != 20 {
+		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
+	}
+	if res.W != 1 || res.H != 1 {
+		t.Errorf("Expected W=1, H=1, got W=%d, H=%d", res.W, res.H)
+	}
+}
+
+func TestLayoutProgressBar(t *testing.T) {
+	pb := NewProgressBar(Style{Width: 30}, 0.5)
+	res := Layout(pb, 10, 20, Constraints{MaxW: 100, MaxH: 100})
+
+	if res.X != 10 || res.Y != 20 {
+		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
+	}
+	if res.W != 30 || res.H != 1 {
+		t.Errorf("Expected W=30, H=1, got W=%d, H=%d", res.W, res.H)
+	}
+}
+
 

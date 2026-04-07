@@ -118,6 +118,35 @@ func Render(screen tcell.Screen, layout LayoutResult, focusedID string, componen
 		val := n.Frames[frameIdx]
 		
 		drawText(screen, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, val, style)
+	case *ProgressBar:
+		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+		
+		borderOffset := 0
+		borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+		if n.Style.Border {
+			borderOffset = 1
+			drawBorder(screen, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		}
+		
+		w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2
+		if w < 0 {
+			w = 0
+		}
+		
+		filledW := int(float64(w) * n.Percent)
+		if filledW > w {
+			filledW = w
+		}
+		
+		str := ""
+		for i := 0; i < filledW; i++ {
+			str += n.FilledChar
+		}
+		for i := filledW; i < w; i++ {
+			str += n.EmptyChar
+		}
+		
+		drawText(screen, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, str, style)
 	case *Box:
 		if n.Style.ID != "" && n.Style.ID == focusedID {
 			focused = true
@@ -157,7 +186,9 @@ func drawBorder(screen tcell.Screen, x, y, w, h int, style tcell.Style) {
 }
 
 func drawText(screen tcell.Screen, x, y int, text string, style tcell.Style) {
-	for i, r := range text {
-		screen.SetContent(x+i, y, r, nil, style)
+	col := 0
+	for _, r := range text {
+		screen.SetContent(x+col, y, r, nil, style)
+		col++
 	}
 }
