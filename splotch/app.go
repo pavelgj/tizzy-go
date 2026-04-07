@@ -200,6 +200,12 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 							}
 						}
 					}
+				} else if btn, ok := focusedNode.(*Button); ok {
+					if ev.Key() == tcell.KeyEnter {
+						if btn.OnClick != nil {
+							btn.OnClick()
+						}
+					}
 				}
 			}
 		case *tcell.EventResize:
@@ -221,6 +227,10 @@ func findFocusableIDs(node Node) []string {
 			ids = append(ids, n.Style.ID)
 		}
 	case *TextInput:
+		if n.Style.Focusable && n.Style.ID != "" {
+			ids = append(ids, n.Style.ID)
+		}
+	case *Button:
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
 		}
@@ -284,6 +294,10 @@ func findNodeByID(node Node, id string) Node {
 		if n.Style.ID == id {
 			return n
 		}
+	case *Button:
+		if n.Style.ID == id {
+			return n
+		}
 	}
 	return nil
 }
@@ -304,6 +318,10 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 			}
 		}
 	case *TextInput:
+		if n.Style.ID == id {
+			return &res
+		}
+	case *Button:
 		if n.Style.ID == id {
 			return &res
 		}

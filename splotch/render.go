@@ -82,6 +82,26 @@ func Render(screen tcell.Screen, layout LayoutResult, focusedID string, componen
 			
 			drawText(screen, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, val, style)
 		}
+	case *Button:
+		focused := false
+		if n.Style.ID != "" && n.Style.ID == focusedID {
+			focused = true
+		}
+		
+		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+		if focused {
+			style = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+		}
+		
+		borderOffset := 0
+		borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+		if n.Style.Border {
+			borderOffset = 1
+			drawBorder(screen, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		}
+		
+		label := "[ " + n.Label + " ]"
+		drawText(screen, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, label, style)
 	case *Box:
 		if n.Style.ID != "" && n.Style.ID == focusedID {
 			focused = true

@@ -75,6 +75,36 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			W:    w + pad.Left + pad.Right + borderSize,
 			H:    layoutH,
 		}
+	case *Button:
+		pad := n.Style.Padding
+		margin := n.Style.Margin
+		boxX := x + margin.Left
+		boxY := y + margin.Top
+
+		w := len(n.Label) + 4 // "[ " and " ]"
+		h := 1
+
+		if n.Style.Width > 0 {
+			w = n.Style.Width
+		}
+
+		borderSize := 0
+		if n.Style.Border {
+			borderSize = 2
+		}
+
+		layoutH := h + pad.Top + pad.Bottom + borderSize
+		if n.Style.MaxHeight > 0 && layoutH > n.Style.MaxHeight {
+			layoutH = n.Style.MaxHeight
+		}
+
+		return LayoutResult{
+			Node: node,
+			X:    boxX,
+			Y:    boxY,
+			W:    w + pad.Left + pad.Right + borderSize,
+			H:    layoutH,
+		}
 	case *Box:
 		borderSize := 0
 		if n.Style.Border {
