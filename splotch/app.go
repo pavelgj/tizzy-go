@@ -12,6 +12,7 @@ type App struct {
 	screen          tcell.Screen
 	focusedID       string
 	componentStates map[string]any
+	previousGrid    *Grid
 }
 
 // NewApp creates a new App instance.
@@ -49,8 +50,6 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 	}()
 
 	for {
-		a.screen.Clear()
-
 		// 1. Get the current UI tree
 		root := renderFn()
 
@@ -63,8 +62,32 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 		w, h := a.screen.Size()
 		layout := Layout(root, 0, 0, Constraints{MaxW: w, MaxH: h})
 
-		// 3. Render
-		Render(a.screen, layout, a.focusedID, a.componentStates)
+		// 3. Render to grid
+		grid := NewGrid(w, h)
+		Render(grid, layout, a.focusedID, a.componentStates)
+
+		// 4. Diff and update screen
+		if a.previousGrid == nil || a.previousGrid.W != w || a.previousGrid.H != h {
+			a.screen.Clear()
+			for y := 0; y < h; y++ {
+				for x := 0; x < w; x++ {
+					cell := grid.Cells[y][x]
+					a.screen.SetContent(x, y, cell.Rune, nil, cell.Style)
+				}
+			}
+		} else {
+			for y := 0; y < h; y++ {
+				for x := 0; x < w; x++ {
+					newCell := grid.Cells[y][x]
+					oldCell := a.previousGrid.Cells[y][x]
+					if newCell.Rune != oldCell.Rune || newCell.Style != oldCell.Style {
+						a.screen.SetContent(x, y, newCell.Rune, nil, newCell.Style)
+					}
+				}
+			}
+		}
+
+		a.previousGrid = grid
 
 		// Handle cursor for focused TextInput
 		if a.focusedID != "" {

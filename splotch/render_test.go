@@ -6,6 +6,18 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+func renderToScreen(s tcell.SimulationScreen, layout LayoutResult, focusedID string, componentStates map[string]any) {
+	w, h := s.Size()
+	grid := NewGrid(w, h)
+	Render(grid, layout, focusedID, componentStates)
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			cell := grid.Cells[y][x]
+			s.SetContent(x, y, cell.Rune, nil, cell.Style)
+		}
+	}
+}
+
 func TestRenderBorder(t *testing.T) {
 	s := tcell.NewSimulationScreen("")
 	if err := s.Init(); err != nil {
@@ -23,7 +35,7 @@ func TestRenderBorder(t *testing.T) {
 	// Simulate screen size
 	s.SetSize(10, 10)
 
-	Render(s, layout, "", nil)
+	renderToScreen(s, layout, "", nil)
 	s.Show()
 
 	// Check top-left corner
@@ -66,7 +78,7 @@ func TestRenderColors(t *testing.T) {
 	layout := Layout(text, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(20, 2)
-	Render(s, layout, "", nil)
+	renderToScreen(s, layout, "", nil)
 	s.Show()
 
 	mainc, _, style, _ := s.GetContent(0, 0)
@@ -100,7 +112,7 @@ func TestRenderTextInputScrolling(t *testing.T) {
 		"input1": &TextInputState{cursorOffset: 5, scrollOffset: 5},
 	}
 
-	Render(s, layout, "input1", states)
+	renderToScreen(s, layout, "input1", states)
 	s.Show()
 
 	// Should show "67890"
@@ -123,7 +135,7 @@ func TestRenderTextInputMultiline(t *testing.T) {
 	layout := Layout(input, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(10, 5)
-	Render(s, layout, "", nil)
+	renderToScreen(s, layout, "", nil)
 	s.Show()
 
 	// Check line 0 "abc"
@@ -155,7 +167,7 @@ func TestRenderButton(t *testing.T) {
 	layout := Layout(btn, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(20, 5)
-	Render(s, layout, "", nil)
+	renderToScreen(s, layout, "", nil)
 	s.Show()
 
 	expected := "[ Click ]"
@@ -177,7 +189,7 @@ func TestRenderSpinner(t *testing.T) {
 	layout := Layout(spinner, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(20, 5)
-	Render(s, layout, "", nil)
+	renderToScreen(s, layout, "", nil)
 	s.Show()
 
 	mainc, _, _, _ := s.GetContent(0, 0)
@@ -197,7 +209,7 @@ func TestRenderProgressBar(t *testing.T) {
 	layout := Layout(pb, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(20, 5)
-	Render(s, layout, "", nil)
+	renderToScreen(s, layout, "", nil)
 	s.Show()
 
 	for i := 0; i < 5; i++ {
