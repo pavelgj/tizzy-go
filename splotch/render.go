@@ -37,14 +37,24 @@ func Render(screen tcell.Screen, layout LayoutResult, focusedID string, componen
 		}
 
 		if n.Style.Multiline {
+			vScrollOffset := 0
+			if n.Style.ID != "" && componentStates != nil {
+				if stateObj, ok := componentStates[n.Style.ID]; ok {
+					state := stateObj.(*TextInputState)
+					vScrollOffset = state.vScrollOffset
+				}
+			}
+
 			lines := strings.Split(n.Value, "\n")
 			w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2
+			visibleHeight := layout.H - n.Style.Padding.Top - n.Style.Padding.Bottom - borderOffset*2
 			
-			for i, line := range lines {
-				if i >= layout.H-n.Style.Padding.Top-n.Style.Padding.Bottom-borderOffset*2 {
-					break // Don't draw beyond layout height!
+			for i := 0; i < visibleHeight; i++ {
+				lineIdx := i + vScrollOffset
+				if lineIdx >= len(lines) {
+					break
 				}
-				val := line
+				val := lines[lineIdx]
 				if len(val) > w && w > 0 {
 					val = val[:w]
 				}

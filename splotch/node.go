@@ -27,6 +27,7 @@ type Style struct {
 	Multiline      bool
 	Width          int // 0 means auto or stretch? Let's assume absolute or percentage later. For now, absolute cells.
 	Height         int
+	MaxHeight      int
 	FlexDirection  string // "row" or "column"
 	JustifyContent string // "flex-start", "center", "flex-end"
 	Border         bool

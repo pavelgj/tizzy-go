@@ -63,12 +63,17 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			borderSize = 2
 		}
 
+		layoutH := h + pad.Top + pad.Bottom + borderSize
+		if n.Style.MaxHeight > 0 && layoutH > n.Style.MaxHeight {
+			layoutH = n.Style.MaxHeight
+		}
+
 		return LayoutResult{
 			Node: node,
 			X:    boxX,
 			Y:    boxY,
 			W:    w + pad.Left + pad.Right + borderSize,
-			H:    h + pad.Top + pad.Bottom + borderSize,
+			H:    layoutH,
 		}
 	case *Box:
 		borderSize := 0

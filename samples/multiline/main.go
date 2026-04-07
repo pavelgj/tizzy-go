@@ -14,7 +14,7 @@ func main() {
 	}
 
 	// State
-	inputValue := "Line 1\nLine 2\nLine 3"
+	inputValue := "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7"
 
 	err = app.Run(
 		func() splotch.Node {
@@ -30,6 +30,7 @@ func main() {
 						Padding:   splotch.Padding{Left: 1, Right: 1},
 						Width:     30,
 						Multiline: true,
+						MaxHeight: 7,
 					},
 					inputValue,
 					func(newValue string) {

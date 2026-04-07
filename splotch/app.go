@@ -70,7 +70,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 						}
 						if input.Style.Multiline {
 							line, col := offsetToLineCol(input.Value, state.cursorOffset)
-							a.screen.ShowCursor(res.X+input.Style.Padding.Left+col+borderOffset, res.Y+input.Style.Padding.Top+line+borderOffset)
+							a.screen.ShowCursor(res.X+input.Style.Padding.Left+col+borderOffset, res.Y+input.Style.Padding.Top+line+borderOffset-state.vScrollOffset)
 						} else {
 							visualOffset := state.cursorOffset - state.scrollOffset
 							a.screen.ShowCursor(res.X+input.Style.Padding.Left+visualOffset+borderOffset, res.Y+input.Style.Padding.Top+borderOffset)
@@ -172,13 +172,31 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 					// Update scroll offset
 					res := findLayoutResultByID(layout, a.focusedID)
 					if res != nil {
-						w := res.W - input.Style.Padding.Left - input.Style.Padding.Right
-						if w > 0 {
+						borderOffset := 0
+						if input.Style.Border {
+							borderOffset = 1
+						}
+
+						w := res.W - input.Style.Padding.Left - input.Style.Padding.Right - borderOffset*2
+						if w > 0 && !input.Style.Multiline {
 							if state.cursorOffset < state.scrollOffset {
 								state.scrollOffset = state.cursorOffset
 							}
 							if state.cursorOffset > state.scrollOffset+w {
 								state.scrollOffset = state.cursorOffset - w
+							}
+						}
+
+						if input.Style.Multiline {
+							line, _ := offsetToLineCol(input.Value, state.cursorOffset)
+							h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
+							if h > 0 {
+								if line < state.vScrollOffset {
+									state.vScrollOffset = line
+								}
+								if line >= state.vScrollOffset+h {
+									state.vScrollOffset = line - h + 1
+								}
 							}
 						}
 					}
@@ -294,8 +312,9 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 }
 
 type TextInputState struct {
-	cursorOffset int
-	scrollOffset int
+	cursorOffset  int
+	scrollOffset  int
+	vScrollOffset int
 }
 
 func offsetToLineCol(text string, offset int) (int, int) {
