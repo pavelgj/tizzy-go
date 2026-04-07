@@ -1,6 +1,8 @@
 package splotch
 
 import (
+	"strings"
+
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -62,10 +64,23 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 					stateObj, ok := a.componentStates[a.focusedID]
 					if ok {
 						state := stateObj.(*TextInputState)
-						visualOffset := state.cursorOffset - state.scrollOffset
-						a.screen.ShowCursor(res.X+input.Style.Padding.Left+visualOffset, res.Y+input.Style.Padding.Top)
+						borderOffset := 0
+						if input.Style.Border {
+							borderOffset = 1
+						}
+						if input.Style.Multiline {
+							line, col := offsetToLineCol(input.Value, state.cursorOffset)
+							a.screen.ShowCursor(res.X+input.Style.Padding.Left+col+borderOffset, res.Y+input.Style.Padding.Top+line+borderOffset)
+						} else {
+							visualOffset := state.cursorOffset - state.scrollOffset
+							a.screen.ShowCursor(res.X+input.Style.Padding.Left+visualOffset+borderOffset, res.Y+input.Style.Padding.Top+borderOffset)
+						}
 					} else {
-						a.screen.ShowCursor(res.X+len(input.Value), res.Y)
+						borderOffset := 0
+						if input.Style.Border {
+							borderOffset = 1
+						}
+						a.screen.ShowCursor(res.X+len(input.Value)+borderOffset, res.Y+borderOffset)
 					}
 				}
 			} else {
@@ -113,6 +128,23 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 					} else if ev.Key() == tcell.KeyRight {
 						if state.cursorOffset < len(input.Value) {
 							state.cursorOffset++
+						}
+					} else if ev.Key() == tcell.KeyUp && input.Style.Multiline {
+						line, col := offsetToLineCol(input.Value, state.cursorOffset)
+						if line > 0 {
+							state.cursorOffset = lineColToOffset(input.Value, line-1, col)
+						}
+					} else if ev.Key() == tcell.KeyDown && input.Style.Multiline {
+						line, col := offsetToLineCol(input.Value, state.cursorOffset)
+						lines := strings.Split(input.Value, "\n")
+						if line < len(lines)-1 {
+							state.cursorOffset = lineColToOffset(input.Value, line+1, col)
+						}
+					} else if ev.Key() == tcell.KeyEnter && input.Style.Multiline {
+						newVal := input.Value[:state.cursorOffset] + "\n" + input.Value[state.cursorOffset:]
+						state.cursorOffset++
+						if input.OnChange != nil {
+							input.OnChange(newVal)
 						}
 					} else if ev.Key() == tcell.KeyRune {
 						newVal := input.Value[:state.cursorOffset] + string(ev.Rune()) + input.Value[state.cursorOffset:]
@@ -264,4 +296,40 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 type TextInputState struct {
 	cursorOffset int
 	scrollOffset int
+}
+
+func offsetToLineCol(text string, offset int) (int, int) {
+	lines := strings.Split(text, "\n")
+	currentOffset := 0
+	for lineIdx, line := range lines {
+		if offset <= currentOffset+len(line) {
+			return lineIdx, offset - currentOffset
+		}
+		currentOffset += len(line) + 1 // +1 for \n
+	}
+	if len(lines) == 0 {
+		return 0, 0
+	}
+	return len(lines) - 1, len(lines[len(lines)-1])
+}
+
+func lineColToOffset(text string, line, col int) int {
+	lines := strings.Split(text, "\n")
+	if line < 0 {
+		return 0
+	}
+	if line >= len(lines) {
+		return len(text)
+	}
+	
+	offset := 0
+	for i := 0; i < line; i++ {
+		offset += len(lines[i]) + 1
+	}
+	
+	c := col
+	if c > len(lines[line]) {
+		c = len(lines[line])
+	}
+	return offset + c
 }

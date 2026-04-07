@@ -1,6 +1,8 @@
 package splotch
 
 import (
+	"strings"
+
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -28,29 +30,48 @@ func Render(screen tcell.Screen, layout LayoutResult, focusedID string, componen
 			style = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
 		}
 		
-		val := n.Value
-		scrollOffset := 0
-		if n.Style.ID != "" && componentStates != nil {
-			if stateObj, ok := componentStates[n.Style.ID]; ok {
-				state := stateObj.(*TextInputState)
-				scrollOffset = state.scrollOffset
-			}
-		}
-		
-		w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right
-		if scrollOffset < len(val) {
-			val = val[scrollOffset:]
-		} else {
-			val = ""
-		}
-		if len(val) > w && w > 0 {
-			val = val[:w]
-		}
-		
+		borderOffset := 0
 		if n.Style.Border {
+			borderOffset = 1
 			drawBorder(screen, layout.X, layout.Y, layout.W, layout.H, borderStyle)
 		}
-		drawText(screen, layout.X+n.Style.Padding.Left, layout.Y+n.Style.Padding.Top, val, style)
+
+		if n.Style.Multiline {
+			lines := strings.Split(n.Value, "\n")
+			w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2
+			
+			for i, line := range lines {
+				if i >= layout.H-n.Style.Padding.Top-n.Style.Padding.Bottom-borderOffset*2 {
+					break // Don't draw beyond layout height!
+				}
+				val := line
+				if len(val) > w && w > 0 {
+					val = val[:w]
+				}
+				drawText(screen, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset+i, val, style)
+			}
+		} else {
+			val := n.Value
+			scrollOffset := 0
+			if n.Style.ID != "" && componentStates != nil {
+				if stateObj, ok := componentStates[n.Style.ID]; ok {
+					state := stateObj.(*TextInputState)
+					scrollOffset = state.scrollOffset
+				}
+			}
+			
+			w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2
+			if scrollOffset < len(val) {
+				val = val[scrollOffset:]
+			} else {
+				val = ""
+			}
+			if len(val) > w && w > 0 {
+				val = val[:w]
+			}
+			
+			drawText(screen, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, val, style)
+		}
 	case *Box:
 		if n.Style.ID != "" && n.Style.ID == focusedID {
 			focused = true

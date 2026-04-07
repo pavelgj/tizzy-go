@@ -24,6 +24,7 @@ type Margin struct {
 type Style struct {
 	ID             string
 	Focusable      bool
+	Multiline      bool
 	Width          int // 0 means auto or stretch? Let's assume absolute or percentage later. For now, absolute cells.
 	Height         int
 	FlexDirection  string // "row" or "column"

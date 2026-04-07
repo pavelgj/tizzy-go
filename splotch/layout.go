@@ -1,5 +1,7 @@
 package splotch
 
+import "strings"
+
 // LayoutResult holds the calculated position and size of a node.
 type LayoutResult struct {
 	Node     Node
@@ -38,17 +40,35 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 		boxX := x + margin.Left
 		boxY := y + margin.Top
 
-		w := len(n.Value)
+		w := 0
+		h := 1
+		if n.Style.Multiline {
+			lines := strings.Split(n.Value, "\n")
+			for _, line := range lines {
+				if len(line) > w {
+					w = len(line)
+				}
+			}
+			h = len(lines)
+		} else {
+			w = len(n.Value)
+		}
+		
 		if n.Style.Width > 0 {
 			w = n.Style.Width
+		}
+
+		borderSize := 0
+		if n.Style.Border {
+			borderSize = 2
 		}
 
 		return LayoutResult{
 			Node: node,
 			X:    boxX,
 			Y:    boxY,
-			W:    w + pad.Left + pad.Right,
-			H:    1 + pad.Top + pad.Bottom,
+			W:    w + pad.Left + pad.Right + borderSize,
+			H:    h + pad.Top + pad.Bottom + borderSize,
 		}
 	case *Box:
 		borderSize := 0
