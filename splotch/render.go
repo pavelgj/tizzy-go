@@ -5,7 +5,7 @@ import (
 )
 
 // Render draws the layout tree to the screen.
-func Render(screen tcell.Screen, layout LayoutResult, focusedID string) {
+func Render(screen tcell.Screen, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	focused := false
 	switch n := layout.Node.(type) {
 	case *Text:
@@ -27,10 +27,30 @@ func Render(screen tcell.Screen, layout LayoutResult, focusedID string) {
 			borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
 			style = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
 		}
+		
+		val := n.Value
+		scrollOffset := 0
+		if n.Style.ID != "" && componentStates != nil {
+			if stateObj, ok := componentStates[n.Style.ID]; ok {
+				state := stateObj.(*TextInputState)
+				scrollOffset = state.scrollOffset
+			}
+		}
+		
+		w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right
+		if scrollOffset < len(val) {
+			val = val[scrollOffset:]
+		} else {
+			val = ""
+		}
+		if len(val) > w && w > 0 {
+			val = val[:w]
+		}
+		
 		if n.Style.Border {
 			drawBorder(screen, layout.X, layout.Y, layout.W, layout.H, borderStyle)
 		}
-		drawText(screen, layout.X+n.Style.Padding.Left, layout.Y+n.Style.Padding.Top, n.Value, style)
+		drawText(screen, layout.X+n.Style.Padding.Left, layout.Y+n.Style.Padding.Top, val, style)
 	case *Box:
 		if n.Style.ID != "" && n.Style.ID == focusedID {
 			focused = true
@@ -44,7 +64,7 @@ func Render(screen tcell.Screen, layout LayoutResult, focusedID string) {
 			drawBorder(screen, layout.X, layout.Y, layout.W, layout.H, borderStyle)
 		}
 		for _, child := range layout.Children {
-			Render(screen, child, focusedID)
+			Render(screen, child, focusedID, componentStates)
 		}
 	}
 }

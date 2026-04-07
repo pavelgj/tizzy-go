@@ -23,7 +23,7 @@ func TestRenderBorder(t *testing.T) {
 	// Simulate screen size
 	s.SetSize(10, 10)
 
-	Render(s, layout, "")
+	Render(s, layout, "", nil)
 	s.Show()
 
 	// Check top-left corner
@@ -66,7 +66,7 @@ func TestRenderColors(t *testing.T) {
 	layout := Layout(text, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(20, 2)
-	Render(s, layout, "")
+	Render(s, layout, "", nil)
 	s.Show()
 
 	mainc, _, style, _ := s.GetContent(0, 0)

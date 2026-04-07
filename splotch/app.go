@@ -6,8 +6,9 @@ import (
 
 // App manages the terminal screen and the event loop.
 type App struct {
-	screen    tcell.Screen
-	focusedID string
+	screen          tcell.Screen
+	focusedID       string
+	componentStates map[string]any
 }
 
 // NewApp creates a new App instance.
@@ -16,7 +17,10 @@ func NewApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{screen: s}, nil
+	return &App{
+		screen:          s,
+		componentStates: make(map[string]any),
+	}, nil
 }
 
 // Run starts the application loop.
@@ -47,7 +51,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 		layout := Layout(root, 0, 0, Constraints{MaxW: w, MaxH: h})
 
 		// 3. Render
-		Render(a.screen, layout, a.focusedID)
+		Render(a.screen, layout, a.focusedID, a.componentStates)
 
 		// Handle cursor for focused TextInput
 		if a.focusedID != "" {
@@ -55,7 +59,14 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 			if input, ok := focusedNode.(*TextInput); ok {
 				res := findLayoutResultByID(layout, a.focusedID)
 				if res != nil {
-					a.screen.ShowCursor(res.X+len(input.Value), res.Y)
+					stateObj, ok := a.componentStates[a.focusedID]
+					if ok {
+						state := stateObj.(*TextInputState)
+						visualOffset := state.cursorOffset - state.scrollOffset
+						a.screen.ShowCursor(res.X+input.Style.Padding.Left+visualOffset, res.Y+input.Style.Padding.Top)
+					} else {
+						a.screen.ShowCursor(res.X+len(input.Value), res.Y)
+					}
 				}
 			} else {
 				a.screen.HideCursor()
@@ -82,14 +93,60 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 			if a.focusedID != "" {
 				focusedNode := findNodeByID(root, a.focusedID)
 				if input, ok := focusedNode.(*TextInput); ok {
-					if ev.Key() == tcell.KeyRune {
+					stateObj, ok := a.componentStates[a.focusedID]
+					var state *TextInputState
+					if !ok {
+						state = &TextInputState{cursorOffset: len(input.Value)}
+						a.componentStates[a.focusedID] = state
+					} else {
+						state = stateObj.(*TextInputState)
+					}
+
+					if state.cursorOffset > len(input.Value) {
+						state.cursorOffset = len(input.Value)
+					}
+
+					if ev.Key() == tcell.KeyLeft {
+						if state.cursorOffset > 0 {
+							state.cursorOffset--
+						}
+					} else if ev.Key() == tcell.KeyRight {
+						if state.cursorOffset < len(input.Value) {
+							state.cursorOffset++
+						}
+					} else if ev.Key() == tcell.KeyRune {
+						newVal := input.Value[:state.cursorOffset] + string(ev.Rune()) + input.Value[state.cursorOffset:]
+						state.cursorOffset++
 						if input.OnChange != nil {
-							input.OnChange(input.Value + string(ev.Rune()))
+							input.OnChange(newVal)
 						}
 					} else if ev.Key() == tcell.KeyBackspace || ev.Key() == tcell.KeyBackspace2 {
-						if len(input.Value) > 0 {
+						if state.cursorOffset > 0 {
+							newVal := input.Value[:state.cursorOffset-1] + input.Value[state.cursorOffset:]
+							state.cursorOffset--
 							if input.OnChange != nil {
-								input.OnChange(input.Value[:len(input.Value)-1])
+								input.OnChange(newVal)
+							}
+						}
+					} else if ev.Key() == tcell.KeyDelete {
+						if state.cursorOffset < len(input.Value) {
+							newVal := input.Value[:state.cursorOffset] + input.Value[state.cursorOffset+1:]
+							if input.OnChange != nil {
+								input.OnChange(newVal)
+							}
+						}
+					}
+
+					// Update scroll offset
+					res := findLayoutResultByID(layout, a.focusedID)
+					if res != nil {
+						w := res.W - input.Style.Padding.Left - input.Style.Padding.Right
+						if w > 0 {
+							if state.cursorOffset < state.scrollOffset {
+								state.scrollOffset = state.cursorOffset
+							}
+							if state.cursorOffset > state.scrollOffset+w {
+								state.scrollOffset = state.cursorOffset - w
 							}
 						}
 					}
@@ -202,4 +259,9 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 		}
 	}
 	return nil
+}
+
+type TextInputState struct {
+	cursorOffset int
+	scrollOffset int
 }

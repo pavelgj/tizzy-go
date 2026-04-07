@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"splotch/splotch"
 
@@ -41,7 +40,6 @@ func main() {
 		},
 		func(ev tcell.Event) {
 			// App handles text input events internally and calls OnChange!
-			fmt.Println(ev)
 		},
 	)
 
