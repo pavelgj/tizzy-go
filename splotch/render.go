@@ -366,6 +366,42 @@ func Render(grid *Grid, layout LayoutResult, focusedID string, componentStates m
 		}
 		
 		drawText(grid, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, str, style)
+	case *Tabs:
+		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+		
+		activeTabIndex := 0
+		if n.Style.ID != "" && componentStates != nil {
+			if stateObj, ok := componentStates[n.Style.ID]; ok {
+				if state, ok := stateObj.(*TabsState); ok {
+					activeTabIndex = state.ActiveTab
+				}
+			}
+		}
+
+		isFocused := n.Style.ID != "" && n.Style.ID == focusedID
+
+		// Draw headers
+		curX := layout.X + n.Style.Padding.Left
+		curY := layout.Y + n.Style.Padding.Top
+
+		for i, tab := range n.Tabs {
+			label := "[ " + tab.Label + " ]"
+			itemStyle := style
+			if i == activeTabIndex {
+				if isFocused {
+					itemStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+				} else {
+					itemStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
+				}
+			}
+			drawText(grid, curX, curY, label, itemStyle)
+			curX += len(label)
+		}
+
+		// Render ONLY the active child content
+		if activeTabIndex >= 0 && activeTabIndex < len(layout.Children) {
+			Render(grid, layout.Children[activeTabIndex], focusedID, componentStates)
+		}
 	case *Box:
 		if n.Style.ID != "" && n.Style.ID == focusedID {
 			focused = true

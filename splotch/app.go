@@ -70,7 +70,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 
 		focusableIDs := []string{}
 		if activeModal != nil {
-			focusableIDs = findFocusableIDs(activeModal.Child)
+			focusableIDs = findFocusableIDs(activeModal.Child, a.componentStates)
 			// Ensure focus is inside modal
 			found := false
 			for _, id := range focusableIDs {
@@ -83,7 +83,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 				a.focusedID = focusableIDs[0]
 			}
 		} else {
-			focusableIDs = findFocusableIDs(root)
+			focusableIDs = findFocusableIDs(root, a.componentStates)
 			if a.focusedID == "" && len(focusableIDs) > 0 {
 				a.focusedID = focusableIDs[0]
 			}
@@ -623,44 +623,74 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 				if !handled {
 					path := findNodePathAt(layout, mx, my, a.componentStates)
 					if len(path) > 0 {
-						clickedNode := path[len(path)-1]
-
-						var nodeStyle Style
-						var focusableNode Node
-						for i := len(path) - 1; i >= 0; i-- {
-							n := path[i]
-							switch node := n.(type) {
-							case *Text:
-								nodeStyle = node.Style
-							case *TextInput:
-								nodeStyle = node.Style
-							case *Button:
-								nodeStyle = node.Style
-							case *Checkbox:
-								nodeStyle = node.Style
-							case *RadioButton:
-								nodeStyle = node.Style
-							case *Spinner:
-								nodeStyle = node.Style
-							case *ProgressBar:
-								nodeStyle = node.Style
-							case *ScrollView:
-								nodeStyle = node.Style
-							case *Dropdown:
-								nodeStyle = node.Style
-							case *Box:
-								nodeStyle = node.Style
-							}
-							if nodeStyle.Focusable && nodeStyle.ID != "" {
-								focusableNode = n
-								break
+						debugLog(fmt.Sprintf("Mouse click at %d,%d. Path len: %d", mx, my, len(path)))
+						if len(path) > 0 {
+							debugLog(fmt.Sprintf("Leaf node: %T", path[len(path)-1]))
+							for i, n := range path {
+								debugLog(fmt.Sprintf("  Path[%d]: %T", i, n))
 							}
 						}
 
-						if focusableNode != nil {
-							a.focusedID = nodeStyle.ID
-							a.closeOtherDropdowns(a.focusedID)
+						// Filter out clicks targeting hidden tab content
+						validPath := true
+						for i := 0; i < len(path)-1; i++ {
+							if tabs, ok := path[i].(*Tabs); ok && tabs.Style.ID != "" {
+								stateObj, ok := a.componentStates[tabs.Style.ID]
+								activeIdx := 0
+								if ok {
+									activeIdx = stateObj.(*TabsState).ActiveTab
+								}
+								activeChild := tabs.Tabs[activeIdx].Content
+								if path[i+1] != activeChild {
+									validPath = false
+									break
+								}
+							}
 						}
+
+						if !validPath {
+							handled = true
+						} else {
+							clickedNode := path[len(path)-1]
+
+							var nodeStyle Style
+							var focusableNode Node
+							for i := len(path) - 1; i >= 0; i-- {
+								n := path[i]
+								switch node := n.(type) {
+								case *Text:
+									nodeStyle = node.Style
+								case *TextInput:
+									nodeStyle = node.Style
+								case *Button:
+									nodeStyle = node.Style
+								case *Checkbox:
+									nodeStyle = node.Style
+								case *RadioButton:
+									nodeStyle = node.Style
+								case *Spinner:
+									nodeStyle = node.Style
+								case *ProgressBar:
+									nodeStyle = node.Style
+								case *ScrollView:
+									nodeStyle = node.Style
+								case *Dropdown:
+									nodeStyle = node.Style
+								case *Tabs:
+									nodeStyle = node.Style
+								case *Box:
+									nodeStyle = node.Style
+								}
+								if nodeStyle.Focusable && nodeStyle.ID != "" {
+									focusableNode = n
+									break
+								}
+							}
+
+							if focusableNode != nil {
+								a.focusedID = nodeStyle.ID
+								a.closeOtherDropdowns(a.focusedID)
+							}
 
 						if btn, ok := clickedNode.(*Button); ok {
 							if btn.OnClick != nil {
@@ -678,6 +708,32 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 								rb.OnChange(rb.Value)
 							}
 						}
+						if tabs, ok := clickedNode.(*Tabs); ok && tabs.Style.ID != "" {
+							res := findLayoutResultByID(layout, tabs.Style.ID)
+							if res != nil {
+								curX := res.X + tabs.Style.Padding.Left
+								curY := res.Y + tabs.Style.Padding.Top
+								
+								if my == curY {
+									for i, tab := range tabs.Tabs {
+										labelLen := len(tab.Label) + 4 // "[ " + label + " ]"
+										if mx >= curX && mx < curX+labelLen {
+											stateObj, ok := a.componentStates[tabs.Style.ID]
+											var state *TabsState
+											if !ok {
+												state = &TabsState{}
+												a.componentStates[tabs.Style.ID] = state
+											} else {
+												state = stateObj.(*TabsState)
+											}
+											state.ActiveTab = i
+											break
+										}
+										curX += labelLen
+									}
+								}
+							}
+						}
 						if drp, ok := clickedNode.(*Dropdown); ok {
 							stateObj, ok := a.componentStates[drp.Style.ID]
 							var state *DropdownState
@@ -689,6 +745,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 							}
 							state.Open = !state.Open
 						}
+					}
 					}
 				}
 			} else if ev.Buttons()&tcell.Button4 != 0 || ev.Buttons()&tcell.WheelUp != 0 { // Wheel Up
@@ -801,7 +858,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 	}
 }
 
-func findFocusableIDs(node Node) []string {
+func findFocusableIDs(node Node, componentStates map[string]any) []string {
 	var ids []string
 	switch n := node.(type) {
 	case *Text:
@@ -820,6 +877,19 @@ func findFocusableIDs(node Node) []string {
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
 		}
+	case *Tabs:
+		if n.Style.Focusable && n.Style.ID != "" {
+			ids = append(ids, n.Style.ID)
+		}
+		activeIdx := 0
+		if n.Style.ID != "" && componentStates != nil {
+			if stateObj, ok := componentStates[n.Style.ID]; ok {
+				activeIdx = stateObj.(*TabsState).ActiveTab
+			}
+		}
+		if activeIdx >= 0 && activeIdx < len(n.Tabs) {
+			ids = append(ids, findFocusableIDs(n.Tabs[activeIdx].Content, componentStates)...)
+		}
 	case *Checkbox:
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
@@ -837,7 +907,7 @@ func findFocusableIDs(node Node) []string {
 			ids = append(ids, n.Style.ID)
 		}
 		for _, child := range n.Children {
-			ids = append(ids, findFocusableIDs(child)...)
+			ids = append(ids, findFocusableIDs(child, componentStates)...)
 		}
 	}
 	return ids
@@ -901,6 +971,15 @@ func findNodeByID(node Node, id string) Node {
 			return n
 		}
 		return findNodeByID(n.Child, id)
+	case *Tabs:
+		if n.Style.ID == id {
+			return n
+		}
+		for _, tab := range n.Tabs {
+			if found := findNodeByID(tab.Content, id); found != nil {
+				return found
+			}
+		}
 	case *TextInput:
 		if n.Style.ID == id {
 			return n
@@ -933,6 +1012,15 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 			return &res
 		}
 	case *Box:
+		if n.Style.ID == id {
+			return &res
+		}
+		for _, child := range res.Children {
+			if found := findLayoutResultByID(child, id); found != nil {
+				return found
+			}
+		}
+	case *Tabs:
 		if n.Style.ID == id {
 			return &res
 		}
@@ -1208,6 +1296,33 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					return false
 				}
 			}
+		}
+	}
+
+	// Handle Tabs keyboard navigation when focused
+	tabs := findTabs(root)
+	if tabs != nil && tabs.Style.ID != "" && a.focusedID == tabs.Style.ID {
+		stateObj, ok := a.componentStates[tabs.Style.ID]
+		var state *TabsState
+		if !ok {
+			state = &TabsState{}
+			a.componentStates[tabs.Style.ID] = state
+		} else {
+			state = stateObj.(*TabsState)
+		}
+
+		if ev.Key() == tcell.KeyRight {
+			state.ActiveTab++
+			if state.ActiveTab >= len(tabs.Tabs) {
+				state.ActiveTab = 0
+			}
+			return false
+		} else if ev.Key() == tcell.KeyLeft {
+			state.ActiveTab--
+			if state.ActiveTab < 0 {
+				state.ActiveTab = len(tabs.Tabs) - 1
+			}
+			return false
 		}
 	}
 
@@ -1527,6 +1642,24 @@ func findMenuBar(node Node) *MenuBar {
 		return findMenuBar(tn.Child)
 	case *Modal:
 		return findMenuBar(tn.Child)
+	}
+	return nil
+}
+
+func findTabs(node Node) *Tabs {
+	switch tn := node.(type) {
+	case *Tabs:
+		return tn
+	case *Box:
+		for _, child := range tn.Children {
+			if t := findTabs(child); t != nil {
+				return t
+			}
+		}
+	case *ScrollView:
+		return findTabs(tn.Child)
+	case *Modal:
+		return findTabs(tn.Child)
 	}
 	return nil
 }

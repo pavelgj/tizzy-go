@@ -1,0 +1,82 @@
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"splotch/splotch"
+
+	"github.com/gdamore/tcell/v2"
+)
+
+func main() {
+	app, err := splotch.NewApp()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	count := 0
+	countOutside := 0
+	notificationsEnabled := true
+
+	render := func() splotch.Node {
+		return splotch.NewBox(
+			splotch.Style{
+				Padding: splotch.Padding{Top: 1, Left: 2},
+			},
+			splotch.NewText(splotch.Style{Color: tcell.ColorYellow}, "Tabs Sample"),
+			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Click on tabs or use Left/Right arrows to switch when focused."),
+
+			splotch.NewTabs(
+				splotch.Style{
+					ID:        "tabs1",
+					Focusable: true,
+					Margin:    splotch.Margin{Top: 1},
+					Color:     tcell.ColorWhite,
+				},
+				[]splotch.Tab{
+					{
+						Label: "Home",
+						Content: splotch.NewBox(
+							splotch.Style{Border: true, Padding: splotch.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
+							splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Welcome to Home Tab!"),
+							splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, fmt.Sprintf("Button clicks: %d", count)),
+							splotch.NewButton(splotch.Style{ID: "btn_home", Focusable: true, Margin: splotch.Margin{Top: 1}}, "Home Action", func() {
+								count++
+							}),
+						),
+					},
+					{
+						Label: "Settings",
+						Content: splotch.NewBox(
+							splotch.Style{Border: true, Padding: splotch.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
+							splotch.NewText(splotch.Style{Color: tcell.ColorBlue}, "Settings Tab"),
+							splotch.NewCheckbox(splotch.Style{ID: "cb1", Focusable: true}, "Enable Notifications", notificationsEnabled, func(val bool) {
+								notificationsEnabled = val
+							}),
+							splotch.NewTextInput(splotch.Style{ID: "input1", Focusable: true, Width: 20, Margin: splotch.Margin{Top: 1}}, "Initial Value", func(val string) {}),
+						),
+					},
+					{
+						Label: "About",
+						Content: splotch.NewBox(
+							splotch.Style{Border: true, Padding: splotch.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
+							splotch.NewText(splotch.Style{Color: tcell.ColorDarkMagenta}, "About Tab"),
+							splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Splotch TUI Library v0.1.0"),
+						),
+					},
+				},
+			),
+			splotch.NewText(splotch.Style{Color: tcell.ColorWhite, Margin: splotch.Margin{Top: 1}}, fmt.Sprintf("Outside clicks: %d", countOutside)),
+			splotch.NewButton(splotch.Style{ID: "btn1", Focusable: true}, "Focusable Button", func() {
+				countOutside++
+			}),
+		)
+	}
+
+	if err := app.Run(render, nil); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}

@@ -444,6 +444,56 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			W:    w + pad.Left + pad.Right + borderSize,
 			H:    layoutH,
 		}
+	case *Tabs:
+		pad := n.Style.Padding
+		margin := n.Style.Margin
+		boxX := x + margin.Left
+		boxY := y + margin.Top
+
+		headerH := 1
+		headersW := 0
+		for _, tab := range n.Tabs {
+			headersW += len(tab.Label) + 4 // "[ " + label + " ]"
+		}
+
+		childConstraints := Constraints{
+			MaxW: c.MaxW - pad.Left - pad.Right,
+			MaxH: c.MaxH - headerH - pad.Top - pad.Bottom,
+		}
+		if childConstraints.MaxW < 0 { childConstraints.MaxW = 0 }
+		if childConstraints.MaxH < 0 { childConstraints.MaxH = 0 }
+
+		var childrenLayouts []LayoutResult
+		contentW := 0
+		contentH := 0
+
+		contentX := boxX + pad.Left
+		contentY := boxY + headerH + pad.Top
+
+		for _, tab := range n.Tabs {
+			res := Layout(tab.Content, contentX, contentY, childConstraints)
+			childrenLayouts = append(childrenLayouts, res)
+			if res.W > contentW { contentW = res.W }
+			if res.H > contentH { contentH = res.H }
+		}
+
+		w := headersW
+		if contentW > w { w = contentW }
+		w += pad.Left + pad.Right
+
+		h := headerH + contentH + pad.Top + pad.Bottom
+
+		if n.Style.Width > 0 { w = n.Style.Width }
+		if n.Style.Height > 0 { h = n.Style.Height }
+
+		return LayoutResult{
+			Node:     node,
+			X:        boxX,
+			Y:        boxY,
+			W:        w,
+			H:        h,
+			Children: childrenLayouts,
+		}
 	case *Box:
 		borderSize := 0
 		if n.Style.Border {
