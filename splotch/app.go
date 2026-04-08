@@ -1060,11 +1060,7 @@ func (a *App) closeOtherDropdowns(keepID string) {
 	}
 }
 
-type TextInputState struct {
-	cursorOffset  int
-	scrollOffset  int
-	vScrollOffset int
-}
+
 
 func offsetToLineCol(text string, offset int) (int, int) {
 	lines := strings.Split(text, "\n")

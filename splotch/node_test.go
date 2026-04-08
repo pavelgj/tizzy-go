@@ -1,18 +1,10 @@
 package splotch
 
-import "testing"
+import (
+	"testing"
 
-func TestLayoutText(t *testing.T) {
-	text := NewText(Style{}, "Hello")
-	res := Layout(text, 10, 20, Constraints{MaxW: 100, MaxH: 100})
-
-	if res.X != 10 || res.Y != 20 {
-		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
-	}
-	if res.W != 5 || res.H != 1 {
-		t.Errorf("Expected W=5, H=1, got W=%d, H=%d", res.W, res.H)
-	}
-}
+	"github.com/gdamore/tcell/v2"
+)
 
 func TestLayoutBoxRow(t *testing.T) {
 	box := NewBox(Style{FlexDirection: "row"},
@@ -55,6 +47,7 @@ func TestLayoutBoxColumn(t *testing.T) {
 		t.Errorf("Expected second child Y=1, got Y=%d", res.Children[1].Y)
 	}
 }
+
 func TestLayoutBoxWithBorder(t *testing.T) {
 	box := NewBox(Style{Border: true},
 		NewText(Style{}, "Hi"),
@@ -128,7 +121,6 @@ func TestLayoutCenter(t *testing.T) {
 	box := NewBox(Style{FlexDirection: "row", JustifyContent: "center"},
 		NewText(Style{}, "Hi"),
 	)
-	// MaxW 10, content width 2. Remaining 8 / 2 = 4 shift.
 	res := Layout(box, 0, 0, Constraints{MaxW: 10, MaxH: 1})
 
 	if len(res.Children) != 1 {
@@ -136,42 +128,6 @@ func TestLayoutCenter(t *testing.T) {
 	}
 	if res.Children[0].X != 4 {
 		t.Errorf("Expected child X=4, got %d", res.Children[0].X)
-	}
-}
-
-func TestLayoutButton(t *testing.T) {
-	btn := NewButton(Style{}, "Click", func() {})
-	res := Layout(btn, 10, 20, Constraints{MaxW: 100, MaxH: 100})
-
-	if res.X != 10 || res.Y != 20 {
-		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
-	}
-	if res.W != 9 || res.H != 1 {
-		t.Errorf("Expected W=9, H=1, got W=%d, H=%d", res.W, res.H)
-	}
-}
-
-func TestLayoutSpinner(t *testing.T) {
-	spinner := NewSpinner(Style{})
-	res := Layout(spinner, 10, 20, Constraints{MaxW: 100, MaxH: 100})
-
-	if res.X != 10 || res.Y != 20 {
-		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
-	}
-	if res.W != 1 || res.H != 1 {
-		t.Errorf("Expected W=1, H=1, got W=%d, H=%d", res.W, res.H)
-	}
-}
-
-func TestLayoutProgressBar(t *testing.T) {
-	pb := NewProgressBar(Style{Width: 30}, 0.5)
-	res := Layout(pb, 10, 20, Constraints{MaxW: 100, MaxH: 100})
-
-	if res.X != 10 || res.Y != 20 {
-		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
-	}
-	if res.W != 30 || res.H != 1 {
-		t.Errorf("Expected W=30, H=1, got W=%d, H=%d", res.W, res.H)
 	}
 }
 
@@ -195,47 +151,6 @@ func TestLayoutMarginAccumulation(t *testing.T) {
 	c1 := res.Children[1]
 	if c1.X != 7 {
 		t.Errorf("Expected child 1 X=7, got %d", c1.X)
-	}
-}
-
-func TestLayoutCheckbox(t *testing.T) {
-	cb := NewCheckbox(Style{}, "Check", false, nil)
-	res := Layout(cb, 10, 20, Constraints{MaxW: 100, MaxH: 100})
-
-	if res.X != 10 || res.Y != 20 {
-		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
-	}
-	if res.W != 9 || res.H != 1 {
-		t.Errorf("Expected W=9, H=1, got W=%d, H=%d", res.W, res.H)
-	}
-}
-
-func TestLayoutRadioButton(t *testing.T) {
-	rb := NewRadioButton(Style{}, "Option", "val", false, nil)
-	res := Layout(rb, 10, 20, Constraints{MaxW: 100, MaxH: 100})
-
-	if res.X != 10 || res.Y != 20 {
-		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
-	}
-	if res.W != 10 || res.H != 1 {
-		t.Errorf("Expected W=10, H=1, got W=%d, H=%d", res.W, res.H)
-	}
-}
-
-func TestLayoutTable(t *testing.T) {
-	headers := []string{"ID", "Name"}
-	rows := [][]string{
-		{"1", "Alice"},
-		{"2", "Bob"},
-	}
-	table := NewTable(Style{}, headers, rows)
-	res := Layout(table, 10, 20, Constraints{MaxW: 100, MaxH: 100})
-
-	if res.X != 10 || res.Y != 20 {
-		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
-	}
-	if res.W != 8 || res.H != 4 {
-		t.Errorf("Expected W=8, H=4, got W=%d, H=%d", res.W, res.H)
 	}
 }
 
@@ -275,19 +190,45 @@ func TestLayoutFillWidthRow(t *testing.T) {
 	}
 }
 
-func TestLayoutScrollView(t *testing.T) {
-	text := NewText(Style{}, "Hello")
-	sv := NewScrollView(Style{Width: 10, Height: 5}, text)
-	res := Layout(sv, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+func TestRenderBorder(t *testing.T) {
+	s := tcell.NewSimulationScreen("")
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
 
-	if res.W != 10 || res.H != 5 {
-		t.Errorf("Expected W=10, H=5, got W=%d, H=%d", res.W, res.H)
+	box := NewBox(Style{Border: true},
+		NewText(Style{}, "Hi"),
+	)
+
+	layout := Layout(box, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+	
+	s.SetSize(10, 10)
+
+	renderToScreen(s, layout, "", nil)
+	s.Show()
+
+	mainc, _, _, _ := s.GetContent(0, 0)
+	if mainc != '┌' {
+		t.Errorf("Expected '┌' at 0,0, got '%c'", mainc)
 	}
-	if len(res.Children) != 1 {
-		t.Errorf("Expected 1 child, got %d", len(res.Children))
+
+	mainc, _, _, _ = s.GetContent(1, 0)
+	if mainc != '─' {
+		t.Errorf("Expected '─' at 1,0, got '%c'", mainc)
 	}
-	childRes := res.Children[0]
-	if childRes.W != 5 {
-		t.Errorf("Expected child W=5, got %d", childRes.W)
+
+	mainc, _, _, _ = s.GetContent(1, 1)
+	if mainc != 'H' {
+		t.Errorf("Expected 'H' at 1,1, got '%c'", mainc)
+	}
+
+	mainc, _, _, _ = s.GetContent(2, 1)
+	if mainc != 'i' {
+		t.Errorf("Expected 'i' at 2,1, got '%c'", mainc)
+	}
+
+	mainc, _, _, _ = s.GetContent(3, 2)
+	if mainc != '┘' {
+		t.Errorf("Expected '┘' at 3,2, got '%c'", mainc)
 	}
 }

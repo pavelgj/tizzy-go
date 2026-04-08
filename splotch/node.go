@@ -6,8 +6,18 @@ import (
 
 // Node represents a component in the UI tree.
 type Node interface {
-	// For now, this is a marker interface.
-	// We will add methods as needed for layout and rendering.
+	// GetStyle returns the style of the node.
+	GetStyle() Style
+}
+
+// Layoutable indicates that a node can calculate its own layout.
+type Layoutable interface {
+	Layout(x, y int, c Constraints) LayoutResult
+}
+
+// Renderable indicates that a node can render itself.
+type Renderable interface {
+	Render(grid *Grid, res LayoutResult, focusedID string, componentStates map[string]any)
 }
 
 // Padding defines the spacing inside a node.
@@ -45,18 +55,151 @@ type Box struct {
 	Children []Node
 }
 
-// Text is a leaf node that displays text.
-type Text struct {
-	Style   Style
-	Content string
-}
-
 // NewBox creates a new Box node.
 func NewBox(style Style, children ...Node) *Box {
 	return &Box{Style: style, Children: children}
 }
 
-// NewText creates a new Text node.
-func NewText(style Style, content string) *Text {
-	return &Text{Style: style, Content: content}
+// GetStyle returns the style of the Box node.
+func (b *Box) GetStyle() Style {
+	return b.Style
+}
+
+// Layout calculates the layout for the Box node.
+func (n *Box) Layout(x, y int, c Constraints) LayoutResult {
+	borderSize := 0
+	if n.Style.Border {
+		borderSize = 1
+	}
+
+	pad := n.Style.Padding
+	margin := n.Style.Margin
+
+	boxX := x + margin.Left
+	boxY := y + margin.Top
+
+	res := LayoutResult{
+		Node: n,
+		X:    boxX,
+		Y:    boxY,
+		W:    0,
+		H:    0,
+	}
+
+	// Children start after border and padding
+	curX := boxX + borderSize + pad.Left
+	curY := boxY + borderSize + pad.Top
+
+	contentW := 0
+	contentH := 0
+
+	childConstraints := Constraints{
+		MaxW: c.MaxW - (borderSize * 2) - pad.Left - pad.Right,
+		MaxH: c.MaxH - (borderSize * 2) - pad.Top - pad.Bottom,
+	}
+	if childConstraints.MaxW < 0 {
+		childConstraints.MaxW = 0
+	}
+	if childConstraints.MaxH < 0 {
+		childConstraints.MaxH = 0
+	}
+
+	for _, child := range n.Children {
+		childMargin := child.GetStyle().Margin
+
+		cRes := Layout(child, curX, curY, childConstraints)
+		res.Children = append(res.Children, cRes)
+
+		if n.Style.FlexDirection == "row" {
+			curX += childMargin.Left + cRes.W + childMargin.Right
+			contentW += childMargin.Left + cRes.W + childMargin.Right
+			if cRes.H+childMargin.Top+childMargin.Bottom > contentH {
+				contentH = cRes.H + childMargin.Top + childMargin.Bottom
+			}
+			childConstraints.MaxW -= (childMargin.Left + cRes.W + childMargin.Right)
+			if childConstraints.MaxW < 0 {
+				childConstraints.MaxW = 0
+			}
+		} else { // default to column
+			curY += childMargin.Top + cRes.H + childMargin.Bottom
+			contentH += childMargin.Top + cRes.H + childMargin.Bottom
+			if cRes.W+childMargin.Left+childMargin.Right > contentW {
+				contentW = childMargin.Left + cRes.W + childMargin.Right
+			}
+			childConstraints.MaxH -= (childMargin.Top + cRes.H + childMargin.Bottom)
+			if childConstraints.MaxH < 0 {
+				childConstraints.MaxH = 0
+			}
+		}
+	}
+
+	// Total size of this box (excluding its own margin)
+	res.W = contentW + (borderSize * 2) + pad.Left + pad.Right
+	res.H = contentH + (borderSize * 2) + pad.Top + pad.Bottom
+
+	// If we are centering, we take up all available space!
+	if n.Style.JustifyContent == "center" {
+		if n.Style.FlexDirection == "row" {
+			if c.MaxW > res.W {
+				res.W = c.MaxW
+			}
+		} else {
+			if c.MaxH > res.H {
+				res.H = c.MaxH
+			}
+		}
+	}
+
+	if n.Style.FillWidth {
+		if c.MaxW > res.W {
+			res.W = c.MaxW
+		}
+	}
+	if n.Style.FillHeight {
+		if c.MaxH > res.H {
+			res.H = c.MaxH
+		}
+	}
+
+	// Flexbox alignment
+	if n.Style.JustifyContent == "center" {
+		if n.Style.FlexDirection == "row" {
+			remainingW := res.W - (borderSize * 2) - pad.Left - pad.Right - contentW
+			if remainingW > 0 {
+				shift := remainingW / 2
+				for i := range res.Children {
+					res.Children[i].X += shift
+				}
+			}
+		} else { // column
+			remainingH := res.H - (borderSize * 2) - pad.Top - pad.Bottom - contentH
+			if remainingH > 0 {
+				shift := remainingH / 2
+				for i := range res.Children {
+					res.Children[i].Y += shift
+				}
+			}
+		}
+	}
+
+	return res
+}
+
+// Render draws the Box node to the grid.
+func (n *Box) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
+	focused := false
+	if n.Style.ID != "" && n.Style.ID == focusedID {
+		focused = true
+	}
+	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+	borderStyle := style
+	if focused {
+		borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
+	}
+	if n.Style.Border {
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+	}
+	for _, child := range layout.Children {
+		Render(grid, child, focusedID, componentStates)
+	}
 }
