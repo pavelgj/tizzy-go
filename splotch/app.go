@@ -1,8 +1,11 @@
 package splotch
 
 import (
+	"fmt"
+	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -199,6 +202,76 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 			}
 		}
 
+		// Render MenuBar overlays
+		for id, stateObj := range a.componentStates {
+			if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
+				debugLog(fmt.Sprintf("Found open MenuBar state for ID: %s, open index: %d", id, state.OpenMenuIndex))
+				res := findLayoutResultByID(layout, id)
+				if res == nil {
+					debugLog(fmt.Sprintf("  Layout result not found for ID: %s", id))
+				}
+				menuBarNode := findNodeByID(root, id)
+				if menuBarNode == nil {
+					debugLog(fmt.Sprintf("  Node not found for ID: %s", id))
+				}
+				if res != nil && menuBarNode != nil {
+					if mb, ok := menuBarNode.(*MenuBar); ok {
+						borderOffset := 0
+						if mb.Style.Border { borderOffset = 1 }
+						curX := res.X + borderOffset + mb.Style.Padding.Left
+						
+						menuX := curX
+						for i := 0; i < state.OpenMenuIndex; i++ {
+							menuX += len(mb.Menus[i].Title) + 4
+						}
+						
+						openMenu := mb.Menus[state.OpenMenuIndex]
+						listY := res.Y + borderOffset + mb.Style.Padding.Top + 1
+						
+						listW := 0
+						for _, item := range openMenu.Items {
+							if len(item.Label) > listW { listW = len(item.Label) }
+						}
+						listW += 2
+						
+						listH := len(openMenu.Items)
+						
+						style := tcell.StyleDefault.Foreground(mb.Style.Color).Background(mb.Style.Background)
+						for i := 0; i < listH; i++ {
+							for j := 0; j < listW; j++ {
+								if listY+i < h && menuX+j < w {
+									grid.SetContent(menuX+j, listY+i, ' ', style)
+								}
+							}
+						}
+						
+						for i, item := range openMenu.Items {
+							itemStyle := style
+							if state.FocusedItemIndex == i {
+								itemStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+							}
+							if item.Disabled {
+								itemStyle = itemStyle.Foreground(tcell.ColorGray)
+							}
+							
+							label := " " + item.Label
+							for len(label) < listW {
+								label += " "
+							}
+							
+							curItemX := menuX
+							for _, r := range label {
+								if listY+i < h && curItemX < w {
+									grid.SetContent(curItemX, listY+i, r, itemStyle)
+									curItemX++
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 		// 4. Diff and update screen
 		if a.previousGrid == nil || a.previousGrid.W != w || a.previousGrid.H != h {
 			a.screen.Clear()
@@ -270,6 +343,47 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 			// Continuous rendering for animations
 		case *tcell.EventMouse:
 			mx, my := ev.Position()
+			
+			// Handle MenuBar hover-to-switch
+			var openMenuBar *MenuBar
+			var openMenuBarID string
+			for id, stateObj := range a.componentStates {
+				if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
+					node := findNodeByID(root, id)
+					if mb, ok := node.(*MenuBar); ok {
+						openMenuBar = mb
+						openMenuBarID = id
+						break
+					}
+				}
+			}
+			
+			if openMenuBar != nil {
+				res := findLayoutResultByID(layout, openMenuBarID)
+				if res != nil {
+					borderOffset := 0
+					if openMenuBar.Style.Border { borderOffset = 1 }
+					curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
+					curY := res.Y + borderOffset + openMenuBar.Style.Padding.Top
+					
+					if my == curY {
+						for i, menu := range openMenuBar.Menus {
+							titleLen := len(menu.Title) + 2
+							if mx >= curX && mx < curX+titleLen {
+								stateObj := a.componentStates[openMenuBarID]
+								state := stateObj.(*MenuBarState)
+								if state.OpenMenuIndex != i {
+									state.OpenMenuIndex = i
+									state.FocusedItemIndex = -1
+								}
+								break
+							}
+							curX += titleLen + 2
+						}
+					}
+				}
+			}
+
 			if ev.Buttons()&tcell.Button1 != 0 {
 				handled := false
 				
@@ -367,6 +481,97 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 					}
 				}
 				
+				if !handled {
+					var openMenuBar *MenuBar
+					var openMenuBarID string
+					for id, stateObj := range a.componentStates {
+						if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
+							node := findNodeByID(root, id)
+							if mb, ok := node.(*MenuBar); ok {
+								openMenuBar = mb
+								openMenuBarID = id
+								break
+							}
+						}
+					}
+					
+					if openMenuBar != nil {
+						stateObj := a.componentStates[openMenuBarID]
+						state := stateObj.(*MenuBarState)
+						if state.OpenMenuIndex >= 0 {
+							res := findLayoutResultByID(layout, openMenuBarID)
+							if res != nil {
+								borderOffset := 0
+								if openMenuBar.Style.Border { borderOffset = 1 }
+								curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
+								
+								menuX := curX
+								for i := 0; i < state.OpenMenuIndex; i++ {
+									menuX += len(openMenuBar.Menus[i].Title) + 4
+								}
+								
+								openMenu := openMenuBar.Menus[state.OpenMenuIndex]
+								listY := res.Y + borderOffset + openMenuBar.Style.Padding.Top + 1
+								listW := 0
+								for _, item := range openMenu.Items {
+									if len(item.Label) > listW { listW = len(item.Label) }
+								}
+								listW += 2
+								listH := len(openMenu.Items)
+								
+								if mx >= menuX && mx < menuX+listW && my >= listY && my < listY+listH {
+									clickedIndex := my - listY
+									item := openMenu.Items[clickedIndex]
+									if !item.Disabled && item.Action != nil {
+										item.Action()
+									}
+									state.OpenMenuIndex = -1
+									handled = true
+								}
+							}
+						}
+					}
+					
+					if !handled {
+						menuBar := findMenuBar(root)
+						if menuBar != nil && menuBar.Style.ID != "" {
+							res := findLayoutResultByID(layout, menuBar.Style.ID)
+							if res != nil {
+								borderOffset := 0
+								if menuBar.Style.Border { borderOffset = 1 }
+								curX := res.X + borderOffset + menuBar.Style.Padding.Left
+								curY := res.Y + borderOffset + menuBar.Style.Padding.Top
+								
+								if my == curY {
+									for i, menu := range menuBar.Menus {
+										titleLen := len(menu.Title) + 2
+										if mx >= curX && mx < curX+titleLen {
+											stateObj, ok := a.componentStates[menuBar.Style.ID]
+											var state *MenuBarState
+											if !ok {
+												state = &MenuBarState{OpenMenuIndex: -1}
+												a.componentStates[menuBar.Style.ID] = state
+											} else {
+												state = stateObj.(*MenuBarState)
+											}
+											
+											if state.OpenMenuIndex == i {
+												state.OpenMenuIndex = -1
+											} else {
+												state.OpenMenuIndex = i
+												state.FocusedItemIndex = -1
+											}
+											handled = true
+											break
+										}
+										curX += titleLen + 2
+									}
+								}
+							}
+						}
+					}
+				}
+
 				if !handled {
 					for id, stateObj := range a.componentStates {
 						if state, ok := stateObj.(*DropdownState); ok && state.Open {
@@ -590,6 +795,10 @@ func findFocusableIDs(node Node) []string {
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
 		}
+	case *MenuBar:
+		if n.Style.Focusable && n.Style.ID != "" {
+			ids = append(ids, n.Style.ID)
+		}
 	case *Checkbox:
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
@@ -683,6 +892,10 @@ func findNodeByID(node Node, id string) Node {
 		if n.Style.ID == id {
 			return n
 		}
+	case *MenuBar:
+		if n.Style.ID == id {
+			return n
+		}
 	case *Modal:
 		if n.Style.ID == id {
 			return n
@@ -716,6 +929,10 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 			return &res
 		}
 	case *Dropdown:
+		if n.Style.ID == id {
+			return &res
+		}
+	case *MenuBar:
 		if n.Style.ID == id {
 			return &res
 		}
@@ -859,6 +1076,87 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 	if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
 		return true // Request exit
 	}
+
+	// Handle MenuBar shortcuts (Alt+Letter)
+	if ev.Modifiers()&tcell.ModAlt != 0 && ev.Key() == tcell.KeyRune {
+		runeLower := unicode.ToLower(ev.Rune())
+		menuBar := findMenuBar(root)
+		
+		if menuBar != nil && menuBar.Style.ID != "" {
+			for i, menu := range menuBar.Menus {
+				if unicode.ToLower(menu.AltRune) == runeLower {
+					stateObj, ok := a.componentStates[menuBar.Style.ID]
+					var state *MenuBarState
+					if !ok {
+						state = &MenuBarState{OpenMenuIndex: -1}
+						a.componentStates[menuBar.Style.ID] = state
+					} else {
+						state = stateObj.(*MenuBarState)
+					}
+					
+					if state.OpenMenuIndex == i {
+						state.OpenMenuIndex = -1 // Toggle close
+					} else {
+						state.OpenMenuIndex = i // Open
+						state.FocusedItemIndex = -1 // Reset focus
+					}
+					return false // Handled
+				}
+			}
+		}
+	}
+
+	// Handle MenuBar arrow navigation when open
+	menuBar := findMenuBar(root)
+	if menuBar != nil && menuBar.Style.ID != "" {
+		stateObj, ok := a.componentStates[menuBar.Style.ID]
+		if ok {
+			state := stateObj.(*MenuBarState)
+			if state.OpenMenuIndex >= 0 {
+				openMenu := menuBar.Menus[state.OpenMenuIndex]
+				if ev.Key() == tcell.KeyDown {
+					state.FocusedItemIndex++
+					if state.FocusedItemIndex >= len(openMenu.Items) {
+						state.FocusedItemIndex = 0
+					}
+					return false
+				} else if ev.Key() == tcell.KeyUp {
+					state.FocusedItemIndex--
+					if state.FocusedItemIndex < 0 {
+						state.FocusedItemIndex = len(openMenu.Items) - 1
+					}
+					return false
+				} else if ev.Key() == tcell.KeyRight {
+					state.OpenMenuIndex++
+					if state.OpenMenuIndex >= len(menuBar.Menus) {
+						state.OpenMenuIndex = 0
+					}
+					state.FocusedItemIndex = -1
+					return false
+				} else if ev.Key() == tcell.KeyLeft {
+					state.OpenMenuIndex--
+					if state.OpenMenuIndex < 0 {
+						state.OpenMenuIndex = len(menuBar.Menus) - 1
+					}
+					state.FocusedItemIndex = -1
+					return false
+				} else if ev.Key() == tcell.KeyEnter {
+					if state.FocusedItemIndex >= 0 && state.FocusedItemIndex < len(openMenu.Items) {
+						item := openMenu.Items[state.FocusedItemIndex]
+						if !item.Disabled && item.Action != nil {
+							item.Action()
+						}
+						state.OpenMenuIndex = -1
+						return false
+					}
+				} else if ev.Key() == tcell.KeyEscape {
+					state.OpenMenuIndex = -1
+					return false
+				}
+			}
+		}
+	}
+
 	if ev.Key() == tcell.KeyTab {
 		a.focusedID = nextFocus(a.focusedID, focusableIDs)
 	}
@@ -866,7 +1164,30 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 		a.focusedID = prevFocus(a.focusedID, focusableIDs)
 	}
 	if ev.Key() == tcell.KeyTab || ev.Key() == tcell.KeyBacktab {
+		// Close all MenuBar menus on focus change
+		for _, stateObj := range a.componentStates {
+			if state, ok := stateObj.(*MenuBarState); ok {
+				state.OpenMenuIndex = -1
+			}
+		}
+
 		a.closeOtherDropdowns(a.focusedID)
+		
+		if a.focusedID != "" {
+			focusedNode := findNodeByID(root, a.focusedID)
+			if _, ok := focusedNode.(*MenuBar); ok {
+				stateObj, ok := a.componentStates[a.focusedID]
+				var state *MenuBarState
+				if !ok {
+					state = &MenuBarState{OpenMenuIndex: 0}
+					a.componentStates[a.focusedID] = state
+				} else {
+					state = stateObj.(*MenuBarState)
+					state.OpenMenuIndex = 0
+					state.FocusedItemIndex = -1
+				}
+			}
+		}
 	}
 	if a.focusedID != "" {
 		focusedNode := findNodeByID(root, a.focusedID)
@@ -1131,4 +1452,36 @@ func (a *App) SetState(id string, state any) {
 
 func (a *App) GetState(id string) any {
 	return a.componentStates[id]
+}
+
+func (a *App) Stop() {
+	a.screen.Fini()
+	os.Exit(0)
+}
+
+func findMenuBar(node Node) *MenuBar {
+	switch tn := node.(type) {
+	case *MenuBar:
+		return tn
+	case *Box:
+		for _, child := range tn.Children {
+			if mb := findMenuBar(child); mb != nil {
+				return mb
+			}
+		}
+	case *ScrollView:
+		return findMenuBar(tn.Child)
+	case *Modal:
+		return findMenuBar(tn.Child)
+	}
+	return nil
+}
+
+func debugLog(msg string) {
+	f, err := os.OpenFile("/Users/pavelj/.gemini/jetski/brain/ef9ba78c-fa9b-4c4a-b879-50cbf427f6ce/scratch/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	f.WriteString(time.Now().Format("15:04:05 ") + msg + "\n")
 }

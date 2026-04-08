@@ -208,6 +208,44 @@ func Render(grid *Grid, layout LayoutResult, focusedID string, componentStates m
 			}
 			curY++
 		}
+	case *MenuBar:
+		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+		borderStyle := style
+		if n.Style.ID != "" && n.Style.ID == focusedID {
+			borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow)
+		}
+
+		borderOffset := 0
+		if n.Style.Border {
+			borderOffset = 1
+			drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		}
+
+		curX := layout.X + borderOffset + n.Style.Padding.Left
+		curY := layout.Y + borderOffset + n.Style.Padding.Top
+
+		var state *MenuBarState
+		if n.Style.ID != "" {
+			if s, ok := componentStates[n.Style.ID].(*MenuBarState); ok {
+				state = s
+			}
+		}
+
+		for i, menu := range n.Menus {
+			title := " " + menu.Title + " "
+			titleStyle := style
+
+			if state != nil && state.OpenMenuIndex == i {
+				titleStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+			}
+
+			drawText(grid, curX, curY, title, titleStyle)
+			curX += len(title) + 2
+		}
+
+		for x := curX; x < layout.X+layout.W-borderOffset; x++ {
+			grid.SetContent(x, curY, ' ', style)
+		}
 	case *Modal:
 		// Do nothing, rendered as overlay in App.Run
 	case *Dropdown:

@@ -112,6 +112,40 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			W:    w + pad.Left + pad.Right + borderSize,
 			H:    layoutH,
 		}
+	case *MenuBar:
+		pad := n.Style.Padding
+		margin := n.Style.Margin
+		boxX := x + margin.Left
+		boxY := y + margin.Top
+
+		totalW := 0
+		for _, menu := range n.Menus {
+			totalW += len(menu.Title) + 4
+		}
+
+		w := totalW
+		if n.Style.Width > 0 {
+			w = n.Style.Width
+		}
+		if n.Style.FillWidth && c.MaxW > 0 {
+			w = c.MaxW - margin.Left - margin.Right
+		}
+
+		h := 1
+		borderSize := 0
+		if n.Style.Border {
+			borderSize = 2
+		}
+
+		layoutH := h + pad.Top + pad.Bottom + borderSize
+
+		return LayoutResult{
+			Node: node,
+			X:    boxX,
+			Y:    boxY,
+			W:    w + pad.Left + pad.Right + borderSize,
+			H:    layoutH,
+		}
 	case *Modal:
 		return LayoutResult{
 			Node: node,
