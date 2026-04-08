@@ -19,9 +19,13 @@ type ScrollViewState struct {
 
 // NewScrollView creates a new ScrollView node.
 func NewScrollView(ctx *RenderContext, style Style, child Node) *ScrollView {
-	_, _ = UseState[*ScrollViewState](ctx, &ScrollViewState{ScrollOffset: 0})
-
-	if style.ID == "" {
+	if style.ID != "" {
+		// Use custom ID for state
+		if _, ok := ctx.app.componentStates[style.ID]; !ok {
+			ctx.app.componentStates[style.ID] = &ScrollViewState{ScrollOffset: 0}
+		}
+	} else {
+		_, _ = UseState[*ScrollViewState](ctx, &ScrollViewState{ScrollOffset: 0})
 		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex-1)
 	}
 

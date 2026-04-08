@@ -206,6 +206,13 @@ func (n *Box) Render(grid *Grid, layout LayoutResult, focusedID string, componen
 	if focused {
 		borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
 	}
+	if n.Style.Background != tcell.ColorReset {
+		for r := 0; r < layout.H; r++ {
+			for c := 0; c < layout.W; c++ {
+				grid.SetContent(layout.X+c, layout.Y+r, ' ', style)
+			}
+		}
+	}
 	if n.Style.Border {
 		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
 	}

@@ -34,6 +34,17 @@ func NewApp() (*App, error) {
 	}, nil
 }
 
+// GetComponentState retrieves state for a component by ID.
+func (a *App) GetComponentState(id string) (any, bool) {
+	state, ok := a.componentStates[id]
+	return state, ok
+}
+
+// GetFocusedID returns the ID of the currently focused component.
+func (a *App) GetFocusedID() string {
+	return a.focusedID
+}
+
 // EffectRecord stores an effect and its ID.
 type EffectRecord struct {
 	ID     string
@@ -45,6 +56,11 @@ type RenderContext struct {
 	app       *App
 	effects   []EffectRecord
 	hookIndex int
+}
+
+// GetFocusedID returns the ID of the currently focused component.
+func (ctx *RenderContext) GetFocusedID() string {
+	return ctx.app.GetFocusedID()
 }
 
 // UseState retrieves or initializes state.
@@ -655,6 +671,39 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 							a.closeOtherDropdowns(a.focusedID)
 						}
 						
+						if list, ok := clickedNode.(*List); ok {
+							stateObj, ok := a.componentStates[list.Style.ID]
+							var state *ListState
+							if !ok {
+								state = &ListState{}
+								a.componentStates[list.Style.ID] = state
+							} else {
+								state = stateObj.(*ListState)
+							}
+
+							res := findLayoutResultByID(layout, list.Style.ID)
+							if res != nil {
+								borderOffset := 0
+								if list.Style.Border {
+									borderOffset = 1
+								}
+								viewportH := res.H - borderOffset*2
+
+								clickY := my - res.Y - borderOffset
+								if clickY >= 0 && clickY < viewportH {
+									clickedIdx := state.ScrollOffset + clickY
+									if clickedIdx < len(list.Items) {
+										state.CursorIndex = clickedIdx
+										state.SelectedIndex = clickedIdx
+										a.dirty = true
+										if list.OnSelect != nil {
+											list.OnSelect(state.SelectedIndex)
+										}
+									}
+								}
+							}
+							handled = true
+						}
 						if btn, ok := clickedNode.(*Button); ok {
 							if btn.OnClick != nil {
 								btn.OnClick()
@@ -962,6 +1011,26 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 				}
 				
 				if !dropdownScrolled {
+					list := findListAt(layout, mx, my, a.componentStates)
+					if list != nil && list.Style.ID != "" {
+						stateObj, ok := a.componentStates[list.Style.ID]
+						var state *ListState
+						if !ok {
+							state = &ListState{}
+							a.componentStates[list.Style.ID] = state
+						} else {
+							state = stateObj.(*ListState)
+						}
+						state.ScrollOffset--
+						if state.ScrollOffset < 0 {
+							state.ScrollOffset = 0
+						}
+						a.dirty = true
+						dropdownScrolled = true
+					}
+				}
+				
+				if !dropdownScrolled {
 					sv := findScrollViewAt(layout, mx, my, a.componentStates)
 					if sv != nil && sv.Style.ID != "" {
 						stateObj, ok := a.componentStates[sv.Style.ID]
@@ -1010,6 +1079,29 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 								}
 							}
 						}
+					}
+				}
+				
+				if !dropdownScrolled {
+					list := findListAt(layout, mx, my, a.componentStates)
+					if list != nil && list.Style.ID != "" {
+						stateObj, ok := a.componentStates[list.Style.ID]
+						var state *ListState
+						if !ok {
+							state = &ListState{}
+							a.componentStates[list.Style.ID] = state
+						} else {
+							state = stateObj.(*ListState)
+						}
+						state.ScrollOffset++
+						if state.ScrollOffset >= len(list.Items) {
+							state.ScrollOffset = len(list.Items) - 1
+						}
+						if state.ScrollOffset < 0 {
+							state.ScrollOffset = 0
+						}
+						a.dirty = true
+						dropdownScrolled = true
 					}
 				}
 				
@@ -1085,12 +1177,23 @@ func findFocusableIDs(node Node, componentStates map[string]any) []string {
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
 		}
+	case *List:
+		if n.Style.Focusable && n.Style.ID != "" {
+			ids = append(ids, n.Style.ID)
+		}
 	case *ScrollView:
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
 		}
 		ids = append(ids, findFocusableIDs(n.Child, componentStates)...)
 	case *Box:
+		if n.Style.Focusable && n.Style.ID != "" {
+			ids = append(ids, n.Style.ID)
+		}
+		for _, child := range n.Children {
+			ids = append(ids, findFocusableIDs(child, componentStates)...)
+		}
+	case *GridBox:
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
 		}
@@ -1146,6 +1249,19 @@ func findNodeByID(node Node, id string) Node {
 			return n
 		}
 	case *Box:
+		if n.Style.ID == id {
+			return n
+		}
+		for _, child := range n.Children {
+			if found := findNodeByID(child, id); found != nil {
+				return found
+			}
+		}
+	case *List:
+		if n.Style.ID == id {
+			return n
+		}
+	case *GridBox:
 		if n.Style.ID == id {
 			return n
 		}
@@ -1235,6 +1351,10 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 			return &res
 		}
 	case *MenuBar:
+		if n.Style.ID == id {
+			return &res
+		}
+	case *List:
 		if n.Style.ID == id {
 			return &res
 		}
@@ -1342,6 +1462,21 @@ func findScrollViewAt(res LayoutResult, x, y int, componentStates map[string]any
 		for _, child := range res.Children {
 			if svChild := findScrollViewAt(child, x, y, componentStates); svChild != nil {
 				return svChild
+			}
+		}
+	}
+	return nil
+}
+
+func findListAt(res LayoutResult, x, y int, componentStates map[string]any) *List {
+	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
+		if l, ok := res.Node.(*List); ok {
+			return l
+		}
+
+		for _, child := range res.Children {
+			if lChild := findListAt(child, x, y, componentStates); lChild != nil {
+				return lChild
 			}
 		}
 	}
@@ -1539,9 +1674,11 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 
 	if ev.Key() == tcell.KeyTab {
 		a.focusedID = nextFocus(a.focusedID, focusableIDs)
+		a.dirty = true
 	}
 	if ev.Key() == tcell.KeyBacktab {
 		a.focusedID = prevFocus(a.focusedID, focusableIDs)
+		a.dirty = true
 	}
 	if ev.Key() == tcell.KeyTab || ev.Key() == tcell.KeyBacktab {
 		// Close all MenuBar menus on focus change
@@ -1688,6 +1825,86 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 			}
 
 			a.dirty = true
+		} else if list, ok := focusedNode.(*List); ok {
+			stateObj, ok := a.componentStates[a.focusedID]
+			var state *ListState
+			if !ok {
+				state = &ListState{}
+				a.componentStates[a.focusedID] = state
+			} else {
+				state = stateObj.(*ListState)
+			}
+
+			res := findLayoutResultByID(layout, a.focusedID)
+			viewportH := 20
+			if res != nil {
+				borderOffset := 0
+				if list.Style.Border {
+					borderOffset = 1
+				}
+				viewportH = res.H - borderOffset*2
+			}
+
+			if ev.Key() == tcell.KeyUp {
+				if state.CursorIndex > 0 {
+					state.CursorIndex--
+					if state.CursorIndex < state.ScrollOffset {
+						state.ScrollOffset = state.CursorIndex
+					}
+					a.dirty = true
+					if list.OnSelectionChange != nil {
+						list.OnSelectionChange(state.CursorIndex)
+					}
+				}
+			} else if ev.Key() == tcell.KeyDown {
+				if state.CursorIndex < len(list.Items)-1 {
+					state.CursorIndex++
+					if state.CursorIndex >= state.ScrollOffset+viewportH {
+						state.ScrollOffset = state.CursorIndex - viewportH + 1
+					}
+					a.dirty = true
+					if list.OnSelectionChange != nil {
+						list.OnSelectionChange(state.CursorIndex)
+					}
+				}
+			} else if ev.Key() == tcell.KeyPgUp {
+				if len(list.Items) > 0 {
+					state.CursorIndex -= viewportH
+					if state.CursorIndex < 0 {
+						state.CursorIndex = 0
+					}
+					if state.CursorIndex < state.ScrollOffset {
+						state.ScrollOffset = state.CursorIndex
+					}
+					a.dirty = true
+					if list.OnSelectionChange != nil {
+						list.OnSelectionChange(state.CursorIndex)
+					}
+				}
+			} else if ev.Key() == tcell.KeyPgDn {
+				if len(list.Items) > 0 {
+					state.CursorIndex += viewportH
+					if state.CursorIndex >= len(list.Items) {
+						state.CursorIndex = len(list.Items) - 1
+					}
+					if state.CursorIndex >= state.ScrollOffset+viewportH {
+						state.ScrollOffset = state.CursorIndex - viewportH + 1
+						if state.ScrollOffset < 0 {
+							state.ScrollOffset = 0
+						}
+					}
+					a.dirty = true
+					if list.OnSelectionChange != nil {
+						list.OnSelectionChange(state.CursorIndex)
+					}
+				}
+			} else if ev.Key() == tcell.KeyEnter {
+				state.SelectedIndex = state.CursorIndex
+				a.dirty = true
+				if list.OnSelect != nil {
+					list.OnSelect(state.SelectedIndex)
+				}
+			}
 		} else if drp, ok := focusedNode.(*Dropdown); ok {
 			stateObj, ok := a.componentStates[a.focusedID]
 			var state *DropdownState
