@@ -456,7 +456,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 						}
 						if input.Style.Multiline {
 							line, col := offsetToLineCol(input.Value, state.cursorOffset)
-							a.screen.ShowCursor(res.X+input.Style.Padding.Left+col+borderOffset, res.Y+input.Style.Padding.Top+line+borderOffset-state.vScrollOffset)
+							a.screen.ShowCursor(res.X+input.Style.Padding.Left+col-state.scrollOffset+borderOffset, res.Y+input.Style.Padding.Top+line+borderOffset-state.vScrollOffset)
 						} else {
 							visualOffset := state.cursorOffset - state.scrollOffset
 							a.screen.ShowCursor(res.X+input.Style.Padding.Left+visualOffset+borderOffset, res.Y+input.Style.Padding.Top+borderOffset)
@@ -1584,6 +1584,10 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					line, col := offsetToLineCol(input.Value, state.cursorOffset)
 					state.cursorOffset = lineColToOffset(input.Value, line+1, col)
 				}
+			} else if ev.Key() == tcell.KeyHome {
+				state.cursorOffset = 0
+			} else if ev.Key() == tcell.KeyEnd {
+				state.cursorOffset = len(input.Value)
 			} else if ev.Key() == tcell.KeyRune {
 				newVal := input.Value[:state.cursorOffset] + string(ev.Rune()) + input.Value[state.cursorOffset:]
 				input.Value = newVal
@@ -1612,7 +1616,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 				}
 
 				if input.Style.Multiline {
-					line, _ := offsetToLineCol(input.Value, state.cursorOffset)
+					line, col := offsetToLineCol(input.Value, state.cursorOffset)
 					h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
 					if h > 0 {
 						if line < state.vScrollOffset {
@@ -1620,6 +1624,16 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 						}
 						if line >= state.vScrollOffset+h {
 							state.vScrollOffset = line - h + 1
+						}
+					}
+
+					// Horizontal scroll for multiline
+					if w > 0 {
+						if col < state.scrollOffset {
+							state.scrollOffset = col
+						}
+						if col >= state.scrollOffset+w {
+							state.scrollOffset = col - w + 1
 						}
 					}
 				}

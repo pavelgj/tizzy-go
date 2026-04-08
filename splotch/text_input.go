@@ -95,7 +95,6 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 	borderStyle := style
 	if focused {
 		borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
-		style = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
 	}
 	
 	borderOffset := 0
@@ -106,10 +105,12 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 
 	if n.Style.Multiline {
 		vScrollOffset := 0
+		scrollOffset := 0
 		if n.Style.ID != "" && componentStates != nil {
 			if stateObj, ok := componentStates[n.Style.ID]; ok {
 				state := stateObj.(*TextInputState)
 				vScrollOffset = state.vScrollOffset
+				scrollOffset = state.scrollOffset
 			}
 		}
 
@@ -123,6 +124,11 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 				break
 			}
 			val := lines[lineIdx]
+			if scrollOffset < len(val) {
+				val = val[scrollOffset:]
+			} else {
+				val = ""
+			}
 			if len(val) > w && w > 0 {
 				val = val[:w]
 			}
