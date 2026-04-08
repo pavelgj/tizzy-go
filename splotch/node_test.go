@@ -232,3 +232,27 @@ func TestRenderBorder(t *testing.T) {
 		t.Errorf("Expected '┘' at 3,2, got '%c'", mainc)
 	}
 }
+
+func TestRenderFocusStyle(t *testing.T) {
+	s := tcell.NewSimulationScreen("")
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	box := NewBox(Style{ID: "box-1", Border: true, FocusColor: tcell.ColorRed},
+		NewText(Style{}, "Hi"),
+	)
+
+	layout := Layout(box, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+	
+	s.SetSize(10, 10)
+
+	renderToScreen(s, layout, "box-1", nil)
+	s.Show()
+
+	_, _, style, _ := s.GetContent(0, 0)
+	expectedStyle := tcell.StyleDefault.Foreground(tcell.ColorRed)
+	if style != expectedStyle {
+		t.Errorf("Expected focus style %v, got %v", expectedStyle, style)
+	}
+}

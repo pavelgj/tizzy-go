@@ -109,7 +109,15 @@ func (n *ScrollView) Render(grid *Grid, layout LayoutResult, focusedID string, c
 	borderOffset := 0
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
 	if n.Style.ID != "" && n.Style.ID == focusedID {
-		borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow)
+		focusColor := tcell.ColorYellow
+		if n.Style.FocusColor != tcell.ColorReset {
+			focusColor = n.Style.FocusColor
+		}
+		focusBg := n.Style.Background
+		if n.Style.FocusBackground != tcell.ColorReset {
+			focusBg = n.Style.FocusBackground
+		}
+		borderStyle = tcell.StyleDefault.Foreground(focusColor).Background(focusBg)
 	}
 	if n.Style.Border {
 		borderOffset = 1

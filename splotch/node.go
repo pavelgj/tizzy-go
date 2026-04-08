@@ -45,6 +45,8 @@ type Style struct {
 	Margin         Margin
 	Color          tcell.Color
 	Background     tcell.Color
+	FocusColor      tcell.Color
+	FocusBackground tcell.Color
 	FillWidth      bool
 	FillHeight     bool
 	GridRow        int
@@ -204,7 +206,15 @@ func (n *Box) Render(grid *Grid, layout LayoutResult, focusedID string, componen
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
 	borderStyle := style
 	if focused {
-		borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
+		focusColor := tcell.ColorYellow
+		if n.Style.FocusColor != tcell.ColorReset {
+			focusColor = n.Style.FocusColor
+		}
+		focusBg := n.Style.Background
+		if n.Style.FocusBackground != tcell.ColorReset {
+			focusBg = n.Style.FocusBackground
+		}
+		borderStyle = tcell.StyleDefault.Foreground(focusColor).Background(focusBg)
 	}
 	if n.Style.Background != tcell.ColorReset {
 		for r := 0; r < layout.H; r++ {

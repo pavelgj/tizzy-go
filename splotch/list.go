@@ -110,7 +110,15 @@ func (l *List) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 		borderOffset = 1
 		borderStyle := tcell.StyleDefault.Foreground(l.Style.Color).Background(l.Style.Background)
 		if l.Style.ID == focusedID {
-			borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow)
+			focusColor := tcell.ColorYellow
+			if l.Style.FocusColor != tcell.ColorReset {
+				focusColor = l.Style.FocusColor
+			}
+			focusBg := l.Style.Background
+			if l.Style.FocusBackground != tcell.ColorReset {
+				focusBg = l.Style.FocusBackground
+			}
+			borderStyle = tcell.StyleDefault.Foreground(focusColor).Background(focusBg)
 		}
 		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
 	}
