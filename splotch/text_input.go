@@ -179,3 +179,135 @@ func (n *TextInput) GetCursorCoords(ctx *RenderContext) (int, int) {
 	visualOffset := state.cursorOffset - state.scrollOffset
 	return visualOffset, 0
 }
+
+func (n *TextInput) DefaultState() any {
+	return &TextInputState{cursorOffset: len(n.Value)}
+}
+
+func (n *TextInput) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	s, ok := state.(*TextInputState)
+	if !ok {
+		return false
+	}
+
+	key, ok := ev.(*tcell.EventKey)
+	if !ok {
+		return false
+	}
+
+	if ctx.PopupOpen {
+		if key.Key() == tcell.KeyEnter || key.Key() == tcell.KeyUp || key.Key() == tcell.KeyDown {
+			return false
+		}
+	}
+
+	dirty := false
+
+	if key.Key() == tcell.KeyLeft {
+		s.cursorOffset--
+		if s.cursorOffset < 0 {
+			s.cursorOffset = 0
+		}
+		dirty = true
+	} else if key.Key() == tcell.KeyRight {
+		s.cursorOffset++
+		if s.cursorOffset > len(n.Value) {
+			s.cursorOffset = len(n.Value)
+		}
+		dirty = true
+	} else if key.Key() == tcell.KeyBackspace || key.Key() == tcell.KeyBackspace2 {
+		if s.cursorOffset > 0 {
+			newVal := n.Value[:s.cursorOffset-1] + n.Value[s.cursorOffset:]
+			n.Value = newVal
+			s.cursorOffset--
+			dirty = true
+			if n.OnChange != nil {
+				n.OnChange(newVal)
+			}
+		}
+	} else if key.Key() == tcell.KeyDelete {
+		if s.cursorOffset < len(n.Value) {
+			newVal := n.Value[:s.cursorOffset] + n.Value[s.cursorOffset+1:]
+			n.Value = newVal
+			dirty = true
+			if n.OnChange != nil {
+				n.OnChange(newVal)
+			}
+		}
+	} else if key.Key() == tcell.KeyEnter {
+		if n.Style.Multiline {
+			newVal := n.Value[:s.cursorOffset] + "\n" + n.Value[s.cursorOffset:]
+			n.Value = newVal
+			s.cursorOffset++
+			dirty = true
+			if n.OnChange != nil {
+				n.OnChange(newVal)
+			}
+		}
+	} else if key.Key() == tcell.KeyUp {
+		if n.Style.Multiline {
+			line, col := offsetToLineCol(n.Value, s.cursorOffset)
+			if line > 0 {
+				s.cursorOffset = lineColToOffset(n.Value, line-1, col)
+				dirty = true
+			}
+		}
+	} else if key.Key() == tcell.KeyDown {
+		if n.Style.Multiline {
+			line, col := offsetToLineCol(n.Value, s.cursorOffset)
+			s.cursorOffset = lineColToOffset(n.Value, line+1, col)
+			dirty = true
+		}
+	} else if key.Key() == tcell.KeyPgUp {
+		if n.Style.Multiline {
+			line, col := offsetToLineCol(n.Value, s.cursorOffset)
+			borderOffset := 0
+			if n.Style.Border {
+				borderOffset = 1
+			}
+			h := ctx.Layout.H - n.Style.Padding.Top - n.Style.Padding.Bottom - borderOffset*2
+			if h > 0 {
+				newLine := line - h
+				if newLine < 0 {
+					newLine = 0
+				}
+				s.cursorOffset = lineColToOffset(n.Value, newLine, col)
+				dirty = true
+			}
+		}
+	} else if key.Key() == tcell.KeyPgDn {
+		if n.Style.Multiline {
+			line, col := offsetToLineCol(n.Value, s.cursorOffset)
+			borderOffset := 0
+			if n.Style.Border {
+				borderOffset = 1
+			}
+			h := ctx.Layout.H - n.Style.Padding.Top - n.Style.Padding.Bottom - borderOffset*2
+			if h > 0 {
+				lines := strings.Split(n.Value, "\n")
+				newLine := line + h
+				if newLine >= len(lines) {
+					newLine = len(lines) - 1
+				}
+				s.cursorOffset = lineColToOffset(n.Value, newLine, col)
+				dirty = true
+			}
+		}
+	} else if key.Key() == tcell.KeyHome {
+		s.cursorOffset = 0
+		dirty = true
+	} else if key.Key() == tcell.KeyEnd {
+		s.cursorOffset = len(n.Value)
+		dirty = true
+	} else if key.Key() == tcell.KeyRune {
+		newVal := n.Value[:s.cursorOffset] + string(key.Rune()) + n.Value[s.cursorOffset:]
+		n.Value = newVal
+		s.cursorOffset++
+		dirty = true
+		if n.OnChange != nil {
+			n.OnChange(newVal)
+		}
+	}
+
+	return dirty
+}

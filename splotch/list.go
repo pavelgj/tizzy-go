@@ -156,3 +156,93 @@ func (l *List) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 		curY++
 	}
 }
+
+func (l *List) DefaultState() any {
+	return &ListState{SelectedIndex: -1, CursorIndex: 0}
+}
+
+func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	s, ok := state.(*ListState)
+	if !ok {
+		return false
+	}
+
+	key, ok := ev.(*tcell.EventKey)
+	if !ok {
+		return false
+	}
+
+	viewportH := 20
+	borderOffset := 0
+	if l.Style.Border {
+		borderOffset = 1
+	}
+	if ctx.Layout.H > 0 {
+		viewportH = ctx.Layout.H - borderOffset*2
+	}
+
+	dirty := false
+
+	if key.Key() == tcell.KeyUp {
+		if s.CursorIndex > 0 {
+			s.CursorIndex--
+			if s.CursorIndex < s.ScrollOffset {
+				s.ScrollOffset = s.CursorIndex
+			}
+			dirty = true
+			if l.OnSelectionChange != nil {
+				l.OnSelectionChange(s.CursorIndex)
+			}
+		}
+	} else if key.Key() == tcell.KeyDown {
+		if s.CursorIndex < len(l.Items)-1 {
+			s.CursorIndex++
+			if s.CursorIndex >= s.ScrollOffset+viewportH {
+				s.ScrollOffset = s.CursorIndex - viewportH + 1
+			}
+			dirty = true
+			if l.OnSelectionChange != nil {
+				l.OnSelectionChange(s.CursorIndex)
+			}
+		}
+	} else if key.Key() == tcell.KeyPgUp {
+		if len(l.Items) > 0 {
+			s.CursorIndex -= viewportH
+			if s.CursorIndex < 0 {
+				s.CursorIndex = 0
+			}
+			if s.CursorIndex < s.ScrollOffset {
+				s.ScrollOffset = s.CursorIndex
+			}
+			dirty = true
+			if l.OnSelectionChange != nil {
+				l.OnSelectionChange(s.CursorIndex)
+			}
+		}
+	} else if key.Key() == tcell.KeyPgDn {
+		if len(l.Items) > 0 {
+			s.CursorIndex += viewportH
+			if s.CursorIndex >= len(l.Items) {
+				s.CursorIndex = len(l.Items) - 1
+			}
+			if s.CursorIndex >= s.ScrollOffset+viewportH {
+				s.ScrollOffset = s.CursorIndex - viewportH + 1
+				if s.ScrollOffset < 0 {
+					s.ScrollOffset = 0
+				}
+			}
+			dirty = true
+			if l.OnSelectionChange != nil {
+				l.OnSelectionChange(s.CursorIndex)
+			}
+		}
+	} else if key.Key() == tcell.KeyEnter {
+		s.SelectedIndex = s.CursorIndex
+		dirty = true
+		if l.OnSelect != nil {
+			l.OnSelect(s.SelectedIndex)
+		}
+	}
+
+	return dirty
+}

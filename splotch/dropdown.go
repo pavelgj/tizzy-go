@@ -127,3 +127,130 @@ func (n *Dropdown) Render(grid *Grid, layout LayoutResult, focusedID string, com
 	
 	drawText(grid, curX, curY, " v ]", style)
 }
+
+func (d *Dropdown) DefaultState() any {
+	return &DropdownState{}
+}
+
+func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	s, ok := state.(*DropdownState)
+	if !ok {
+		return false
+	}
+
+	key, ok := ev.(*tcell.EventKey)
+	if !ok {
+		return false
+	}
+
+	dirty := false
+
+	if key.Key() == tcell.KeyEnter {
+		if s.Open {
+			d.SelectedIndex = s.FocusedIndex
+			if d.OnChange != nil {
+				d.OnChange(s.FocusedIndex)
+			}
+			s.Open = false
+		} else {
+			s.Open = true
+		}
+		dirty = true
+	} else if key.Key() == tcell.KeyEscape {
+		if s.Open {
+			s.Open = false
+			dirty = true
+		}
+	} else if key.Key() == tcell.KeyUp {
+		if s.Open {
+			if s.FocusedIndex > 0 {
+				s.FocusedIndex--
+			}
+
+			maxH := d.MaxListHeight
+			if maxH <= 0 {
+				maxH = 5
+			}
+			if maxH > len(d.Options) {
+				maxH = len(d.Options)
+			}
+
+			if s.FocusedIndex < s.ScrollOffset {
+				s.ScrollOffset = s.FocusedIndex
+			}
+			if s.FocusedIndex >= s.ScrollOffset+maxH {
+				s.ScrollOffset = s.FocusedIndex - maxH + 1
+			}
+			dirty = true
+		}
+	} else if key.Key() == tcell.KeyDown {
+		if s.Open {
+			if s.FocusedIndex < len(d.Options)-1 {
+				s.FocusedIndex++
+			}
+
+			maxH := d.MaxListHeight
+			if maxH <= 0 {
+				maxH = 5
+			}
+			if maxH > len(d.Options) {
+				maxH = len(d.Options)
+			}
+
+			if s.FocusedIndex >= s.ScrollOffset+maxH {
+				s.ScrollOffset = s.FocusedIndex - maxH + 1
+			}
+			if s.FocusedIndex < s.ScrollOffset {
+				s.ScrollOffset = 0
+			}
+			dirty = true
+		}
+	} else if key.Key() == tcell.KeyPgUp {
+		if s.Open {
+			maxH := d.MaxListHeight
+			if maxH <= 0 {
+				maxH = 5
+			}
+			if maxH > len(d.Options) {
+				maxH = len(d.Options)
+			}
+
+			s.FocusedIndex -= maxH
+			if s.FocusedIndex < 0 {
+				s.FocusedIndex = 0
+			}
+
+			s.ScrollOffset -= maxH
+			if s.ScrollOffset < 0 {
+				s.ScrollOffset = 0
+			}
+			dirty = true
+		}
+	} else if key.Key() == tcell.KeyPgDn {
+		if s.Open {
+			maxH := d.MaxListHeight
+			if maxH <= 0 {
+				maxH = 5
+			}
+			if maxH > len(d.Options) {
+				maxH = len(d.Options)
+			}
+
+			s.FocusedIndex += maxH
+			if s.FocusedIndex >= len(d.Options) {
+				s.FocusedIndex = len(d.Options) - 1
+			}
+
+			s.ScrollOffset += maxH
+			if s.ScrollOffset+maxH > len(d.Options) {
+				s.ScrollOffset = len(d.Options) - maxH
+				if s.ScrollOffset < 0 {
+					s.ScrollOffset = 0
+				}
+			}
+			dirty = true
+		}
+	}
+
+	return dirty
+}

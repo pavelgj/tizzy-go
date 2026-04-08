@@ -20,6 +20,18 @@ type Renderable interface {
 	Render(grid *Grid, res LayoutResult, focusedID string, componentStates map[string]any)
 }
 
+// EventContext provides context for event handling.
+type EventContext struct {
+	Layout    LayoutResult
+	PopupOpen bool
+}
+
+// EventHandler indicates that a node can handle events.
+type EventHandler interface {
+	HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
+	DefaultState() any
+}
+
 // Padding defines the spacing inside a node.
 type Padding struct {
 	Top, Bottom, Left, Right int
