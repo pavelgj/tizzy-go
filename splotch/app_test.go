@@ -1,6 +1,9 @@
 package splotch
 
-import "testing"
+import (
+	"testing"
+	"github.com/gdamore/tcell/v2"
+)
 
 func TestFindFocusableIDs(t *testing.T) {
 	root := NewBox(Style{},
@@ -101,5 +104,34 @@ func TestLineColToOffset(t *testing.T) {
 		if off != tc.offset {
 			t.Errorf("For line %d, col %d, expected offset %d; got %d", tc.line, tc.col, tc.offset, off)
 		}
+	}
+}
+
+func TestScrollViewKeyboardScrolling(t *testing.T) {
+	app := &App{
+		componentStates: make(map[string]any),
+		focusedID:       "sv",
+	}
+	
+	sv := NewScrollView(Style{ID: "sv", Focusable: true}, NewText(Style{}, "Content"))
+	root := NewBox(Style{}, sv)
+	
+	layout := Layout(root, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+	
+	ev := tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+	
+	exit := app.handleKeyEvent(ev, root, layout, []string{"sv"})
+	
+	if exit {
+		t.Errorf("Expected handleKeyEvent to return false, got true")
+	}
+	
+	stateObj, ok := app.componentStates["sv"]
+	if !ok {
+		t.Fatalf("Expected state for 'sv' to be created")
+	}
+	state := stateObj.(*ScrollViewState)
+	if state.ScrollOffset != 1 {
+		t.Errorf("Expected ScrollOffset to be 1, got %d", state.ScrollOffset)
 	}
 }

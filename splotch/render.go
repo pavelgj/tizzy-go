@@ -208,6 +208,45 @@ func Render(grid *Grid, layout LayoutResult, focusedID string, componentStates m
 			}
 			curY++
 		}
+	case *ScrollView:
+		borderOffset := 0
+		borderStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
+		if n.Style.ID != "" && n.Style.ID == focusedID {
+			borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow)
+		}
+		if n.Style.Border {
+			borderOffset = 1
+			drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		}
+		
+		pad := n.Style.Padding
+		viewportW := layout.W - pad.Left - pad.Right - borderOffset*2
+		viewportH := layout.H - pad.Top - pad.Bottom - borderOffset*2
+		
+		scrollOffset := 0
+		if n.Style.ID != "" && componentStates != nil {
+			if stateObj, ok := componentStates[n.Style.ID]; ok {
+				state := stateObj.(*ScrollViewState)
+				scrollOffset = state.ScrollOffset
+			}
+		}
+		
+		if len(layout.Children) > 0 {
+			childLayout := layout.Children[0]
+			
+			tempGrid := NewGrid(viewportW, viewportH)
+			
+			shiftedLayout := shiftLayout(childLayout, -childLayout.X, -childLayout.Y - scrollOffset)
+			
+			Render(tempGrid, shiftedLayout, focusedID, componentStates)
+			
+			for y := 0; y < viewportH; y++ {
+				for x := 0; x < viewportW; x++ {
+					cell := tempGrid.Cells[y][x]
+					grid.SetContent(layout.X+pad.Left+borderOffset+x, layout.Y+pad.Top+borderOffset+y, cell.Rune, cell.Style)
+				}
+			}
+		}
 	case *Spinner:
 		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
 		
@@ -296,4 +335,12 @@ func drawText(grid *Grid, x, y int, text string, style tcell.Style) {
 		grid.SetContent(x+col, y, r, style)
 		col++
 	}
+}
+func shiftLayout(res LayoutResult, dx, dy int) LayoutResult {
+	res.X += dx
+	res.Y += dy
+	for i := range res.Children {
+		res.Children[i] = shiftLayout(res.Children[i], dx, dy)
+	}
+	return res
 }

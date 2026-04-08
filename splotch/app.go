@@ -130,156 +130,49 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 		ev := a.screen.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
-			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
+			if a.handleKeyEvent(ev, root, layout, focusableIDs) {
 				return nil
-			}
-			if ev.Key() == tcell.KeyTab {
-				a.focusedID = nextFocus(a.focusedID, focusableIDs)
-			}
-			if ev.Key() == tcell.KeyBacktab {
-				a.focusedID = prevFocus(a.focusedID, focusableIDs)
-			}
-			if a.focusedID != "" {
-				focusedNode := findNodeByID(root, a.focusedID)
-				if input, ok := focusedNode.(*TextInput); ok {
-					stateObj, ok := a.componentStates[a.focusedID]
-					var state *TextInputState
-					if !ok {
-						state = &TextInputState{cursorOffset: len(input.Value)}
-						a.componentStates[a.focusedID] = state
-					} else {
-						state = stateObj.(*TextInputState)
-					}
-
-					if state.cursorOffset > len(input.Value) {
-						state.cursorOffset = len(input.Value)
-					}
-
-					if ev.Key() == tcell.KeyLeft {
-						if state.cursorOffset > 0 {
-							state.cursorOffset--
-						}
-					} else if ev.Key() == tcell.KeyRight {
-						if state.cursorOffset < len(input.Value) {
-							state.cursorOffset++
-						}
-					} else if ev.Key() == tcell.KeyUp && input.Style.Multiline {
-						line, col := offsetToLineCol(input.Value, state.cursorOffset)
-						if line > 0 {
-							state.cursorOffset = lineColToOffset(input.Value, line-1, col)
-						}
-					} else if ev.Key() == tcell.KeyDown && input.Style.Multiline {
-						line, col := offsetToLineCol(input.Value, state.cursorOffset)
-						lines := strings.Split(input.Value, "\n")
-						if line < len(lines)-1 {
-							state.cursorOffset = lineColToOffset(input.Value, line+1, col)
-						}
-					} else if ev.Key() == tcell.KeyEnter && input.Style.Multiline {
-						newVal := input.Value[:state.cursorOffset] + "\n" + input.Value[state.cursorOffset:]
-						state.cursorOffset++
-						if input.OnChange != nil {
-							input.OnChange(newVal)
-						}
-					} else if ev.Key() == tcell.KeyRune {
-						newVal := input.Value[:state.cursorOffset] + string(ev.Rune()) + input.Value[state.cursorOffset:]
-						state.cursorOffset++
-						if input.OnChange != nil {
-							input.OnChange(newVal)
-						}
-					} else if ev.Key() == tcell.KeyBackspace || ev.Key() == tcell.KeyBackspace2 {
-						if state.cursorOffset > 0 {
-							newVal := input.Value[:state.cursorOffset-1] + input.Value[state.cursorOffset:]
-							state.cursorOffset--
-							if input.OnChange != nil {
-								input.OnChange(newVal)
-							}
-						}
-					} else if ev.Key() == tcell.KeyDelete {
-						if state.cursorOffset < len(input.Value) {
-							newVal := input.Value[:state.cursorOffset] + input.Value[state.cursorOffset+1:]
-							if input.OnChange != nil {
-								input.OnChange(newVal)
-							}
-						}
-					}
-
-					// Update scroll offset
-					res := findLayoutResultByID(layout, a.focusedID)
-					if res != nil {
-						borderOffset := 0
-						if input.Style.Border {
-							borderOffset = 1
-						}
-
-						w := res.W - input.Style.Padding.Left - input.Style.Padding.Right - borderOffset*2
-						if w > 0 && !input.Style.Multiline {
-							if state.cursorOffset < state.scrollOffset {
-								state.scrollOffset = state.cursorOffset
-							}
-							if state.cursorOffset > state.scrollOffset+w {
-								state.scrollOffset = state.cursorOffset - w
-							}
-						}
-
-						if input.Style.Multiline {
-							line, _ := offsetToLineCol(input.Value, state.cursorOffset)
-							h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
-							if h > 0 {
-								if line < state.vScrollOffset {
-									state.vScrollOffset = line
-								}
-								if line >= state.vScrollOffset+h {
-									state.vScrollOffset = line - h + 1
-								}
-							}
-						}
-					}
-				} else if btn, ok := focusedNode.(*Button); ok {
-					if ev.Key() == tcell.KeyEnter {
-						if btn.OnClick != nil {
-							btn.OnClick()
-						}
-					}
-				} else if cb, ok := focusedNode.(*Checkbox); ok {
-					if ev.Key() == tcell.KeyEnter || (ev.Key() == tcell.KeyRune && ev.Rune() == ' ') {
-						cb.Checked = !cb.Checked
-						if cb.OnChange != nil {
-							cb.OnChange(cb.Checked)
-						}
-					}
-				} else if rb, ok := focusedNode.(*RadioButton); ok {
-					if ev.Key() == tcell.KeyEnter || (ev.Key() == tcell.KeyRune && ev.Rune() == ' ') {
-						if rb.OnChange != nil {
-							rb.OnChange(rb.Value)
-						}
-					}
-				}
 			}
 		case *EventTick:
 			// Continuous rendering for animations
 		case *tcell.EventMouse:
 			mx, my := ev.Position()
 			if ev.Buttons()&tcell.Button1 != 0 {
-				clickedNode := findNodeAt(layout, mx, my)
-				if clickedNode != nil {
+				path := findNodePathAt(layout, mx, my, a.componentStates)
+				if len(path) > 0 {
+					clickedNode := path[len(path)-1]
+					
 					var nodeStyle Style
-					switch n := clickedNode.(type) {
-					case *Text:
-						nodeStyle = n.Style
-					case *TextInput:
-						nodeStyle = n.Style
-					case *Button:
-						nodeStyle = n.Style
-					case *Checkbox:
-						nodeStyle = n.Style
-					case *RadioButton:
-						nodeStyle = n.Style
-					case *Spinner:
-						nodeStyle = n.Style
-					case *ProgressBar:
-						nodeStyle = n.Style
+					var focusableNode Node
+					for i := len(path) - 1; i >= 0; i-- {
+						n := path[i]
+						switch node := n.(type) {
+						case *Text:
+							nodeStyle = node.Style
+						case *TextInput:
+							nodeStyle = node.Style
+						case *Button:
+							nodeStyle = node.Style
+						case *Checkbox:
+							nodeStyle = node.Style
+						case *RadioButton:
+							nodeStyle = node.Style
+						case *Spinner:
+							nodeStyle = node.Style
+						case *ProgressBar:
+							nodeStyle = node.Style
+						case *ScrollView:
+							nodeStyle = node.Style
+						case *Box:
+							nodeStyle = node.Style
+						}
+						if nodeStyle.Focusable && nodeStyle.ID != "" {
+							focusableNode = n
+							break
+						}
 					}
-					if nodeStyle.Focusable && nodeStyle.ID != "" {
+					
+					if focusableNode != nil {
 						a.focusedID = nodeStyle.ID
 					}
 
@@ -299,6 +192,35 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 							rb.OnChange(rb.Value)
 						}
 					}
+				}
+			} else if ev.Buttons()&tcell.Button4 != 0 { // Wheel Up
+				sv := findScrollViewAt(layout, mx, my, a.componentStates)
+				if sv != nil && sv.Style.ID != "" {
+					stateObj, ok := a.componentStates[sv.Style.ID]
+					var state *ScrollViewState
+					if !ok {
+						state = &ScrollViewState{}
+						a.componentStates[sv.Style.ID] = state
+					} else {
+						state = stateObj.(*ScrollViewState)
+					}
+					state.ScrollOffset--
+					if state.ScrollOffset < 0 {
+						state.ScrollOffset = 0
+					}
+				}
+			} else if ev.Buttons()&tcell.Button5 != 0 { // Wheel Down
+				sv := findScrollViewAt(layout, mx, my, a.componentStates)
+				if sv != nil && sv.Style.ID != "" {
+					stateObj, ok := a.componentStates[sv.Style.ID]
+					var state *ScrollViewState
+					if !ok {
+						state = &ScrollViewState{}
+						a.componentStates[sv.Style.ID] = state
+					} else {
+						state = stateObj.(*ScrollViewState)
+					}
+					state.ScrollOffset++
 				}
 			}
 		case *tcell.EventResize:
@@ -399,6 +321,11 @@ func findNodeByID(node Node, id string) Node {
 				return found
 			}
 		}
+	case *ScrollView:
+		if n.Style.ID == id {
+			return n
+		}
+		return findNodeByID(n.Child, id)
 	case *TextInput:
 		if n.Style.ID == id {
 			return n
@@ -488,15 +415,232 @@ func (e *EventTick) When() time.Time {
 	return e.t
 }
 
-func findNodeAt(res LayoutResult, x, y int) Node {
+func findNodeAt(res LayoutResult, x, y int, componentStates map[string]any) Node {
 	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
-		// Check children first for nested components
+		scrollOffset := 0
+		if sv, ok := res.Node.(*ScrollView); ok {
+			if sv.Style.ID != "" && componentStates != nil {
+				if stateObj, ok := componentStates[sv.Style.ID]; ok {
+					state := stateObj.(*ScrollViewState)
+					scrollOffset = state.ScrollOffset
+				}
+			}
+		}
+
 		for _, child := range res.Children {
-			if n := findNodeAt(child, x, y); n != nil {
+			if n := findNodeAt(child, x, y+scrollOffset, componentStates); n != nil {
 				return n
 			}
 		}
 		return res.Node
 	}
 	return nil
+}
+
+func findScrollViewAt(res LayoutResult, x, y int, componentStates map[string]any) *ScrollView {
+	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
+		scrollOffset := 0
+		if sv, ok := res.Node.(*ScrollView); ok {
+			if sv.Style.ID != "" && componentStates != nil {
+				if stateObj, ok := componentStates[sv.Style.ID]; ok {
+					state := stateObj.(*ScrollViewState)
+					scrollOffset = state.ScrollOffset
+				}
+			}
+			for _, child := range res.Children {
+				if svChild := findScrollViewAt(child, x, y+scrollOffset, componentStates); svChild != nil {
+					return svChild
+				}
+			}
+			return sv
+		}
+
+		for _, child := range res.Children {
+			if svChild := findScrollViewAt(child, x, y, componentStates); svChild != nil {
+				return svChild
+			}
+		}
+	}
+	return nil
+}
+
+func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) []Node {
+	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
+		scrollOffset := 0
+		if sv, ok := res.Node.(*ScrollView); ok {
+			if sv.Style.ID != "" && componentStates != nil {
+				if stateObj, ok := componentStates[sv.Style.ID]; ok {
+					state := stateObj.(*ScrollViewState)
+					scrollOffset = state.ScrollOffset
+				}
+			}
+		}
+
+		for _, child := range res.Children {
+			if path := findNodePathAt(child, x, y+scrollOffset, componentStates); path != nil {
+				return append([]Node{res.Node}, path...)
+			}
+		}
+		return []Node{res.Node}
+	}
+	return nil
+}
+
+func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult, focusableIDs []string) bool {
+	if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
+		return true // Request exit
+	}
+	if ev.Key() == tcell.KeyTab {
+		a.focusedID = nextFocus(a.focusedID, focusableIDs)
+	}
+	if ev.Key() == tcell.KeyBacktab {
+		a.focusedID = prevFocus(a.focusedID, focusableIDs)
+	}
+	if a.focusedID != "" {
+		focusedNode := findNodeByID(root, a.focusedID)
+		if input, ok := focusedNode.(*TextInput); ok {
+			stateObj, ok := a.componentStates[a.focusedID]
+			var state *TextInputState
+			if !ok {
+				state = &TextInputState{cursorOffset: len(input.Value)}
+				a.componentStates[a.focusedID] = state
+			} else {
+				state = stateObj.(*TextInputState)
+			}
+
+			if ev.Key() == tcell.KeyLeft {
+				state.cursorOffset--
+				if state.cursorOffset < 0 {
+					state.cursorOffset = 0
+				}
+			} else if ev.Key() == tcell.KeyRight {
+				state.cursorOffset++
+				if state.cursorOffset > len(input.Value) {
+					state.cursorOffset = len(input.Value)
+				}
+			} else if ev.Key() == tcell.KeyBackspace || ev.Key() == tcell.KeyBackspace2 {
+				if state.cursorOffset > 0 {
+					newVal := input.Value[:state.cursorOffset-1] + input.Value[state.cursorOffset:]
+					input.Value = newVal
+					state.cursorOffset--
+					if input.OnChange != nil {
+						input.OnChange(newVal)
+					}
+				}
+			} else if ev.Key() == tcell.KeyDelete {
+				if state.cursorOffset < len(input.Value) {
+					newVal := input.Value[:state.cursorOffset] + input.Value[state.cursorOffset+1:]
+					input.Value = newVal
+					if input.OnChange != nil {
+						input.OnChange(newVal)
+					}
+				}
+			} else if ev.Key() == tcell.KeyEnter {
+				if input.Style.Multiline {
+					newVal := input.Value[:state.cursorOffset] + "\n" + input.Value[state.cursorOffset:]
+					input.Value = newVal
+					state.cursorOffset++
+					if input.OnChange != nil {
+						input.OnChange(newVal)
+					}
+				}
+			} else if ev.Key() == tcell.KeyUp {
+				if input.Style.Multiline {
+					line, col := offsetToLineCol(input.Value, state.cursorOffset)
+					if line > 0 {
+						state.cursorOffset = lineColToOffset(input.Value, line-1, col)
+					}
+				}
+			} else if ev.Key() == tcell.KeyDown {
+				if input.Style.Multiline {
+					line, col := offsetToLineCol(input.Value, state.cursorOffset)
+					state.cursorOffset = lineColToOffset(input.Value, line+1, col)
+				}
+			} else if ev.Key() == tcell.KeyRune {
+				newVal := input.Value[:state.cursorOffset] + string(ev.Rune()) + input.Value[state.cursorOffset:]
+				input.Value = newVal
+				state.cursorOffset++
+				if input.OnChange != nil {
+					input.OnChange(newVal)
+				}
+			}
+
+			// Update scroll offset
+			res := findLayoutResultByID(layout, a.focusedID)
+			if res != nil {
+				borderOffset := 0
+				if input.Style.Border {
+					borderOffset = 1
+				}
+
+				w := res.W - input.Style.Padding.Left - input.Style.Padding.Right - borderOffset*2
+				if w > 0 && !input.Style.Multiline {
+					if state.cursorOffset < state.scrollOffset {
+						state.scrollOffset = state.cursorOffset
+					}
+					if state.cursorOffset > state.scrollOffset+w {
+						state.scrollOffset = state.cursorOffset - w
+					}
+				}
+
+				if input.Style.Multiline {
+					line, _ := offsetToLineCol(input.Value, state.cursorOffset)
+					h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
+					if h > 0 {
+						if line < state.vScrollOffset {
+							state.vScrollOffset = line
+						}
+						if line >= state.vScrollOffset+h {
+							state.vScrollOffset = line - h + 1
+						}
+					}
+				}
+			}
+		} else if _, ok := focusedNode.(*ScrollView); ok {
+			stateObj, ok := a.componentStates[a.focusedID]
+			var state *ScrollViewState
+			if !ok {
+				state = &ScrollViewState{}
+				a.componentStates[a.focusedID] = state
+			} else {
+				state = stateObj.(*ScrollViewState)
+			}
+
+			if ev.Key() == tcell.KeyUp {
+				state.ScrollOffset--
+				if state.ScrollOffset < 0 {
+					state.ScrollOffset = 0
+				}
+			} else if ev.Key() == tcell.KeyDown {
+				state.ScrollOffset++
+			} else if ev.Key() == tcell.KeyPgUp {
+				state.ScrollOffset -= 10
+				if state.ScrollOffset < 0 {
+					state.ScrollOffset = 0
+				}
+			} else if ev.Key() == tcell.KeyPgDn {
+				state.ScrollOffset += 10
+			}
+		} else if btn, ok := focusedNode.(*Button); ok {
+			if ev.Key() == tcell.KeyEnter {
+				if btn.OnClick != nil {
+					btn.OnClick()
+				}
+			}
+		} else if cb, ok := focusedNode.(*Checkbox); ok {
+			if ev.Key() == tcell.KeyEnter || (ev.Key() == tcell.KeyRune && ev.Rune() == ' ') {
+				cb.Checked = !cb.Checked
+				if cb.OnChange != nil {
+					cb.OnChange(cb.Checked)
+				}
+			}
+		} else if rb, ok := focusedNode.(*RadioButton); ok {
+			if ev.Key() == tcell.KeyEnter || (ev.Key() == tcell.KeyRune && ev.Rune() == ' ') {
+				if rb.OnChange != nil {
+					rb.OnChange(rb.Value)
+				}
+			}
+		}
+	}
+	return false
 }

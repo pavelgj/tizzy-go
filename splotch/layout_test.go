@@ -248,3 +248,20 @@ func TestLayoutFillWidth(t *testing.T) {
 		t.Errorf("Expected W=50, got %d", res.W)
 	}
 }
+
+func TestLayoutScrollView(t *testing.T) {
+	text := NewText(Style{}, "Hello")
+	sv := NewScrollView(Style{Width: 10, Height: 5}, text)
+	res := Layout(sv, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+
+	if res.W != 10 || res.H != 5 {
+		t.Errorf("Expected W=10, H=5, got W=%d, H=%d", res.W, res.H)
+	}
+	if len(res.Children) != 1 {
+		t.Errorf("Expected 1 child, got %d", len(res.Children))
+	}
+	childRes := res.Children[0]
+	if childRes.W != 5 {
+		t.Errorf("Expected child W=5, got %d", childRes.W)
+	}
+}

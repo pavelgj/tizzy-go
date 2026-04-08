@@ -247,6 +247,64 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			W:    w + pad.Left + pad.Right + borderSize,
 			H:    layoutH,
 		}
+	case *ScrollView:
+		pad := n.Style.Padding
+		margin := n.Style.Margin
+		boxX := x + margin.Left
+		boxY := y + margin.Top
+
+		borderSize := 0
+		if n.Style.Border {
+			borderSize = 2
+		}
+
+		w := 20
+		h := 10
+
+		if n.Style.Width > 0 {
+			w = n.Style.Width
+		}
+		if n.Style.FillWidth {
+			w = c.MaxW - pad.Left - pad.Right - margin.Left - margin.Right - borderSize
+			if w < 0 {
+				w = 0
+			}
+		}
+
+		if n.Style.Height > 0 {
+			h = n.Style.Height
+		}
+		if n.Style.FillHeight {
+			h = c.MaxH - pad.Top - pad.Bottom - margin.Top - margin.Bottom - borderSize
+			if h < 0 {
+				h = 0
+			}
+		}
+
+		viewportW := w
+		viewportH := h
+
+		childConstraints := Constraints{
+			MaxW: viewportW,
+			MaxH: 10000,
+		}
+
+		childX := boxX + borderSize + pad.Left
+		childY := boxY + borderSize + pad.Top
+
+		var childRes LayoutResult
+		if n.Child != nil {
+			childRes = Layout(n.Child, childX, childY, childConstraints)
+		}
+
+		return LayoutResult{
+			Node:     node,
+			X:        boxX,
+			Y:        boxY,
+			W:        viewportW + pad.Left + pad.Right + borderSize,
+			H:        viewportH + pad.Top + pad.Bottom + borderSize,
+			Children: []LayoutResult{childRes},
+		}
 	case *Spinner:
 		pad := n.Style.Padding
 		margin := n.Style.Margin
