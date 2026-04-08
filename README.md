@@ -1,4 +1,4 @@
-# Splotch
+# Tizzy
 
 A declarative Terminal User Interface (TUI) library for Go, inspired by React's component model and CSS Flexbox layout.
 
@@ -20,37 +20,37 @@ package main
 import (
 	"log"
 	"strconv"
-	"splotch/splotch"
+	"tizzy/tizzy"
 )
 
 type Counter struct {
 	count int
 }
 
-func (c *Counter) Render() splotch.Node {
-	return splotch.NewBox(
-		splotch.Style{
+func (c *Counter) Render() tizzy.Node {
+	return tizzy.NewBox(
+		tizzy.Style{
 			Border:        true,
-			Padding:       splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+			Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
 			FlexDirection: "column",
 			FillWidth:     true,
 		},
-		splotch.NewText(splotch.Style{}, "Clicks: "+strconv.Itoa(c.count)),
-		splotch.NewButton(splotch.Style{Focusable: true}, "Increment", func() {
+		tizzy.NewText(tizzy.Style{}, "Clicks: "+strconv.Itoa(c.count)),
+		tizzy.NewButton(tizzy.Style{Focusable: true}, "Increment", func() {
 			c.count++
 		}),
 	)
 }
 
 func main() {
-	app, err := splotch.NewApp()
+	app, err := tizzy.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	counter := &Counter{}
 
-	app.Run(func(ctx *splotch.RenderContext) splotch.Node {
+	app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
 		return counter.Render()
 	})
 }
@@ -59,7 +59,7 @@ func main() {
 ## Core Concepts
 
 ### Components
-Splotch supports two patterns for components:
+Tizzy supports two patterns for components:
 1.  **Functional Components**: Pure functions that take props and return a `Node`. Best for stateless or read-only UIs.
 2.  **Struct Components**: Structs that hold state and have a `Render() Node` method. Best for stateful, interactive parts of the UI.
 
@@ -96,16 +96,16 @@ All components take a `Style` struct to define their appearance and layout.
 
 ## Hooks and Lifecycle
 
-Splotch supports React-like hooks for state management and lifecycle effects within the render function.
+Tizzy supports React-like hooks for state management and lifecycle effects within the render function.
 
 ### UseState
-Allows components to have local state that persists across renders. Splotch provides a generic wrapper for type safety.
+Allows components to have local state that persists across renders. Tizzy provides a generic wrapper for type safety.
 
 ```go
-app.Run(func(ctx *splotch.RenderContext) splotch.Node {
-    count, setCount := splotch.UseState(ctx, 0) // T is inferred as int
+app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
+    count, setCount := tizzy.UseState(ctx, 0) // T is inferred as int
     
-    return splotch.NewButton(splotch.Style{}, "Clicks: "+strconv.Itoa(count), func() {
+    return tizzy.NewButton(tizzy.Style{}, "Clicks: "+strconv.Itoa(count), func() {
         setCount(count + 1)
     })
 })
@@ -114,7 +114,7 @@ app.Run(func(ctx *splotch.RenderContext) splotch.Node {
 ### UseEffect
 Allows performing side effects (like starting background tasks) when a component mounts, and cleaning up when it unmounts.
 ```go
-app.Run(func(ctx *splotch.RenderContext) splotch.Node {
+app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
     ctx.UseEffect(func() func() {
         // OnInit / OnMount
         // Start a background goroutine or timer...
@@ -125,7 +125,7 @@ app.Run(func(ctx *splotch.RenderContext) splotch.Node {
         }
     })
     
-    return splotch.NewText(splotch.Style{}, "I keep track of my lifecycle")
+    return tizzy.NewText(tizzy.Style{}, "I keep track of my lifecycle")
 })
 ```
 > [!NOTE]
@@ -133,15 +133,15 @@ app.Run(func(ctx *splotch.RenderContext) splotch.Node {
 
 ## Components Reference
 
-Here are all the available components in Splotch:
+Here are all the available components in Tizzy:
 
 ### Containers & Layout
 
 #### Box
 The fundamental layout container.
 ```go
-splotch.NewBox(
-    splotch.Style{FlexDirection: "row"},
+tizzy.NewBox(
+    tizzy.Style{FlexDirection: "row"},
     child1,
     child2,
 )
@@ -150,9 +150,9 @@ splotch.NewBox(
 #### ScrollView
 A container that allows scrolling its content if it exceeds available size.
 ```go
-splotch.NewScrollView(
+tizzy.NewScrollView(
     ctx,
-    splotch.Style{Height: 10},
+    tizzy.Style{Height: 10},
     largeContentNode,
 )
 ```
@@ -160,9 +160,9 @@ splotch.NewScrollView(
 #### Modal
 An overlay that traps focus and blocks interaction with the background. Controlled by `isOpen` boolean.
 ```go
-splotch.NewModal(
+tizzy.NewModal(
     ctx,
-    splotch.Style{},
+    tizzy.Style{},
     modalContentNode,
     isOpen,
 )
@@ -173,13 +173,13 @@ splotch.NewModal(
 #### Text
 Displays static text.
 ```go
-splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Hello World")
+tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Hello World")
 ```
 
 #### Button
 A clickable button.
 ```go
-splotch.NewButton(splotch.Style{Focusable: true}, "Click Me", func() {
+tizzy.NewButton(tizzy.Style{Focusable: true}, "Click Me", func() {
     // handle click
 })
 ```
@@ -187,7 +187,7 @@ splotch.NewButton(splotch.Style{Focusable: true}, "Click Me", func() {
 #### TextInput
 A single-line text input field.
 ```go
-splotch.NewTextInput(ctx, splotch.Style{Focusable: true}, "initial value", func(newValue string) {
+tizzy.NewTextInput(ctx, tizzy.Style{Focusable: true}, "initial value", func(newValue string) {
     // handle change
 })
 ```
@@ -197,13 +197,13 @@ splotch.NewTextInput(ctx, splotch.Style{Focusable: true}, "initial value", func(
 #### List
 Displays a list of selectable items.
 ```go
-splotch.NewList(
+tizzy.NewList(
     ctx,
-    splotch.Style{Focusable: true},
+    tizzy.Style{Focusable: true},
     "state-key", // Key to identify list state across renders
     items,       // []any
-    func(item any, index int, selected bool, cursor bool) splotch.Node {
-        return splotch.NewListItem(label, selected, cursor)
+    func(item any, index int, selected bool, cursor bool) tizzy.Node {
+        return tizzy.NewListItem(label, selected, cursor)
     },
     func(idx int) {
         // handle selection
@@ -217,7 +217,7 @@ Options on the returned `*List` struct:
 #### Checkbox
 A toggleable checkbox.
 ```go
-splotch.NewCheckbox(ctx, splotch.Style{Focusable: true}, "Enable Feature", true, func(checked bool) {
+tizzy.NewCheckbox(ctx, tizzy.Style{Focusable: true}, "Enable Feature", true, func(checked bool) {
     // handle change
 })
 ```
@@ -225,7 +225,7 @@ splotch.NewCheckbox(ctx, splotch.Style{Focusable: true}, "Enable Feature", true,
 #### RadioButton
 A mutually exclusive selection button.
 ```go
-splotch.NewRadioButton(ctx, splotch.Style{Focusable: true}, "Option 1", "value1", isSelected, func(value string) {
+tizzy.NewRadioButton(ctx, tizzy.Style{Focusable: true}, "Option 1", "value1", isSelected, func(value string) {
     // handle selection
 })
 ```
@@ -233,9 +233,9 @@ splotch.NewRadioButton(ctx, splotch.Style{Focusable: true}, "Option 1", "value1"
 #### Dropdown
 A dropdown menu for selecting from a list.
 ```go
-splotch.NewDropdown(
+tizzy.NewDropdown(
     ctx,
-    splotch.Style{Focusable: true},
+    tizzy.Style{Focusable: true},
     []string{"Option A", "Option B", "Option C"},
     selectedIndex,
     func(idx int) {
@@ -249,10 +249,10 @@ splotch.NewDropdown(
 #### Tabs
 A tabbed interface for switching between views.
 ```go
-splotch.NewTabs(
+tizzy.NewTabs(
     ctx,
-    splotch.Style{Focusable: true},
-    []splotch.Tab{
+    tizzy.Style{Focusable: true},
+    []tizzy.Tab{
         {Title: "Home", Content: homeNode},
         {Title: "Settings", Content: settingsNode},
     },
@@ -262,13 +262,13 @@ splotch.NewTabs(
 #### MenuBar
 A top-level specific menu bar with support for Alt shortcuts and dropdowns. Uses internal hooks for state.
 ```go
-splotch.NewMenuBar(
+tizzy.NewMenuBar(
     ctx,
-    splotch.Style{Focusable: true},
-    []splotch.Menu{
+    tizzy.Style{Focusable: true},
+    []tizzy.Menu{
         {
             Title: "File",
-            Items: []splotch.MenuItem{
+            Items: []tizzy.MenuItem{
                 {Title: "New", Action: func() {}},
                 {Title: "Exit", Action: func() {}},
             },
@@ -282,20 +282,20 @@ splotch.NewMenuBar(
 #### ProgressBar
 A horizontal progress bar.
 ```go
-splotch.NewProgressBar(splotch.Style{}, 0.75) // 75%
+tizzy.NewProgressBar(tizzy.Style{}, 0.75) // 75%
 ```
 
 #### Spinner
 An animated loading spinner.
 ```go
-splotch.NewSpinner(ctx, splotch.Style{Color: tcell.ColorCyan})
+tizzy.NewSpinner(ctx, tizzy.Style{Color: tcell.ColorCyan})
 ```
 
 #### Table
 A grid table for displaying tabular data.
 ```go
-splotch.NewTable(
-    splotch.Style{},
+tizzy.NewTable(
+    tizzy.Style{},
     []string{"Name", "Age", "Role"},
     [][]string{
         {"Alice", "30", "Dev"},
@@ -307,7 +307,7 @@ splotch.NewTable(
 ## Installation
 
 ```bash
-go get splotch/splotch
+go get tizzy/tizzy
 ```
 
 *(Note: Replace with actual import path when available)*

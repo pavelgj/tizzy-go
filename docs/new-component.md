@@ -1,10 +1,10 @@
 # Creating New Components
 
-This guide explains how to create and test new components in Splotch.
+This guide explains how to create and test new components in Tizzy.
 
 ## The Node Interface
 
-All components in Splotch must implement the `Node` interface defined in `splotch/app.go`:
+All components in Tizzy must implement the `Node` interface defined in `tizzy/app.go`:
 
 ```go
 type Node interface {
@@ -125,7 +125,7 @@ func TestLayoutMyComponent(t *testing.T) {
 
 ### Render Tests
 
-Use `tcell.NewSimulationScreen` to verify the visual output. Use the `renderToScreen` helper available in the `splotch` package tests (defined in `render_test.go`) to render the node to the simulation screen.
+Use `tcell.NewSimulationScreen` to verify the visual output. Use the `renderToScreen` helper available in the `tizzy` package tests (defined in `render_test.go`) to render the node to the simulation screen.
 
 ```go
 func TestRenderMyComponent(t *testing.T) {

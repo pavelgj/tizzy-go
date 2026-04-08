@@ -3,20 +3,20 @@ package main
 import (
 	"log"
 
-	"splotch/splotch"
+	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := splotch.NewApp()
+	app, err := tizzy.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	render := func(ctx *splotch.RenderContext) splotch.Node {
-		checked, setChecked := splotch.UseState(ctx, false)
-		checkedCustom, setCheckedCustom := splotch.UseState(ctx, false)
+	render := func(ctx *tizzy.RenderContext) tizzy.Node {
+		checked, setChecked := tizzy.UseState(ctx, false)
+		checkedCustom, setCheckedCustom := tizzy.UseState(ctx, false)
 
 		status := "Unchecked"
 		if checked {
@@ -28,31 +28,31 @@ func main() {
 			customStatus = "Checked"
 		}
 
-		cbCustom := splotch.NewCheckbox(ctx, splotch.Style{Focusable: true, Color: tcell.ColorGreen}, "Accept Terms", checkedCustom, func(v bool) {
+		cbCustom := tizzy.NewCheckbox(ctx, tizzy.Style{Focusable: true, Color: tcell.ColorGreen}, "Accept Terms", checkedCustom, func(v bool) {
 			setCheckedCustom(v)
 		})
 		cbCustom.CheckedChar = "✔"
 		cbCustom.UncheckedChar = "✘"
 
-		return splotch.NewBox(
-			splotch.Style{
+		return tizzy.NewBox(
+			tizzy.Style{
 				FlexDirection: "column",
-				Padding:       splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+				Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
 				Background:    tcell.ColorReset,
 			},
-			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Checkbox Sample"),
-			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "----------------"),
-			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Standard Checkbox:"),
-			splotch.NewCheckbox(ctx, splotch.Style{Focusable: true, Color: tcell.ColorWhite}, "Enable Feature", checked, func(v bool) {
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Checkbox Sample"),
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "----------------"),
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Standard Checkbox:"),
+			tizzy.NewCheckbox(ctx, tizzy.Style{Focusable: true, Color: tcell.ColorWhite}, "Enable Feature", checked, func(v bool) {
 				setChecked(v)
 			}),
-			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Status: "+status),
-			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, ""),
-			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Custom Characters Checkbox:"),
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "Status: "+status),
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, ""),
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Custom Characters Checkbox:"),
 			cbCustom,
-			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Status: "+customStatus),
-			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, ""),
-			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Use Tab/Shift-Tab to navigate, Space/Enter to toggle, or mouse click."),
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "Status: "+customStatus),
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, ""),
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "Use Tab/Shift-Tab to navigate, Space/Enter to toggle, or mouse click."),
 		)
 	}
 

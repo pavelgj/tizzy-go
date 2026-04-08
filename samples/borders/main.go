@@ -2,31 +2,31 @@ package main
 
 import (
 	"log"
-	"splotch/splotch"
+	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := splotch.NewApp()
+	app, err := tizzy.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = app.Run(
-		func(ctx *splotch.RenderContext) splotch.Node {
-			return splotch.NewBox(
-				splotch.Style{FlexDirection: "column", Border: true, Title: "Outer Box"},
-				splotch.NewText(splotch.Style{}, "Content inside outer box"),
-				splotch.NewBox(
-					splotch.Style{
-						Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+		func(ctx *tizzy.RenderContext) tizzy.Node {
+			return tizzy.NewBox(
+				tizzy.Style{FlexDirection: "column", Border: true, Title: "Outer Box"},
+				tizzy.NewText(tizzy.Style{}, "Content inside outer box"),
+				tizzy.NewBox(
+					tizzy.Style{
+						Padding: tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
 						Border:  true,
 						Title:   "Inner Box",
 					},
-					splotch.NewText(splotch.Style{}, "Content inside inner box"),
+					tizzy.NewText(tizzy.Style{}, "Content inside inner box"),
 				),
-				splotch.NewText(splotch.Style{}, "Press ESC to quit."),
+				tizzy.NewText(tizzy.Style{}, "Press ESC to quit."),
 			)
 		},
 		func(ev tcell.Event) {

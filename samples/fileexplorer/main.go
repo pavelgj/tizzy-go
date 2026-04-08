@@ -6,14 +6,15 @@ import (
 	"path/filepath"
 	"sort"
 
+	"tizzy/tizzy"
+
 	"github.com/gdamore/tcell/v2"
-	"splotch/splotch"
 )
 
 func main() {
 	var currentUpdate func(tcell.Event)
 
-	var realApp *splotch.App
+	var realApp *tizzy.App
 	var err error
 
 	initialEntries, _ := os.ReadDir(".")
@@ -24,11 +25,11 @@ func main() {
 		return initialEntries[i].Name() < initialEntries[j].Name()
 	})
 
-	render := func(ctx *splotch.RenderContext) splotch.Node {
-		previewContent, setPreviewContent := splotch.UseState[string](ctx, "")
-		currentDir, setCurrentDirFn := splotch.UseState[string](ctx, ".")
-		pathInput, setPathInput := splotch.UseState[string](ctx, currentDir)
-		selectedFileIdx, setSelectedFileIdx := splotch.UseState[int](ctx, -1)
+	render := func(ctx *tizzy.RenderContext) tizzy.Node {
+		previewContent, setPreviewContent := tizzy.UseState[string](ctx, "")
+		currentDir, setCurrentDirFn := tizzy.UseState[string](ctx, ".")
+		pathInput, setPathInput := tizzy.UseState[string](ctx, currentDir)
+		selectedFileIdx, setSelectedFileIdx := tizzy.UseState[int](ctx, -1)
 
 		setCurrentDir := func(s string) {
 			setCurrentDirFn(s)
@@ -36,7 +37,7 @@ func main() {
 			setPathInput(s)
 		}
 
-		items, setItems := splotch.UseState[[]os.DirEntry](ctx, initialEntries)
+		items, setItems := tizzy.UseState[[]os.DirEntry](ctx, initialEntries)
 
 		var dirs []os.DirEntry
 		var files []os.DirEntry
@@ -82,14 +83,14 @@ func main() {
 			fileItems = append(fileItems, f)
 		}
 
-		leftList := splotch.NewList(ctx, splotch.Style{ID: "list-left", Focusable: true, Border: true, Title: "Folders", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, currentDir, dirItems, -1, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		leftList := tizzy.NewList(ctx, tizzy.Style{ID: "list-left", Focusable: true, Border: true, Title: "Folders", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, currentDir, dirItems, -1, func(item any, index int, selected bool, cursor bool) tizzy.Node {
 			label := ""
 			if s, ok := item.(string); ok {
 				label = s
 			} else if d, ok := item.(os.DirEntry); ok {
 				label = d.Name() + "/"
 			}
-			return splotch.NewListItem(label, selected, cursor)
+			return tizzy.NewListItem(label, selected, cursor)
 		}, func(idx int) {
 			// OnSelect
 			if hasParent && idx == 0 {
@@ -126,7 +127,7 @@ func main() {
 				}
 			}
 		})
-		leftList.OnFocus = func(state *splotch.ListState) {
+		leftList.OnFocus = func(state *tizzy.ListState) {
 			state.ScrollOffset = 0
 			state.CursorIndex = 0
 		}
@@ -135,12 +136,12 @@ func main() {
 		if selectedFileIdx >= 0 && selectedFileIdx < len(fileItems) {
 			middleListKey += ":" + fileItems[selectedFileIdx].(os.DirEntry).Name()
 		}
-		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true, Border: true, Title: "Files", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, middleListKey, fileItems, selectedFileIdx, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		middleList := tizzy.NewList(ctx, tizzy.Style{ID: "list-middle", Focusable: true, Border: true, Title: "Files", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, middleListKey, fileItems, selectedFileIdx, func(item any, index int, selected bool, cursor bool) tizzy.Node {
 			label := ""
 			if f, ok := item.(os.DirEntry); ok {
 				label = f.Name()
 			}
-			return splotch.NewListItem(label, selected, cursor)
+			return tizzy.NewListItem(label, selected, cursor)
 		}, func(idx int) {
 			updatePreview(idx)
 		})
@@ -167,7 +168,7 @@ func main() {
 			}
 		}
 
-		pathInputNode := splotch.NewTextInput(ctx, splotch.Style{ID: "path-input", Focusable: true, Border: true, Title: "Path", FillWidth: true, GridRow: 0, GridCol: 0}, pathInput, func(val string) {
+		pathInputNode := tizzy.NewTextInput(ctx, tizzy.Style{ID: "path-input", Focusable: true, Border: true, Title: "Path", FillWidth: true, GridRow: 0, GridCol: 0}, pathInput, func(val string) {
 			setPathInput(val)
 		})
 		pathInputNode.OnSubmit = func(val string) {
@@ -225,39 +226,39 @@ func main() {
 			}
 		}
 
-		return splotch.NewGridBox(
-			splotch.Style{Border: true, FillWidth: true, FillHeight: true},
-			[]splotch.GridTrack{splotch.Flex(1)},
-			[]splotch.GridTrack{splotch.Fixed(3), splotch.Flex(1)},
+		return tizzy.NewGridBox(
+			tizzy.Style{Border: true, FillWidth: true, FillHeight: true},
+			[]tizzy.GridTrack{tizzy.Flex(1)},
+			[]tizzy.GridTrack{tizzy.Fixed(3), tizzy.Flex(1)},
 
 			pathInputNode,
 
-			splotch.NewGridBox(
-				splotch.Style{GridRow: 1, GridCol: 0, FillWidth: true, FillHeight: true},
-				[]splotch.GridTrack{splotch.Fixed(25), splotch.Flex(1), splotch.Flex(1)},
-				[]splotch.GridTrack{splotch.Flex(1)},
+			tizzy.NewGridBox(
+				tizzy.Style{GridRow: 1, GridCol: 0, FillWidth: true, FillHeight: true},
+				[]tizzy.GridTrack{tizzy.Fixed(25), tizzy.Flex(1), tizzy.Flex(1)},
+				[]tizzy.GridTrack{tizzy.Flex(1)},
 
 				// Left Panel
-				splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 0, FillHeight: true, FillWidth: true},
+				tizzy.NewBox(tizzy.Style{GridRow: 0, GridCol: 0, FillHeight: true, FillWidth: true},
 					leftList,
 				),
 
 				// Middle Panel
-				splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 1, FillHeight: true, FillWidth: true},
+				tizzy.NewBox(tizzy.Style{GridRow: 0, GridCol: 1, FillHeight: true, FillWidth: true},
 					middleList,
 				),
 
 				// Right Panel
-				splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 2, Border: true, FillHeight: true, FillWidth: true, Title: "Preview"},
-					splotch.NewScrollView(ctx, splotch.Style{ID: "scroll-right", FillHeight: true, FillWidth: true},
-						splotch.NewTextView(splotch.Style{FillWidth: true}, previewContent),
+				tizzy.NewBox(tizzy.Style{GridRow: 0, GridCol: 2, Border: true, FillHeight: true, FillWidth: true, Title: "Preview"},
+					tizzy.NewScrollView(ctx, tizzy.Style{ID: "scroll-right", FillHeight: true, FillWidth: true},
+						tizzy.NewTextView(tizzy.Style{FillWidth: true}, previewContent),
 					),
 				),
 			),
 		)
 	}
 
-	realApp, err = splotch.NewApp()
+	realApp, err = tizzy.NewApp()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating app: %v\n", err)
 		os.Exit(1)

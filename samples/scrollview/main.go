@@ -4,13 +4,13 @@ import (
 	"log"
 	"strconv"
 
-	"splotch/splotch"
+	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := splotch.NewApp()
+	app, err := tizzy.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -26,20 +26,20 @@ func main() {
 		})
 	}
 
-	render := func(ctx *splotch.RenderContext) splotch.Node {
-		return splotch.NewBox(
-			splotch.Style{
+	render := func(ctx *tizzy.RenderContext) tizzy.Node {
+		return tizzy.NewBox(
+			tizzy.Style{
 				FlexDirection: "column",
-				Padding:       splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+				Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
 				Background:    tcell.ColorReset,
 				FillWidth:     true,
 				FillHeight:    true,
 			},
-			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "ScrollView Sample (Scroll with Mouse Wheel)"),
-			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "------------------------------------------"),
-			splotch.NewScrollView(
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "ScrollView Sample (Scroll with Mouse Wheel)"),
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "------------------------------------------"),
+			tizzy.NewScrollView(
 				ctx,
-				splotch.Style{
+				tizzy.Style{
 					Color:      tcell.ColorWhite,
 					Border:     true,
 					FillWidth:  true,
@@ -47,7 +47,7 @@ func main() {
 					Focusable:  true,
 					Title:      "Users Table",
 				},
-				splotch.NewTable(splotch.Style{Color: tcell.ColorWhite, FillWidth: true}, headers, rows),
+				tizzy.NewTable(tizzy.Style{Color: tcell.ColorWhite, FillWidth: true}, headers, rows),
 			),
 		)
 	}

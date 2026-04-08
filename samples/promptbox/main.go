@@ -3,14 +3,14 @@ package main
 import (
 	"fmt"
 	"log"
-	"splotch/splotch"
 	"strings"
+	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := splotch.NewApp()
+	app, err := tizzy.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,34 +44,34 @@ func main() {
 	var filteredSuggestions []string
 	var cursorOverride *int
 
-	render := func(ctx *splotch.RenderContext) splotch.Node {
-		inputValue, setInputValue = splotch.UseState(ctx, "")
+	render := func(ctx *tizzy.RenderContext) tizzy.Node {
+		inputValue, setInputValue = tizzy.UseState(ctx, "")
 
-		history, _ = splotch.UseState(ctx, initialHistory)
+		history, _ = tizzy.UseState(ctx, initialHistory)
 
-		historyIndex, setHistoryIndex = splotch.UseState(ctx, -1)
+		historyIndex, setHistoryIndex = tizzy.UseState(ctx, -1)
 
-		popupOpen, setPopupOpen = splotch.UseState(ctx, false)
+		popupOpen, setPopupOpen = tizzy.UseState(ctx, false)
 
-		selectedSug, setSelectedSug = splotch.UseState(ctx, 0)
+		selectedSug, setSelectedSug = tizzy.UseState(ctx, 0)
 
-		cursorOverride, setCursorOverride = splotch.UseState[*int](ctx, nil)
+		cursorOverride, setCursorOverride = tizzy.UseState[*int](ctx, nil)
 
 		filteredSuggestions = []string{}
 		if popupOpen {
 			filteredSuggestions = allSuggestions
 		}
 
-		inputStyle := splotch.Style{
+		inputStyle := tizzy.Style{
 			Focusable: true,
 			Border:    true,
-			Padding:   splotch.Padding{Left: 1, Right: 1},
+			Padding:   tizzy.Padding{Left: 1, Right: 1},
 			Width:     50,
 			Multiline: true,
 			MaxHeight: 5,
 		}
 
-		inputNode := splotch.NewTextInput(
+		inputNode := tizzy.NewTextInput(
 			ctx,
 			inputStyle,
 			inputValue,
@@ -95,27 +95,27 @@ func main() {
 			setCursorOverride(nil)
 		}
 
-		var popupNode splotch.Node
+		var popupNode tizzy.Node
 		if popupOpen && len(filteredSuggestions) > 0 {
-			listItems := []splotch.Node{}
+			listItems := []tizzy.Node{}
 			for i, sug := range filteredSuggestions {
-				style := splotch.Style{Padding: splotch.Padding{Left: 1, Right: 1}}
+				style := tizzy.Style{Padding: tizzy.Padding{Left: 1, Right: 1}}
 				if i == selectedSug {
 					style.Background = tcell.ColorYellow
 					style.Color = tcell.ColorBlack
 				}
-				listItems = append(listItems, splotch.NewText(style, sug))
+				listItems = append(listItems, tizzy.NewText(style, sug))
 			}
 
-			popupNode = splotch.NewPopup(
+			popupNode = tizzy.NewPopup(
 				ctx,
-				splotch.Style{
+				tizzy.Style{
 					Border:     true,
 					Background: tcell.ColorGray,
 					Width:      20,
 				},
-				splotch.NewBox(
-					splotch.Style{FlexDirection: "column"},
+				tizzy.NewBox(
+					tizzy.Style{FlexDirection: "column"},
 					listItems...,
 				),
 				10, // X
@@ -124,14 +124,14 @@ func main() {
 			)
 		}
 
-		return splotch.NewBox(
-			splotch.Style{FlexDirection: "column", Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
-			splotch.NewText(splotch.Style{}, "Advanced Prompt Box Sample"),
-			splotch.NewText(splotch.Style{}, "Type @ or / to trigger popup. Use Up/Down to navigate history or popup."),
-			splotch.NewText(splotch.Style{}, fmt.Sprintf("History Index: %d", historyIndex)),
+		return tizzy.NewBox(
+			tizzy.Style{FlexDirection: "column", Padding: tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
+			tizzy.NewText(tizzy.Style{}, "Advanced Prompt Box Sample"),
+			tizzy.NewText(tizzy.Style{}, "Type @ or / to trigger popup. Use Up/Down to navigate history or popup."),
+			tizzy.NewText(tizzy.Style{}, fmt.Sprintf("History Index: %d", historyIndex)),
 			inputNode,
 			popupNode,
-			splotch.NewText(splotch.Style{}, "Press Ctrl+C to exit."),
+			tizzy.NewText(tizzy.Style{}, "Press Ctrl+C to exit."),
 		)
 	}
 

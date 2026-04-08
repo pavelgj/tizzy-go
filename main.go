@@ -3,13 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
-	"splotch/splotch"
+	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := splotch.NewApp()
+	app, err := tizzy.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -17,12 +17,12 @@ func main() {
 	count := 0
 
 	err = app.Run(
-		func(ctx *splotch.RenderContext) splotch.Node {
-			return splotch.NewBox(
-				splotch.Style{FlexDirection: "column"},
-				splotch.NewText(splotch.Style{}, "Welcome to Splotch!"),
-				splotch.NewText(splotch.Style{}, fmt.Sprintf("Count: %d", count)),
-				splotch.NewText(splotch.Style{}, "Press any key to increment. Press ESC to quit."),
+		func(ctx *tizzy.RenderContext) tizzy.Node {
+			return tizzy.NewBox(
+				tizzy.Style{FlexDirection: "column"},
+				tizzy.NewText(tizzy.Style{}, "Welcome to Tizzy!"),
+				tizzy.NewText(tizzy.Style{}, fmt.Sprintf("Count: %d", count)),
+				tizzy.NewText(tizzy.Style{}, "Press any key to increment. Press ESC to quit."),
 			)
 		},
 		func(ev tcell.Event) {

@@ -2,41 +2,41 @@ package main
 
 import (
 	"log"
-	"splotch/splotch"
+	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := splotch.NewApp()
+	app, err := tizzy.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = app.Run(
-		func(ctx *splotch.RenderContext) splotch.Node {
-			return splotch.NewBox(
-				splotch.Style{FlexDirection: "column", Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
-				splotch.NewText(splotch.Style{}, "Focus Management Sample"),
-				splotch.NewText(splotch.Style{}, "Press Tab to cycle focus, ESC to quit."),
-				splotch.NewBox(
-					splotch.Style{
+		func(ctx *tizzy.RenderContext) tizzy.Node {
+			return tizzy.NewBox(
+				tizzy.Style{FlexDirection: "column", Padding: tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
+				tizzy.NewText(tizzy.Style{}, "Focus Management Sample"),
+				tizzy.NewText(tizzy.Style{}, "Press Tab to cycle focus, ESC to quit."),
+				tizzy.NewBox(
+					tizzy.Style{
 						ID:        "box1",
 						Focusable: true,
 						Border:    true,
-						Padding:   splotch.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
-						Margin:    splotch.Margin{Top: 1, Bottom: 1},
+						Padding:   tizzy.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
+						Margin:    tizzy.Margin{Top: 1, Bottom: 1},
 					},
-					splotch.NewText(splotch.Style{}, "Box 1 (Focusable)"),
+					tizzy.NewText(tizzy.Style{}, "Box 1 (Focusable)"),
 				),
-				splotch.NewBox(
-					splotch.Style{
+				tizzy.NewBox(
+					tizzy.Style{
 						ID:        "box2",
 						Focusable: true,
 						Border:    true,
-						Padding:   splotch.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
+						Padding:   tizzy.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
 					},
-					splotch.NewText(splotch.Style{}, "Box 2 (Focusable)"),
+					tizzy.NewText(tizzy.Style{}, "Box 2 (Focusable)"),
 				),
 			)
 		},

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"splotch/splotch"
+	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -18,17 +18,17 @@ func NewCounterComponent(id string) *CounterComponent {
 	return &CounterComponent{id: id}
 }
 
-func (c *CounterComponent) Render() splotch.Node {
-	return splotch.NewBox(
-		splotch.Style{
+func (c *CounterComponent) Render() tizzy.Node {
+	return tizzy.NewBox(
+		tizzy.Style{
 			Border:  true,
-			Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
-			Margin:  splotch.Margin{Top: 1},
+			Padding: tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+			Margin:  tizzy.Margin{Top: 1},
 		},
-		splotch.NewText(splotch.Style{Color: tcell.ColorYellow}, fmt.Sprintf("Counter [%s]", c.id)),
-		splotch.NewText(splotch.Style{}, fmt.Sprintf("Clicks: %d", c.count)),
-		splotch.NewButton(
-			splotch.Style{ID: c.id + "_btn", Focusable: true, Margin: splotch.Margin{Top: 1}},
+		tizzy.NewText(tizzy.Style{Color: tcell.ColorYellow}, fmt.Sprintf("Counter [%s]", c.id)),
+		tizzy.NewText(tizzy.Style{}, fmt.Sprintf("Clicks: %d", c.count)),
+		tizzy.NewButton(
+			tizzy.Style{ID: c.id + "_btn", Focusable: true, Margin: tizzy.Margin{Top: 1}},
 			"Increment",
 			func() {
 				c.count++
@@ -43,16 +43,16 @@ type SidebarComponent struct {
 	onSelect    func(int)
 }
 
-func (s *SidebarComponent) Render() splotch.Node {
+func (s *SidebarComponent) Render() tizzy.Node {
 	items := []string{"Dashboard", "Settings", "About"}
-	var children []splotch.Node
-	children = append(children, splotch.NewText(splotch.Style{Color: tcell.ColorLightCyan}, " NAVIGATION "))
+	var children []tizzy.Node
+	children = append(children, tizzy.NewText(tizzy.Style{Color: tcell.ColorLightCyan}, " NAVIGATION "))
 
 	for i, item := range items {
-		style := splotch.Style{
+		style := tizzy.Style{
 			Focusable: true,
 			ID:        fmt.Sprintf("side_%d", i),
-			Margin:    splotch.Margin{Top: 1},
+			Margin:    tizzy.Margin{Top: 1},
 		}
 		label := "  " + item
 		if i == s.selectedTab {
@@ -61,7 +61,7 @@ func (s *SidebarComponent) Render() splotch.Node {
 		}
 
 		idx := i // capture for closure
-		children = append(children, splotch.NewButton(style, label, func() {
+		children = append(children, tizzy.NewButton(style, label, func() {
 			s.selectedTab = idx
 			if s.onSelect != nil {
 				s.onSelect(idx)
@@ -69,10 +69,10 @@ func (s *SidebarComponent) Render() splotch.Node {
 		}))
 	}
 
-	return splotch.NewBox(
-		splotch.Style{
+	return tizzy.NewBox(
+		tizzy.Style{
 			Border:        true,
-			Padding:       splotch.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
+			Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
 			FlexDirection: "column",
 			Width:         20,
 		},
@@ -94,38 +94,38 @@ func NewMainContentComponent() *MainContentComponent {
 	}
 }
 
-func (m *MainContentComponent) Render() splotch.Node {
-	var content splotch.Node
+func (m *MainContentComponent) Render() tizzy.Node {
+	var content tizzy.Node
 
 	switch m.currentView {
 	case 0:
-		content = splotch.NewBox(
-			splotch.Style{FlexDirection: "column"},
-			splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Dashboard View"),
-			splotch.NewText(splotch.Style{}, "Welcome to the main dashboard."),
+		content = tizzy.NewBox(
+			tizzy.Style{FlexDirection: "column"},
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Dashboard View"),
+			tizzy.NewText(tizzy.Style{}, "Welcome to the main dashboard."),
 			m.counter1.Render(),
 		)
 	case 1:
-		content = splotch.NewBox(
-			splotch.Style{FlexDirection: "column"},
-			splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Settings View"),
-			splotch.NewText(splotch.Style{}, "Configure your application here."),
+		content = tizzy.NewBox(
+			tizzy.Style{FlexDirection: "column"},
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Settings View"),
+			tizzy.NewText(tizzy.Style{}, "Configure your application here."),
 			m.counter2.Render(),
 		)
 	case 2:
-		content = splotch.NewBox(
-			splotch.Style{FlexDirection: "column"},
-			splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "About View"),
-			splotch.NewText(splotch.Style{}, "Splotch Component Demo"),
-			splotch.NewText(splotch.Style{}, "This demonstrates state isolation."),
+		content = tizzy.NewBox(
+			tizzy.Style{FlexDirection: "column"},
+			tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "About View"),
+			tizzy.NewText(tizzy.Style{}, "Tizzy Component Demo"),
+			tizzy.NewText(tizzy.Style{}, "This demonstrates state isolation."),
 		)
 	}
 
-	return splotch.NewBox(
-		splotch.Style{
+	return tizzy.NewBox(
+		tizzy.Style{
 			Border:        true,
-			Padding:       splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
-			Margin:        splotch.Margin{Left: 1},
+			Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+			Margin:        tizzy.Margin{Left: 1},
 			FlexDirection: "column",
 			FillWidth:     true,
 			FillHeight:    true,
@@ -135,7 +135,7 @@ func (m *MainContentComponent) Render() splotch.Node {
 }
 
 func main() {
-	app, err := splotch.NewApp()
+	app, err := tizzy.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -147,10 +147,10 @@ func main() {
 		},
 	}
 
-	render := func(ctx *splotch.RenderContext) splotch.Node {
-		return splotch.NewBox(
-			splotch.Style{
-				Padding:       splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+	render := func(ctx *tizzy.RenderContext) tizzy.Node {
+		return tizzy.NewBox(
+			tizzy.Style{
+				Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
 				FlexDirection: "row",
 				FillWidth:     true,
 				FillHeight:    true,

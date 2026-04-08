@@ -2,31 +2,31 @@ package main
 
 import (
 	"log"
-	"splotch/splotch"
+	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := splotch.NewApp()
+	app, err := tizzy.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = app.Run(
-		func(ctx *splotch.RenderContext) splotch.Node {
-			inputValue, setVal := splotch.UseState(ctx, "Type here...")
+		func(ctx *tizzy.RenderContext) tizzy.Node {
+			inputValue, setVal := tizzy.UseState(ctx, "Type here...")
 
-			return splotch.NewBox(
-				splotch.Style{FlexDirection: "column", Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
-				splotch.NewText(splotch.Style{}, "Text Input Sample"),
-				splotch.NewText(splotch.Style{}, "Press Tab to focus input, ESC to quit."),
-				splotch.NewTextInput(
+			return tizzy.NewBox(
+				tizzy.Style{FlexDirection: "column", Padding: tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
+				tizzy.NewText(tizzy.Style{}, "Text Input Sample"),
+				tizzy.NewText(tizzy.Style{}, "Press Tab to focus input, ESC to quit."),
+				tizzy.NewTextInput(
 					ctx,
-					splotch.Style{
+					tizzy.Style{
 						Focusable: true,
 						Border:    true,
-						Padding:   splotch.Padding{Left: 1, Right: 1},
+						Padding:   tizzy.Padding{Left: 1, Right: 1},
 						Width:     20,
 					},
 					inputValue,
@@ -34,7 +34,7 @@ func main() {
 						setVal(newValue)
 					},
 				),
-				splotch.NewText(splotch.Style{}, "You typed: "+inputValue),
+				tizzy.NewText(tizzy.Style{}, "You typed: "+inputValue),
 			)
 		},
 		func(ev tcell.Event) {
