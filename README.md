@@ -33,6 +33,8 @@ func main() {
 
 	render := func(ctx *tz.RenderContext) tz.Node {
 		count, setCount := tz.UseState(ctx, 0)
+		amountStr, setAmountStr := tz.UseState(ctx, "1")
+		amount, _ := strconv.Atoi(amountStr)
 
 		return tz.NewBox(
 			tz.Style{
@@ -42,9 +44,22 @@ func main() {
 				FillWidth:     true,
 			},
 			tz.NewText(tz.Style{}, "Clicks: "+strconv.Itoa(count)),
-			tz.NewButton(tz.Style{Focusable: true}, "Increment", func() {
-				setCount(count + 1)
-			}),
+			tz.NewBox(
+				tz.Style{FlexDirection: "row"},
+				tz.NewText(tz.Style{Margin: tz.Margin{Top: 1}}, "Amount: "),
+				tz.NewTextInput(ctx, tz.Style{Focusable: true, ID: "input-amount", Border: true}, amountStr, func(newValue string) {
+					setAmountStr(newValue)
+				}),
+			),
+			tz.NewBox(
+				tz.Style{FlexDirection: "row"},
+				tz.NewButton(tz.Style{Focusable: true, ID: "btn-decrement"}, "Decrement", func() {
+					setCount(count - amount)
+				}),
+				tz.NewButton(tz.Style{Focusable: true, ID: "btn-increment"}, "Increment", func() {
+					setCount(count + amount)
+				}),
+			),
 		)
 	}
 
@@ -195,7 +210,7 @@ tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Hello World")
 A clickable button.
 
 ```go
-tz.NewButton(tz.Style{Focusable: true}, "Click Me", func() {
+tz.NewButton(tz.Style{Focusable: true, ID: "my-button"}, "Click Me", func() {
     // handle click
 })
 ```
