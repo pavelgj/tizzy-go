@@ -209,3 +209,15 @@ func TestLayoutCheckbox(t *testing.T) {
 		t.Errorf("Expected W=9, H=1, got W=%d, H=%d", res.W, res.H)
 	}
 }
+
+func TestLayoutRadioButton(t *testing.T) {
+	rb := NewRadioButton(Style{}, "Option", "val", false, nil)
+	res := Layout(rb, 10, 20, Constraints{MaxW: 100, MaxH: 100})
+
+	if res.X != 10 || res.Y != 20 {
+		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
+	}
+	if res.W != 10 || res.H != 1 {
+		t.Errorf("Expected W=10, H=1, got W=%d, H=%d", res.W, res.H)
+	}
+}

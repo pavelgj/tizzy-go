@@ -247,3 +247,25 @@ func TestRenderCheckbox(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderRadioButton(t *testing.T) {
+	s := tcell.NewSimulationScreen("")
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	rb := NewRadioButton(Style{}, "Option", "val", true, nil)
+	layout := Layout(rb, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+
+	s.SetSize(20, 5)
+	renderToScreen(s, layout, "", nil)
+	s.Show()
+
+	expected := "(*) Option"
+	for i, r := range expected {
+		mainc, _, _, _ := s.GetContent(i, 0)
+		if mainc != r {
+			t.Errorf("Expected '%c' at %d,0, got '%c'", r, i, mainc)
+		}
+	}
+}
