@@ -14,24 +14,15 @@ func main() {
 		return
 	}
 
-	// Initial states
-	app.SetState("modal_simple", &splotch.ModalState{Open: false})
-	app.SetState("modal_confirm", &splotch.ModalState{Open: false})
-	app.SetState("modal_form", &splotch.ModalState{Open: false})
-
 	render := func(ctx *splotch.RenderContext) splotch.Node {
-		var stateSimple *splotch.ModalState
-		if s, ok := app.GetState("modal_simple").(*splotch.ModalState); ok {
-			stateSimple = s
-		}
-		var stateConfirm *splotch.ModalState
-		if s, ok := app.GetState("modal_confirm").(*splotch.ModalState); ok {
-			stateConfirm = s
-		}
-		var stateForm *splotch.ModalState
-		if s, ok := app.GetState("modal_form").(*splotch.ModalState); ok {
-			stateForm = s
-		}
+		simpleOpenObj, setSimpleOpen := ctx.UseState(false)
+		simpleOpen := simpleOpenObj.(bool)
+
+		confirmOpenObj, setConfirmOpen := ctx.UseState(false)
+		confirmOpen := confirmOpenObj.(bool)
+
+		formOpenObj, setFormOpen := ctx.UseState(false)
+		formOpen := formOpenObj.(bool)
 
 		return splotch.NewBox(
 			splotch.Style{
@@ -50,35 +41,24 @@ func main() {
 				splotch.NewButton(
 					splotch.Style{ID: "btn_simple", Focusable: true, Color: tcell.ColorWhite},
 					"Simple Modal",
-					func() {
-						if stateSimple != nil {
-							stateSimple.Open = true
-						}
-					},
+					func() { setSimpleOpen(true) },
 				),
 				splotch.NewButton(
 					splotch.Style{ID: "btn_confirm", Focusable: true, Color: tcell.ColorWhite},
 					"Confirmation",
-					func() {
-						if stateConfirm != nil {
-							stateConfirm.Open = true
-						}
-					},
+					func() { setConfirmOpen(true) },
 				),
 				splotch.NewButton(
 					splotch.Style{ID: "btn_form", Focusable: true, Color: tcell.ColorWhite},
 					"Form Modal",
-					func() {
-						if stateForm != nil {
-							stateForm.Open = true
-						}
-					},
+					func() { setFormOpen(true) },
 				),
 			),
 
 			// Simple Modal
 			splotch.NewModal(
-				splotch.Style{ID: "modal_simple", Color: tcell.ColorWhite, Background: tcell.ColorBlue},
+				ctx,
+				splotch.Style{Color: tcell.ColorWhite, Background: tcell.ColorBlue},
 				splotch.NewBox(
 					splotch.Style{Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
 					splotch.NewText(splotch.Style{Color: tcell.ColorYellow}, "Simple Modal"),
@@ -86,18 +66,16 @@ func main() {
 					splotch.NewButton(
 						splotch.Style{ID: "close_simple", Focusable: true, Color: tcell.ColorWhite},
 						"Close",
-						func() {
-							if stateSimple != nil {
-								stateSimple.Open = false
-							}
-						},
+						func() { setSimpleOpen(false) },
 					),
 				),
+				simpleOpen,
 			),
 
 			// Confirmation Dialog
 			splotch.NewModal(
-				splotch.Style{ID: "modal_confirm", Color: tcell.ColorWhite, Background: tcell.ColorGreen},
+				ctx,
+				splotch.Style{Color: tcell.ColorWhite, Background: tcell.ColorGreen},
 				splotch.NewBox(
 					splotch.Style{Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
 					splotch.NewText(splotch.Style{Color: tcell.ColorYellow}, "Are you sure?"),
@@ -107,28 +85,22 @@ func main() {
 						splotch.NewButton(
 							splotch.Style{ID: "confirm_yes", Focusable: true, Color: tcell.ColorWhite},
 							"Yes",
-							func() {
-								if stateConfirm != nil {
-									stateConfirm.Open = false
-								}
-							},
+							func() { setConfirmOpen(false) },
 						),
 						splotch.NewButton(
 							splotch.Style{ID: "confirm_no", Focusable: true, Color: tcell.ColorWhite},
 							"No",
-							func() {
-								if stateConfirm != nil {
-									stateConfirm.Open = false
-								}
-							},
+							func() { setConfirmOpen(false) },
 						),
 					),
 				),
+				confirmOpen,
 			),
 
 			// Form Modal
 			splotch.NewModal(
-				splotch.Style{ID: "modal_form", Color: tcell.ColorWhite, Background: tcell.ColorDarkMagenta},
+				ctx,
+				splotch.Style{Color: tcell.ColorWhite, Background: tcell.ColorDarkMagenta},
 				splotch.NewBox(
 					splotch.Style{Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
 					splotch.NewText(splotch.Style{Color: tcell.ColorYellow}, "Interactive Form"),
@@ -145,23 +117,16 @@ func main() {
 						splotch.NewButton(
 							splotch.Style{ID: "form_submit", Focusable: true, Color: tcell.ColorWhite},
 							"Submit",
-							func() {
-								if stateForm != nil {
-									stateForm.Open = false
-								}
-							},
+							func() { setFormOpen(false) },
 						),
 						splotch.NewButton(
 							splotch.Style{ID: "form_cancel", Focusable: true, Color: tcell.ColorWhite},
 							"Cancel",
-							func() {
-								if stateForm != nil {
-									stateForm.Open = false
-								}
-							},
+							func() { setFormOpen(false) },
 						),
 					),
 				),
+				formOpen,
 			),
 		)
 	}

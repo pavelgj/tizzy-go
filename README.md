@@ -77,7 +77,7 @@ Splotch supports React-like hooks for state management and lifecycle effects wit
 Allows components to have local state that persists across renders.
 ```go
 app.Run(func(ctx *splotch.RenderContext) splotch.Node {
-    countObj, setCount := ctx.UseState("counter", 0)
+    countObj, setCount := ctx.UseState(0)
     count := countObj.(int)
     
     return splotch.NewButton(splotch.Style{}, "Clicks: "+strconv.Itoa(count), func() {
@@ -90,7 +90,7 @@ app.Run(func(ctx *splotch.RenderContext) splotch.Node {
 Allows performing side effects (like starting background tasks) when a component mounts, and cleaning up when it unmounts.
 ```go
 app.Run(func(ctx *splotch.RenderContext) splotch.Node {
-    ctx.UseEffect("my-effect", func() func() {
+    ctx.UseEffect(func() func() {
         // OnInit / OnMount
         // Start a background goroutine or timer...
         
@@ -100,11 +100,11 @@ app.Run(func(ctx *splotch.RenderContext) splotch.Node {
         }
     })
     
-    return splotch.NewText(splotch.Style{ID: "my-effect"}, "I keep track of my lifecycle")
+    return splotch.NewText(splotch.Style{}, "I keep track of my lifecycle")
 })
 ```
 > [!NOTE]
-> `UseEffect` relies on the tree traversal to find the ID. Ensure the ID used in `UseEffect` matches the ID of a component returned in the tree for correct mount/unmount detection.
+> `UseEffect` relies on call order to identify effects across renders. Do not call hooks inside loops or conditions.
 
 ## Components Reference
 
@@ -132,11 +132,13 @@ splotch.NewScrollView(
 ```
 
 #### Modal
-An overlay that traps focus and blocks interaction with the background.
+An overlay that traps focus and blocks interaction with the background. Controlled by `isOpen` boolean.
 ```go
 splotch.NewModal(
+    ctx,
     splotch.Style{},
     modalContentNode,
+    isOpen,
 )
 ```
 
@@ -210,9 +212,10 @@ splotch.NewTabs(
 ```
 
 #### MenuBar
-A top-level specific menu bar with support for Alt shortcuts and dropdowns.
+A top-level specific menu bar with support for Alt shortcuts and dropdowns. Uses internal hooks for state.
 ```go
 splotch.NewMenuBar(
+    ctx,
     splotch.Style{Focusable: true},
     []splotch.Menu{
         {

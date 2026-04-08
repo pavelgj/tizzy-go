@@ -1,6 +1,7 @@
 package splotch
 
 import (
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -8,6 +9,7 @@ import (
 type MenuBar struct {
 	Style Style
 	Menus []Menu
+	State *MenuBarState // Added
 }
 
 // Menu represents a single menu in the MenuBar.
@@ -28,10 +30,17 @@ type MenuItem struct {
 func (m *MenuBar) node() {}
 
 // NewMenuBar creates a new MenuBar component.
-func NewMenuBar(style Style, menus []Menu) *MenuBar {
+func NewMenuBar(ctx *RenderContext, style Style, menus []Menu) *MenuBar {
+	stateObj, _ := ctx.UseState(&MenuBarState{OpenMenuIndex: -1})
+	
+	// Derive hook ID and set it on style
+	id := fmt.Sprintf("hook-%d", ctx.hookIndex-1)
+	style.ID = id
+	
 	return &MenuBar{
 		Style: style,
 		Menus: menus,
+		State: stateObj.(*MenuBarState),
 	}
 }
 
@@ -101,12 +110,7 @@ func (n *MenuBar) Render(grid *Grid, layout LayoutResult, focusedID string, comp
 	curX := layout.X + borderOffset + n.Style.Padding.Left
 	curY := layout.Y + borderOffset + n.Style.Padding.Top
 
-	var state *MenuBarState
-	if n.Style.ID != "" {
-		if s, ok := componentStates[n.Style.ID].(*MenuBarState); ok {
-			state = s
-		}
-	}
+	state := n.State
 
 	for i, menu := range n.Menus {
 		title := " " + menu.Title + " "

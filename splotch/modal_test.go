@@ -6,9 +6,12 @@ import (
 )
 
 func TestModalLayout(t *testing.T) {
+	ctx := &RenderContext{app: &App{componentStates: make(map[string]any)}}
 	modal := NewModal(
+		ctx,
 		Style{ID: "modal"},
 		NewText(Style{Color: tcell.ColorWhite}, "Content"),
+		true,
 	)
 
 	res := Layout(modal, 10, 20, Constraints{MaxW: 100, MaxH: 100})
@@ -22,13 +25,16 @@ func TestModalLayout(t *testing.T) {
 }
 
 func TestModalFocusTrapping(t *testing.T) {
+	ctx := &RenderContext{app: &App{componentStates: make(map[string]any)}}
 	modal := NewModal(
+		ctx,
 		Style{ID: "modal"},
 		NewBox(
 			Style{},
 			NewButton(Style{ID: "btn1", Focusable: true}, "Btn1", nil),
 			NewButton(Style{ID: "btn2", Focusable: true}, "Btn2", nil),
 		),
+		true,
 	)
 
 	// Simulate App.Run behavior when modal is open:

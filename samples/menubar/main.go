@@ -15,7 +15,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	app.SetState("menubar", &splotch.MenuBarState{OpenMenuIndex: -1})
 	app.SetState("last_action", "None")
 
 	render := func(ctx *splotch.RenderContext) splotch.Node {
@@ -32,8 +31,8 @@ func main() {
 				Background: tcell.ColorBlack,
 			},
 			splotch.NewMenuBar(
+				ctx,
 				splotch.Style{
-					ID:         "menubar",
 					Color:      tcell.ColorWhite,
 					Background: tcell.ColorTeal,
 					FillWidth:  true,

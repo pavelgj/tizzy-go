@@ -1,5 +1,7 @@
 package splotch
 
+import "fmt"
+
 // Modal represents a dialog overlay component.
 type Modal struct {
 	Style Style
@@ -9,7 +11,15 @@ type Modal struct {
 func (m *Modal) node() {}
 
 // NewModal creates a new Modal component.
-func NewModal(style Style, child Node) *Modal {
+func NewModal(ctx *RenderContext, style Style, child Node, isOpen bool) *Modal {
+	stateObj, _ := ctx.UseState(&ModalState{Open: isOpen})
+	state := stateObj.(*ModalState)
+	state.Open = isOpen // Sync with passed prop
+	
+	// Derive hook ID and set it on style
+	id := fmt.Sprintf("hook-%d", ctx.hookIndex-1)
+	style.ID = id
+	
 	return &Modal{
 		Style: style,
 		Child: child,

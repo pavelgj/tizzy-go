@@ -6,7 +6,8 @@ import (
 )
 
 func TestMenuBarLayout(t *testing.T) {
-	mb := NewMenuBar(Style{FillWidth: true}, []Menu{
+	ctx := &RenderContext{app: &App{componentStates: make(map[string]any)}}
+	mb := NewMenuBar(ctx, Style{FillWidth: true}, []Menu{
 		{Title: "File"},
 		{Title: "Edit"},
 	})
@@ -22,7 +23,8 @@ func TestMenuBarLayout(t *testing.T) {
 }
 
 func TestMenuBarLayoutAutoWidth(t *testing.T) {
-	mb := NewMenuBar(Style{}, []Menu{
+	ctx := &RenderContext{app: &App{componentStates: make(map[string]any)}}
+	mb := NewMenuBar(ctx, Style{}, []Menu{
 		{Title: "File"}, // len 4 + 4 = 8
 		{Title: "Edit"}, // len 4 + 4 = 8
 	})
@@ -43,19 +45,21 @@ func TestMenuBarInteraction(t *testing.T) {
 	}
 	defer s.Fini()
 
+	app := &App{
+		screen:          s,
+		componentStates: make(map[string]any),
+		focusedID:       "hook-0", // Focus the menu bar (auto-generated ID)
+	}
+	ctx := &RenderContext{app: app}
+
 	actionTriggered := false
-	mb := NewMenuBar(Style{ID: "menubar", Focusable: true}, []Menu{
+	mb := NewMenuBar(ctx, Style{Focusable: true}, []Menu{
 		{Title: "File", AltRune: 'f', Items: []MenuItem{
 			{Label: "New", Action: func() { actionTriggered = true }},
 		}},
 	})
 
-	app := &App{
-		screen:          s,
-		componentStates: make(map[string]any),
-		focusedID:       "menubar", // Focus the menu bar
-	}
-	app.componentStates["menubar"] = &MenuBarState{OpenMenuIndex: -1, FocusedItemIndex: -1}
+	app.componentStates["hook-0"] = &MenuBarState{OpenMenuIndex: -1, FocusedItemIndex: -1}
 
 	root := mb
 	layout := Layout(root, 0, 0, Constraints{MaxW: 80, MaxH: 24})
@@ -68,7 +72,7 @@ func TestMenuBarInteraction(t *testing.T) {
 		t.Error("Expected handleKeyEvent to return false (no exit) for 'f'")
 	}
 
-	state := app.componentStates["menubar"].(*MenuBarState)
+	state := app.componentStates["hook-0"].(*MenuBarState)
 	if state.OpenMenuIndex != 0 {
 		t.Errorf("Expected open menu index 0, got %d", state.OpenMenuIndex)
 	}

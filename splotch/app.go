@@ -473,6 +473,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 								if state.OpenMenuIndex != i {
 									state.OpenMenuIndex = i
 									state.FocusedItemIndex = -1
+									a.dirty = true
 								}
 								break
 							}
@@ -625,6 +626,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 											item.Action()
 										}
 										state.OpenMenuIndex = -1
+										a.dirty = true
 										handled = true
 									}
 								}
@@ -1343,12 +1345,14 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					if state.FocusedItemIndex >= len(openMenu.Items) {
 						state.FocusedItemIndex = 0
 					}
+					a.dirty = true
 					return false
 				} else if ev.Key() == tcell.KeyUp {
 					state.FocusedItemIndex--
 					if state.FocusedItemIndex < 0 {
 						state.FocusedItemIndex = len(openMenu.Items) - 1
 					}
+					a.dirty = true
 					return false
 				} else if ev.Key() == tcell.KeyRight {
 					state.OpenMenuIndex++
@@ -1356,6 +1360,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 						state.OpenMenuIndex = 0
 					}
 					state.FocusedItemIndex = -1
+					a.dirty = true
 					return false
 				} else if ev.Key() == tcell.KeyLeft {
 					state.OpenMenuIndex--
@@ -1363,6 +1368,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 						state.OpenMenuIndex = len(menuBar.Menus) - 1
 					}
 					state.FocusedItemIndex = -1
+					a.dirty = true
 					return false
 				} else if ev.Key() == tcell.KeyEnter {
 					if state.FocusedItemIndex >= 0 && state.FocusedItemIndex < len(openMenu.Items) {
@@ -1371,10 +1377,12 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 							item.Action()
 						}
 						state.OpenMenuIndex = -1
+						a.dirty = true
 						return false
 					}
 				} else if ev.Key() == tcell.KeyEscape {
 					state.OpenMenuIndex = -1
+					a.dirty = true
 					return false
 				}
 			}
