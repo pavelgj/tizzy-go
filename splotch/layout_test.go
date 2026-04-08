@@ -197,3 +197,15 @@ func TestLayoutMarginAccumulation(t *testing.T) {
 		t.Errorf("Expected child 1 X=7, got %d", c1.X)
 	}
 }
+
+func TestLayoutCheckbox(t *testing.T) {
+	cb := NewCheckbox(Style{}, "Check", false, nil)
+	res := Layout(cb, 10, 20, Constraints{MaxW: 100, MaxH: 100})
+
+	if res.X != 10 || res.Y != 20 {
+		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
+	}
+	if res.W != 9 || res.H != 1 {
+		t.Errorf("Expected W=9, H=1, got W=%d, H=%d", res.W, res.H)
+	}
+}

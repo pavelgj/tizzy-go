@@ -240,6 +240,13 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 							btn.OnClick()
 						}
 					}
+				} else if cb, ok := focusedNode.(*Checkbox); ok {
+					if ev.Key() == tcell.KeyEnter || (ev.Key() == tcell.KeyRune && ev.Rune() == ' ') {
+						cb.Checked = !cb.Checked
+						if cb.OnChange != nil {
+							cb.OnChange(cb.Checked)
+						}
+					}
 				}
 			}
 		case *EventTick:
@@ -257,6 +264,8 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 						nodeStyle = n.Style
 					case *Button:
 						nodeStyle = n.Style
+					case *Checkbox:
+						nodeStyle = n.Style
 					case *Spinner:
 						nodeStyle = n.Style
 					case *ProgressBar:
@@ -269,6 +278,12 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 					if btn, ok := clickedNode.(*Button); ok {
 						if btn.OnClick != nil {
 							btn.OnClick()
+						}
+					}
+					if cb, ok := clickedNode.(*Checkbox); ok {
+						cb.Checked = !cb.Checked
+						if cb.OnChange != nil {
+							cb.OnChange(cb.Checked)
 						}
 					}
 				}
@@ -296,6 +311,10 @@ func findFocusableIDs(node Node) []string {
 			ids = append(ids, n.Style.ID)
 		}
 	case *Button:
+		if n.Style.Focusable && n.Style.ID != "" {
+			ids = append(ids, n.Style.ID)
+		}
+	case *Checkbox:
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
 		}
@@ -343,6 +362,10 @@ func prevFocus(current string, ids []string) string {
 func findNodeByID(node Node, id string) Node {
 	switch n := node.(type) {
 	case *Text:
+		if n.Style.ID == id {
+			return n
+		}
+	case *Checkbox:
 		if n.Style.ID == id {
 			return n
 		}

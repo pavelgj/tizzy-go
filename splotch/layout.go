@@ -105,6 +105,40 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			W:    w + pad.Left + pad.Right + borderSize,
 			H:    layoutH,
 		}
+	case *Checkbox:
+		pad := n.Style.Padding
+		margin := n.Style.Margin
+		boxX := x + margin.Left
+		boxY := y + margin.Top
+
+		indicatorLen := len(n.CheckedChar)
+		if len(n.UncheckedChar) > indicatorLen {
+			indicatorLen = len(n.UncheckedChar)
+		}
+		w := len(n.Label) + indicatorLen + 3
+		h := 1
+
+		if n.Style.Width > 0 {
+			w = n.Style.Width
+		}
+
+		borderSize := 0
+		if n.Style.Border {
+			borderSize = 2
+		}
+
+		layoutH := h + pad.Top + pad.Bottom + borderSize
+		if n.Style.MaxHeight > 0 && layoutH > n.Style.MaxHeight {
+			layoutH = n.Style.MaxHeight
+		}
+
+		return LayoutResult{
+			Node: node,
+			X:    boxX,
+			Y:    boxY,
+			W:    w + pad.Left + pad.Right + borderSize,
+			H:    layoutH,
+		}
 	case *Spinner:
 		pad := n.Style.Padding
 		margin := n.Style.Margin
