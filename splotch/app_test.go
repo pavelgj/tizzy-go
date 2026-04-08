@@ -141,4 +141,24 @@ func TestScrollViewKeyboardScrolling(t *testing.T) {
 	}
 }
 
+func TestFindLayoutResultByID(t *testing.T) {
+	ctx := makeTestContext()
+	list := NewList(ctx, Style{ID: "list-1"}, "key", []any{"item1"}, nil, nil)
+	grid := NewGridBox(Style{ID: "grid-1"},
+		[]GridTrack{Flex(1)},
+		[]GridTrack{Flex(1)},
+		NewBox(Style{ID: "box-1"}, list),
+	)
+
+	layout := Layout(grid, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+
+	res := findLayoutResultByID(layout, "list-1")
+	if res == nil {
+		t.Fatalf("Expected to find layout result for 'list-1'")
+	}
+	if res.Node != list {
+		t.Errorf("Expected found node to be the list, got %T", res.Node)
+	}
+}
+
 

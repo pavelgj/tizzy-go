@@ -797,6 +797,24 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 		if n.Style.ID == id {
 			return &res
 		}
+	case *GridBox:
+		if n.Style.ID == id {
+			return &res
+		}
+		for _, child := range res.Children {
+			if found := findLayoutResultByID(child, id); found != nil {
+				return found
+			}
+		}
+	case *ScrollView:
+		if n.Style.ID == id {
+			return &res
+		}
+		for _, child := range res.Children {
+			if found := findLayoutResultByID(child, id); found != nil {
+				return found
+			}
+		}
 	}
 	return nil
 }
