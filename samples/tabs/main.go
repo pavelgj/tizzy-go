@@ -20,7 +20,7 @@ func main() {
 	countOutside := 0
 	notificationsEnabled := true
 
-	render := func() splotch.Node {
+	render := func(ctx *splotch.RenderContext) splotch.Node {
 		return splotch.NewBox(
 			splotch.Style{
 				Padding: splotch.Padding{Top: 1, Left: 2},

@@ -18,7 +18,7 @@ func main() {
 	app.SetState("menubar", &splotch.MenuBarState{OpenMenuIndex: -1})
 	app.SetState("last_action", "None")
 
-	render := func() splotch.Node {
+	render := func(ctx *splotch.RenderContext) splotch.Node {
 		lastAction := "None"
 		if val := app.GetState("last_action"); val != nil {
 			lastAction = val.(string)

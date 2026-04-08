@@ -15,7 +15,7 @@ func main() {
 	}
 
 	err = app.Run(
-		func() splotch.Node {
+		func(ctx *splotch.RenderContext) splotch.Node {
 			s1 := splotch.NewSpinner(splotch.Style{Color: tcell.ColorBlue})
 
 			s2 := splotch.NewSpinner(splotch.Style{Color: tcell.ColorGreen})

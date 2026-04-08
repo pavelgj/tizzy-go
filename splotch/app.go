@@ -16,6 +16,7 @@ type App struct {
 	focusedID       string
 	componentStates map[string]any
 	previousGrid    *Grid
+	activeCleanups  map[string]func()
 }
 
 // NewApp creates a new App instance.
@@ -27,13 +28,46 @@ func NewApp() (*App, error) {
 	return &App{
 		screen:          s,
 		componentStates: make(map[string]any),
+		activeCleanups:  make(map[string]func()),
 	}, nil
+}
+
+// EffectRecord stores an effect and its ID.
+type EffectRecord struct {
+	ID     string
+	Effect func() func()
+}
+
+// RenderContext provides hooks and state scoping during rendering.
+type RenderContext struct {
+	app     *App
+	effects []EffectRecord
+}
+
+// UseState retrieves or initializes state for a given ID.
+// It returns the current state and a setter function.
+func (ctx *RenderContext) UseState(id string, initial any) (any, func(any)) {
+	state := ctx.app.componentStates[id]
+	if state == nil {
+		state = initial
+		ctx.app.componentStates[id] = state
+	}
+	setter := func(newVal any) {
+		ctx.app.componentStates[id] = newVal
+	}
+	return state, setter
+}
+
+// UseEffect registers a lifecycle effect for a given ID.
+// The effect function should return a cleanup function (or nil).
+func (ctx *RenderContext) UseEffect(id string, effect func() func()) {
+	ctx.effects = append(ctx.effects, EffectRecord{ID: id, Effect: effect})
 }
 
 // Run starts the application loop.
 // It takes a function that returns the root Node of the UI,
 // and a function to handle events and update state.
-func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
+func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Event)) error {
 	if err := a.screen.Init(); err != nil {
 		return err
 	}
@@ -54,7 +88,36 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 
 	for {
 		// 1. Get the current UI tree
-		root := renderFn()
+		ctx := &RenderContext{app: a}
+		root := renderFn(ctx)
+
+		// Collect all IDs in the current tree
+		currentIDs := collectAllIDs(root)
+		currentIDMap := make(map[string]bool)
+		for _, id := range currentIDs {
+			currentIDMap[id] = true
+		}
+
+		// Detect Unmounts and run cleanups
+		for id, cleanup := range a.activeCleanups {
+			if !currentIDMap[id] {
+				if cleanup != nil {
+					cleanup()
+				}
+				delete(a.activeCleanups, id)
+			}
+		}
+
+		// Detect Mounts and run effects
+		for _, effectRec := range ctx.effects {
+			id := effectRec.ID
+			if _, active := a.activeCleanups[id]; !active {
+				cleanup := effectRec.Effect()
+				if cleanup != nil {
+					a.activeCleanups[id] = cleanup
+				}
+			}
+		}
 
 		// Find open modal if any
 		var activeModal *Modal
@@ -856,6 +919,33 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 			updateFn(ev)
 		}
 	}
+}
+
+func collectAllIDs(node Node) []string {
+	var ids []string
+	if node == nil {
+		return ids
+	}
+	style := node.GetStyle()
+	if style.ID != "" {
+		ids = append(ids, style.ID)
+	}
+
+	switch n := node.(type) {
+	case *Box:
+		for _, child := range n.Children {
+			ids = append(ids, collectAllIDs(child)...)
+		}
+	case *Modal:
+		ids = append(ids, collectAllIDs(n.Child)...)
+	case *ScrollView:
+		ids = append(ids, collectAllIDs(n.Child)...)
+	case *Tabs:
+		for _, tab := range n.Tabs {
+			ids = append(ids, collectAllIDs(tab.Content)...)
+		}
+	}
+	return ids
 }
 
 func findFocusableIDs(node Node, componentStates map[string]any) []string {

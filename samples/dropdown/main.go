@@ -28,7 +28,7 @@ func main() {
 	selectedIndex2 := 0
 	selectedIndex3 := 0
 
-	render := func() splotch.Node {
+	render := func(ctx *splotch.RenderContext) splotch.Node {
 		return splotch.NewBox(
 			splotch.Style{
 				Width:          40,

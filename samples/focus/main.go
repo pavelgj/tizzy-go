@@ -14,7 +14,7 @@ func main() {
 	}
 
 	err = app.Run(
-		func() splotch.Node {
+		func(ctx *splotch.RenderContext) splotch.Node {
 			return splotch.NewBox(
 				splotch.Style{FlexDirection: "column", Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
 				splotch.NewText(splotch.Style{}, "Focus Management Sample"),

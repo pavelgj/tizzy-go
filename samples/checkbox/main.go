@@ -17,7 +17,7 @@ func main() {
 	checked := false
 	checkedCustom := false
 
-	render := func() splotch.Node {
+	render := func(ctx *splotch.RenderContext) splotch.Node {
 		status := "Unchecked"
 		if checked {
 			status = "Checked"

@@ -19,7 +19,7 @@ func main() {
 	app.SetState("modal_confirm", &splotch.ModalState{Open: false})
 	app.SetState("modal_form", &splotch.ModalState{Open: false})
 
-	render := func() splotch.Node {
+	render := func(ctx *splotch.RenderContext) splotch.Node {
 		var stateSimple *splotch.ModalState
 		if s, ok := app.GetState("modal_simple").(*splotch.ModalState); ok {
 			stateSimple = s

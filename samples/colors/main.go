@@ -14,7 +14,7 @@ func main() {
 	}
 
 	err = app.Run(
-		func() splotch.Node {
+		func(ctx *splotch.RenderContext) splotch.Node {
 			return splotch.NewBox(
 				splotch.Style{FlexDirection: "column", Border: true},
 				splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Green Text"),

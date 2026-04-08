@@ -50,7 +50,7 @@ func main() {
 
 	counter := &Counter{}
 
-	app.Run(func() splotch.Node {
+	app.Run(func(ctx *splotch.RenderContext) splotch.Node {
 		return counter.Render()
 	})
 }
@@ -68,6 +68,43 @@ Layout is handled by the `Box` component using a Flexbox-style system.
 -   `FlexDirection`: "row" or "column".
 -   `FillWidth` / `FillHeight`: Fill available space.
 -   `JustifyContent`: "flex-start", "center", "flex-end".
+
+## Hooks and Lifecycle
+
+Splotch supports React-like hooks for state management and lifecycle effects within the render function.
+
+### UseState
+Allows components to have local state that persists across renders.
+```go
+app.Run(func(ctx *splotch.RenderContext) splotch.Node {
+    countObj, setCount := ctx.UseState("counter", 0)
+    count := countObj.(int)
+    
+    return splotch.NewButton(splotch.Style{}, "Clicks: "+strconv.Itoa(count), func() {
+        setCount(count + 1)
+    })
+})
+```
+
+### UseEffect
+Allows performing side effects (like starting background tasks) when a component mounts, and cleaning up when it unmounts.
+```go
+app.Run(func(ctx *splotch.RenderContext) splotch.Node {
+    ctx.UseEffect("my-effect", func() func() {
+        // OnInit / OnMount
+        // Start a background goroutine or timer...
+        
+        return func() {
+            // OnUnmount
+            // Stop the goroutine or cleanup resources...
+        }
+    })
+    
+    return splotch.NewText(splotch.Style{ID: "my-effect"}, "I keep track of my lifecycle")
+})
+```
+> [!NOTE]
+> `UseEffect` relies on the tree traversal to find the ID. Ensure the ID used in `UseEffect` matches the ID of a component returned in the tree for correct mount/unmount detection.
 
 ## Components Reference
 

@@ -22,7 +22,7 @@ func main() {
 		{"4", "David", "DevOps", "Offline"},
 	}
 
-	render := func() splotch.Node {
+	render := func(ctx *splotch.RenderContext) splotch.Node {
 		return splotch.NewBox(
 			splotch.Style{
 				FlexDirection: "column",

@@ -17,7 +17,7 @@ func main() {
 	inputValue := "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7"
 
 	err = app.Run(
-		func() splotch.Node {
+		func(ctx *splotch.RenderContext) splotch.Node {
 			return splotch.NewBox(
 				splotch.Style{FlexDirection: "column", Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
 				splotch.NewText(splotch.Style{}, "Multiline Text Input Sample"),

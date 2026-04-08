@@ -17,7 +17,7 @@ func main() {
 	count := 0
 
 	err = app.Run(
-		func() splotch.Node {
+		func(ctx *splotch.RenderContext) splotch.Node {
 			return splotch.NewBox(
 				splotch.Style{FlexDirection: "column"},
 				splotch.NewText(splotch.Style{}, "Welcome to Splotch!"),

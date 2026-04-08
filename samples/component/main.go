@@ -147,7 +147,7 @@ func main() {
 		},
 	}
 
-	render := func() splotch.Node {
+	render := func(ctx *splotch.RenderContext) splotch.Node {
 		return splotch.NewBox(
 			splotch.Style{
 				Padding:       splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
