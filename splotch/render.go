@@ -208,6 +208,41 @@ func Render(grid *Grid, layout LayoutResult, focusedID string, componentStates m
 			}
 			curY++
 		}
+	case *Dropdown:
+		borderOffset := 0
+		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+		borderStyle := style
+		if n.Style.ID != "" && n.Style.ID == focusedID {
+			borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow)
+		}
+		if n.Style.Border {
+			borderOffset = 1
+			drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		}
+
+		pad := n.Style.Padding
+		curX := layout.X + pad.Left + borderOffset
+		curY := layout.Y + pad.Top + borderOffset
+
+		selectedText := ""
+		if n.SelectedIndex >= 0 && n.SelectedIndex < len(n.Options) {
+			selectedText = n.Options[n.SelectedIndex]
+		}
+
+		drawText(grid, curX, curY, "[ ", style)
+		curX += 2
+		drawText(grid, curX, curY, selectedText, style)
+		curX += len(selectedText)
+		
+		remaining := layout.W - borderOffset*2 - pad.Left - pad.Right - 2 - len(selectedText) - 4
+		if remaining > 0 {
+			for i := 0; i < remaining; i++ {
+				grid.SetContent(curX+i, curY, ' ', style)
+			}
+			curX += remaining
+		}
+		
+		drawText(grid, curX, curY, " v ]", style)
 	case *ScrollView:
 		borderOffset := 0
 		borderStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)

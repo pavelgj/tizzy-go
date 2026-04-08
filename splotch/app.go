@@ -66,6 +66,64 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 		grid := NewGrid(w, h)
 		Render(grid, layout, a.focusedID, a.componentStates)
 
+		// Render dropdown overlays
+		for id, stateObj := range a.componentStates {
+			if state, ok := stateObj.(*DropdownState); ok && state.Open {
+				res := findLayoutResultByID(layout, id)
+				dropdownNode := findNodeByID(root, id)
+				if res != nil && dropdownNode != nil {
+					if drp, ok := dropdownNode.(*Dropdown); ok {
+						listY := res.Y + res.H
+						listW := res.W
+						maxH := drp.MaxListHeight
+						if maxH <= 0 {
+							maxH = 5 // Default limit
+						}
+						if maxH > len(drp.Options) {
+							maxH = len(drp.Options)
+						}
+						listH := maxH
+						
+						style := tcell.StyleDefault.Foreground(drp.Style.Color).Background(drp.Style.Background)
+						
+						for y := 0; y < listH; y++ {
+							for x := 0; x < listW; x++ {
+								if listY+y < h && res.X+x < w {
+									grid.SetContent(res.X+x, listY+y, ' ', style)
+								}
+							}
+						}
+						
+						for i := 0; i < listH; i++ {
+							optIdx := i + state.ScrollOffset
+							if optIdx >= len(drp.Options) {
+								break
+							}
+							opt := drp.Options[optIdx]
+							optStyle := style
+							if optIdx == state.FocusedIndex {
+								optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+							}
+							
+							curX := res.X + 1
+							for _, r := range opt {
+								if listY+i < h && curX < w {
+									grid.SetContent(curX, listY+i, r, optStyle)
+									curX++
+								}
+							}
+							
+							for j := len(opt) + 1; j < listW; j++ {
+								if listY+i < h && res.X+j < w {
+									grid.SetContent(res.X+j, listY+i, ' ', optStyle)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 		// 4. Diff and update screen
 		if a.previousGrid == nil || a.previousGrid.W != w || a.previousGrid.H != h {
 			a.screen.Clear()
@@ -138,58 +196,100 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 		case *tcell.EventMouse:
 			mx, my := ev.Position()
 			if ev.Buttons()&tcell.Button1 != 0 {
-				path := findNodePathAt(layout, mx, my, a.componentStates)
-				if len(path) > 0 {
-					clickedNode := path[len(path)-1]
-					
-					var nodeStyle Style
-					var focusableNode Node
-					for i := len(path) - 1; i >= 0; i-- {
-						n := path[i]
-						switch node := n.(type) {
-						case *Text:
-							nodeStyle = node.Style
-						case *TextInput:
-							nodeStyle = node.Style
-						case *Button:
-							nodeStyle = node.Style
-						case *Checkbox:
-							nodeStyle = node.Style
-						case *RadioButton:
-							nodeStyle = node.Style
-						case *Spinner:
-							nodeStyle = node.Style
-						case *ProgressBar:
-							nodeStyle = node.Style
-						case *ScrollView:
-							nodeStyle = node.Style
-						case *Box:
-							nodeStyle = node.Style
-						}
-						if nodeStyle.Focusable && nodeStyle.ID != "" {
-							focusableNode = n
-							break
+				handled := false
+				for id, stateObj := range a.componentStates {
+					if state, ok := stateObj.(*DropdownState); ok && state.Open {
+						res := findLayoutResultByID(layout, id)
+						dropdownNode := findNodeByID(root, id)
+						if res != nil && dropdownNode != nil {
+							if drp, ok := dropdownNode.(*Dropdown); ok {
+								listY := res.Y + res.H
+								listW := res.W
+								listH := len(drp.Options)
+								
+								if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+									clickedIndex := my - listY
+									drp.SelectedIndex = clickedIndex
+									if drp.OnChange != nil {
+										drp.OnChange(clickedIndex)
+									}
+									state.Open = false
+									handled = true
+									break
+								}
+							}
 						}
 					}
-					
-					if focusableNode != nil {
-						a.focusedID = nodeStyle.ID
-					}
+				}
 
-					if btn, ok := clickedNode.(*Button); ok {
-						if btn.OnClick != nil {
-							btn.OnClick()
+				if !handled {
+					path := findNodePathAt(layout, mx, my, a.componentStates)
+					if len(path) > 0 {
+						clickedNode := path[len(path)-1]
+						
+						var nodeStyle Style
+						var focusableNode Node
+						for i := len(path) - 1; i >= 0; i-- {
+							n := path[i]
+							switch node := n.(type) {
+							case *Text:
+								nodeStyle = node.Style
+							case *TextInput:
+								nodeStyle = node.Style
+							case *Button:
+								nodeStyle = node.Style
+							case *Checkbox:
+								nodeStyle = node.Style
+							case *RadioButton:
+								nodeStyle = node.Style
+							case *Spinner:
+								nodeStyle = node.Style
+							case *ProgressBar:
+								nodeStyle = node.Style
+							case *ScrollView:
+								nodeStyle = node.Style
+							case *Dropdown:
+								nodeStyle = node.Style
+							case *Box:
+								nodeStyle = node.Style
+							}
+							if nodeStyle.Focusable && nodeStyle.ID != "" {
+								focusableNode = n
+								break
+							}
 						}
-					}
-					if cb, ok := clickedNode.(*Checkbox); ok {
-						cb.Checked = !cb.Checked
-						if cb.OnChange != nil {
-							cb.OnChange(cb.Checked)
+						
+						if focusableNode != nil {
+							a.focusedID = nodeStyle.ID
+							a.closeOtherDropdowns(a.focusedID)
 						}
-					}
-					if rb, ok := clickedNode.(*RadioButton); ok {
-						if rb.OnChange != nil {
-							rb.OnChange(rb.Value)
+
+						if btn, ok := clickedNode.(*Button); ok {
+							if btn.OnClick != nil {
+								btn.OnClick()
+							}
+						}
+						if cb, ok := clickedNode.(*Checkbox); ok {
+							cb.Checked = !cb.Checked
+							if cb.OnChange != nil {
+								cb.OnChange(cb.Checked)
+							}
+						}
+						if rb, ok := clickedNode.(*RadioButton); ok {
+							if rb.OnChange != nil {
+								rb.OnChange(rb.Value)
+							}
+						}
+						if drp, ok := clickedNode.(*Dropdown); ok {
+							stateObj, ok := a.componentStates[drp.Style.ID]
+							var state *DropdownState
+							if !ok {
+								state = &DropdownState{}
+								a.componentStates[drp.Style.ID] = state
+							} else {
+								state = stateObj.(*DropdownState)
+							}
+							state.Open = !state.Open
 						}
 					}
 				}
@@ -254,6 +354,10 @@ func findFocusableIDs(node Node) []string {
 			ids = append(ids, n.Style.ID)
 		}
 	case *RadioButton:
+		if n.Style.Focusable && n.Style.ID != "" {
+			ids = append(ids, n.Style.ID)
+		}
+	case *Dropdown:
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
 		}
@@ -334,6 +438,10 @@ func findNodeByID(node Node, id string) Node {
 		if n.Style.ID == id {
 			return n
 		}
+	case *Dropdown:
+		if n.Style.ID == id {
+			return n
+		}
 	}
 	return nil
 }
@@ -361,8 +469,23 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 		if n.Style.ID == id {
 			return &res
 		}
+	case *Dropdown:
+		if n.Style.ID == id {
+			return &res
+		}
 	}
 	return nil
+}
+
+func (a *App) closeOtherDropdowns(keepID string) {
+	for id, stateObj := range a.componentStates {
+		if id == keepID {
+			continue
+		}
+		if state, ok := stateObj.(*DropdownState); ok {
+			state.Open = false
+		}
+	}
 }
 
 type TextInputState struct {
@@ -496,6 +619,9 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 	if ev.Key() == tcell.KeyBacktab {
 		a.focusedID = prevFocus(a.focusedID, focusableIDs)
 	}
+	if ev.Key() == tcell.KeyTab || ev.Key() == tcell.KeyBacktab {
+		a.closeOtherDropdowns(a.focusedID)
+	}
 	if a.focusedID != "" {
 		focusedNode := findNodeByID(root, a.focusedID)
 		if input, ok := focusedNode.(*TextInput); ok {
@@ -592,6 +718,114 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 						}
 						if line >= state.vScrollOffset+h {
 							state.vScrollOffset = line - h + 1
+						}
+					}
+				}
+			}
+		} else if drp, ok := focusedNode.(*Dropdown); ok {
+			stateObj, ok := a.componentStates[a.focusedID]
+			var state *DropdownState
+			if !ok {
+				state = &DropdownState{}
+				a.componentStates[a.focusedID] = state
+			} else {
+				state = stateObj.(*DropdownState)
+			}
+
+			if ev.Key() == tcell.KeyEnter {
+				if state.Open {
+					drp.SelectedIndex = state.FocusedIndex
+					if drp.OnChange != nil {
+						drp.OnChange(state.FocusedIndex)
+					}
+					state.Open = false
+				} else {
+					state.Open = true
+				}
+			} else if ev.Key() == tcell.KeyEscape {
+				state.Open = false
+			} else if ev.Key() == tcell.KeyUp {
+				if state.Open {
+					if state.FocusedIndex > 0 {
+						state.FocusedIndex--
+					}
+					
+					maxH := drp.MaxListHeight
+					if maxH <= 0 {
+						maxH = 5
+					}
+					if maxH > len(drp.Options) {
+						maxH = len(drp.Options)
+					}
+					
+					if state.FocusedIndex < state.ScrollOffset {
+						state.ScrollOffset = state.FocusedIndex
+					}
+					if state.FocusedIndex >= state.ScrollOffset + maxH {
+						state.ScrollOffset = state.FocusedIndex - maxH + 1
+					}
+				}
+			} else if ev.Key() == tcell.KeyDown {
+				if state.Open {
+					if state.FocusedIndex < len(drp.Options)-1 {
+						state.FocusedIndex++
+					}
+					
+					maxH := drp.MaxListHeight
+					if maxH <= 0 {
+						maxH = 5
+					}
+					if maxH > len(drp.Options) {
+						maxH = len(drp.Options)
+					}
+					
+					if state.FocusedIndex >= state.ScrollOffset + maxH {
+						state.ScrollOffset = state.FocusedIndex - maxH + 1
+					}
+					if state.FocusedIndex < state.ScrollOffset {
+						state.ScrollOffset = 0
+					}
+				}
+			} else if ev.Key() == tcell.KeyPgUp {
+				if state.Open {
+					maxH := drp.MaxListHeight
+					if maxH <= 0 {
+						maxH = 5
+					}
+					if maxH > len(drp.Options) {
+						maxH = len(drp.Options)
+					}
+					
+					state.FocusedIndex -= maxH
+					if state.FocusedIndex < 0 {
+						state.FocusedIndex = 0
+					}
+					
+					state.ScrollOffset -= maxH
+					if state.ScrollOffset < 0 {
+						state.ScrollOffset = 0
+					}
+				}
+			} else if ev.Key() == tcell.KeyPgDn {
+				if state.Open {
+					maxH := drp.MaxListHeight
+					if maxH <= 0 {
+						maxH = 5
+					}
+					if maxH > len(drp.Options) {
+						maxH = len(drp.Options)
+					}
+					
+					state.FocusedIndex += maxH
+					if state.FocusedIndex >= len(drp.Options) {
+						state.FocusedIndex = len(drp.Options) - 1
+					}
+					
+					state.ScrollOffset += maxH
+					if state.ScrollOffset + maxH > len(drp.Options) {
+						state.ScrollOffset = len(drp.Options) - maxH
+						if state.ScrollOffset < 0 {
+							state.ScrollOffset = 0
 						}
 					}
 				}
