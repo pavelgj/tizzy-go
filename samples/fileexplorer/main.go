@@ -134,6 +134,10 @@ func main() {
 				}
 			}
 		})
+		leftList.OnFocus = func(state *splotch.ListState) {
+			state.ScrollOffset = 0
+			state.CursorIndex = 0
+		}
 
 		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true}, currentDir, fileItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
 			label := ""
@@ -144,7 +148,6 @@ func main() {
 		}, func(idx int) {
 			updatePreview(currentDir, files, idx, "middle", setPreviewContent)
 		})
-
 		// Preview updates on selection (Enter or click) now
 
 		focused := ctx.GetFocusedID()
@@ -186,22 +189,7 @@ func main() {
 
 	update := func(ev tcell.Event) {
 		if key, ok := ev.(*tcell.EventKey); ok {
-			if key.Key() == tcell.KeyTab {
-				focused := realApp.GetFocusedID()
-				if focused == "list-left" {
-					if stateObj, ok := realApp.GetComponentState("list-middle"); ok {
-						state := stateObj.(*splotch.ListState)
-						state.ScrollOffset = 0
-						state.CursorIndex = 0
-					}
-				} else {
-					if stateObj, ok := realApp.GetComponentState("list-left"); ok {
-						state := stateObj.(*splotch.ListState)
-						state.ScrollOffset = 0
-						state.CursorIndex = 0
-					}
-				}
-			} else if key.Key() == tcell.KeyBackspace || key.Key() == tcell.KeyBackspace2 {
+			if key.Key() == tcell.KeyBackspace || key.Key() == tcell.KeyBackspace2 {
 				parent := filepath.Dir(currentDir)
 				if parent != currentDir {
 					setCurrentDir(parent)

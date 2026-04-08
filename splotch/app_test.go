@@ -161,4 +161,35 @@ func TestFindLayoutResultByID(t *testing.T) {
 	}
 }
 
+func TestListOnFocus(t *testing.T) {
+	app := &App{
+		componentStates: make(map[string]any),
+	}
+	ctx := &RenderContext{app: app}
+	
+	focusCalled := false
+	list := NewList(ctx, Style{ID: "list-1", Focusable: true}, "key", []any{"item1"}, nil, nil)
+	list.OnFocus = func(state *ListState) {
+		focusCalled = true
+		state.CursorIndex = 99
+	}
+	
+	root := NewBox(Style{}, list)
+	
+	app.setFocus("list-1", root)
+	
+	if !focusCalled {
+		t.Errorf("Expected OnFocus to be called")
+	}
+	
+	stateObj, ok := app.componentStates["list-1"]
+	if !ok {
+		t.Fatalf("Expected state for 'list-1' to be created")
+	}
+	state := stateObj.(*ListState)
+	if state.CursorIndex != 99 {
+		t.Errorf("Expected CursorIndex to be 99, got %d", state.CursorIndex)
+	}
+}
+
 

@@ -962,6 +962,31 @@ func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) 
 	return nil
 }
 
+func (a *App) setFocus(id string, root Node) {
+	if a.focusedID == id {
+		return
+	}
+	a.focusedID = id
+	a.dirty = true
+
+	if id != "" && root != nil {
+		node := findNodeByID(root, id)
+		if list, ok := node.(*List); ok {
+			if list.OnFocus != nil {
+				stateObj, ok := a.componentStates[id]
+				var state *ListState
+				if !ok {
+					state = &ListState{}
+					a.componentStates[id] = state
+				} else {
+					state = stateObj.(*ListState)
+				}
+				list.OnFocus(state)
+			}
+		}
+	}
+}
+
 func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult, focusableIDs []string) bool {
 	debugLog(fmt.Sprintf("Key Event: Key=%v, Rune=%v, Mod=%v", ev.Key(), ev.Rune(), ev.Modifiers()))
 
@@ -1130,12 +1155,10 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 	}
 
 	if ev.Key() == tcell.KeyTab {
-		a.focusedID = nextFocus(a.focusedID, focusableIDs)
-		a.dirty = true
+		a.setFocus(nextFocus(a.focusedID, focusableIDs), root)
 	}
 	if ev.Key() == tcell.KeyBacktab {
-		a.focusedID = prevFocus(a.focusedID, focusableIDs)
-		a.dirty = true
+		a.setFocus(prevFocus(a.focusedID, focusableIDs), root)
 	}
 	if ev.Key() == tcell.KeyTab || ev.Key() == tcell.KeyBacktab {
 		// Close all MenuBar menus on focus change
@@ -1898,7 +1921,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 					}
 
 					if focusableNode != nil {
-						a.focusedID = nodeStyle.ID
+						a.setFocus(nodeStyle.ID, root)
 						a.closeOtherDropdowns(a.focusedID)
 					}
 

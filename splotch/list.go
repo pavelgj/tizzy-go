@@ -12,6 +12,7 @@ type List struct {
 	RenderItem        func(item any, index int, selected bool, cursor bool) Node
 	OnSelect          func(int)
 	OnSelectionChange func(int)
+	OnFocus          func(state *ListState)
 }
 
 func (l *List) node() {}
