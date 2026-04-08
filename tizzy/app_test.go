@@ -192,3 +192,58 @@ func TestListOnFocus(t *testing.T) {
 		t.Errorf("Expected CursorIndex to be 99, got %d", state.CursorIndex)
 	}
 }
+
+func TestValidateUniqueIDs(t *testing.T) {
+	tests := []struct {
+		name        string
+		root        Node
+		expectError bool
+	}{
+		{
+			name: "No duplicates",
+			root: NewBox(Style{},
+				NewText(Style{ID: "t1"}, "Text 1"),
+				NewText(Style{ID: "t2"}, "Text 2"),
+			),
+			expectError: false,
+		},
+		{
+			name: "Duplicate IDs",
+			root: NewBox(Style{},
+				NewText(Style{ID: "t1"}, "Text 1"),
+				NewText(Style{ID: "t1"}, "Text 2"),
+			),
+			expectError: true,
+		},
+		{
+			name: "Nested duplicates",
+			root: NewBox(Style{},
+				NewText(Style{ID: "t1"}, "Text 1"),
+				NewBox(Style{},
+					NewText(Style{ID: "t1"}, "Text 2"),
+				),
+			),
+			expectError: true,
+		},
+		{
+			name: "Empty IDs are ignored",
+			root: NewBox(Style{},
+				NewText(Style{}, "Text 1"),
+				NewText(Style{}, "Text 2"),
+			),
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateUniqueIDs(tc.root)
+			if tc.expectError && err == nil {
+				t.Errorf("Expected error, got nil")
+			}
+			if !tc.expectError && err != nil {
+				t.Errorf("Expected no error, got %v", err)
+			}
+		})
+	}
+}

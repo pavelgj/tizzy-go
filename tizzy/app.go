@@ -126,6 +126,9 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 		if a.dirty || a.previousRoot == nil {
 			ctx := &RenderContext{app: a}
 			root = renderFn(ctx)
+			if err := validateUniqueIDs(root); err != nil {
+				return err
+			}
 			a.previousRoot = root
 			a.dirty = false
 
@@ -753,6 +756,56 @@ func findNodeByID(node Node, id string) Node {
 			return n
 		}
 		return findNodeByID(n.Child, id)
+	}
+	return nil
+}
+
+func validateUniqueIDs(node Node) error {
+	seen := make(map[string]bool)
+	return walkTree(node, func(n Node) error {
+		id := n.GetStyle().ID
+		if id != "" {
+			if seen[id] {
+				return fmt.Errorf("duplicate component ID: %s", id)
+			}
+			seen[id] = true
+		}
+		return nil
+	})
+}
+
+func walkTree(node Node, fn func(Node) error) error {
+	if node == nil {
+		return nil
+	}
+	if err := fn(node); err != nil {
+		return err
+	}
+	switch n := node.(type) {
+	case *Box:
+		for _, child := range n.Children {
+			if err := walkTree(child, fn); err != nil {
+				return err
+			}
+		}
+	case *GridBox:
+		for _, child := range n.Children {
+			if err := walkTree(child, fn); err != nil {
+				return err
+			}
+		}
+	case *ScrollView:
+		return walkTree(n.Child, fn)
+	case *Tabs:
+		for _, tab := range n.Tabs {
+			if err := walkTree(tab.Content, fn); err != nil {
+				return err
+			}
+		}
+	case *Modal:
+		return walkTree(n.Child, fn)
+	case *Popup:
+		return walkTree(n.Child, fn)
 	}
 	return nil
 }
