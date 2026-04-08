@@ -15,11 +15,8 @@ func main() {
 	}
 
 	render := func(ctx *splotch.RenderContext) splotch.Node {
-		selectedValObj, setSelectedVal := ctx.UseState("option1")
-		selectedValue := selectedValObj.(string)
-
-		selectedCustomValObj, setSelectedCustomVal := ctx.UseState("apple")
-		selectedCustomValue := selectedCustomValObj.(string)
+		selectedValue, setSelectedVal := splotch.UseState(ctx, "option1")
+		selectedCustomValue, setSelectedCustomVal := splotch.UseState(ctx, "apple")
 
 		rbCustom1 := splotch.NewRadioButton(splotch.Style{ID: "rb_apple", Focusable: true, Color: tcell.ColorGreen}, "Apple", "apple", selectedCustomValue == "apple", func(v string) {
 			setSelectedCustomVal(v)

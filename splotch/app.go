@@ -65,6 +65,14 @@ func (ctx *RenderContext) UseState(initial any) (any, func(any)) {
 	return state, setter
 }
 
+// UseState is a type-safe wrapper around RenderContext.UseState.
+func UseState[T any](ctx *RenderContext, initial T) (T, func(T)) {
+	stateObj, setter := ctx.UseState(initial)
+	return stateObj.(T), func(newVal T) {
+		setter(newVal)
+	}
+}
+
 // UseEffect registers a lifecycle effect.
 // The effect function should return a cleanup function (or nil).
 func (ctx *RenderContext) UseEffect(effect func() func()) {

@@ -17,14 +17,9 @@ func main() {
 	}
 
 	render := func(ctx *splotch.RenderContext) splotch.Node {
-		countObj, setCount := ctx.UseState(0)
-		count := countObj.(int)
-
-		countOutsideObj, setCountOutside := ctx.UseState(0)
-		countOutside := countOutsideObj.(int)
-
-		notificationsEnabledObj, setNotificationsEnabled := ctx.UseState(true)
-		notificationsEnabled := notificationsEnabledObj.(bool)
+		count, setCount := splotch.UseState(ctx, 0)
+		countOutside, setCountOutside := splotch.UseState(ctx, 0)
+		notificationsEnabled, setNotificationsEnabled := splotch.UseState(ctx, true)
 
 		return splotch.NewBox(
 			splotch.Style{

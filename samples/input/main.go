@@ -15,8 +15,7 @@ func main() {
 
 	err = app.Run(
 		func(ctx *splotch.RenderContext) splotch.Node {
-			valObj, setVal := ctx.UseState("Type here...")
-			inputValue := valObj.(string)
+			inputValue, setVal := splotch.UseState(ctx, "Type here...")
 
 			return splotch.NewBox(
 				splotch.Style{FlexDirection: "column", Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},

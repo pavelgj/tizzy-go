@@ -15,14 +15,9 @@ func main() {
 	}
 
 	render := func(ctx *splotch.RenderContext) splotch.Node {
-		simpleOpenObj, setSimpleOpen := ctx.UseState(false)
-		simpleOpen := simpleOpenObj.(bool)
-
-		confirmOpenObj, setConfirmOpen := ctx.UseState(false)
-		confirmOpen := confirmOpenObj.(bool)
-
-		formOpenObj, setFormOpen := ctx.UseState(false)
-		formOpen := formOpenObj.(bool)
+		simpleOpen, setSimpleOpen := splotch.UseState(ctx, false)
+		confirmOpen, setConfirmOpen := splotch.UseState(ctx, false)
+		formOpen, setFormOpen := splotch.UseState(ctx, false)
 
 		return splotch.NewBox(
 			splotch.Style{

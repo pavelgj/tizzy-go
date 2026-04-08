@@ -25,14 +25,9 @@ func main() {
 	}
 	
 	render := func(ctx *splotch.RenderContext) splotch.Node {
-		selectedIndex1Obj, setSelectedIndex1 := ctx.UseState(0)
-		selectedIndex1 := selectedIndex1Obj.(int)
-
-		selectedIndex2Obj, setSelectedIndex2 := ctx.UseState(0)
-		selectedIndex2 := selectedIndex2Obj.(int)
-
-		selectedIndex3Obj, setSelectedIndex3 := ctx.UseState(0)
-		selectedIndex3 := selectedIndex3Obj.(int)
+		selectedIndex1, setSelectedIndex1 := splotch.UseState(ctx, 0)
+		selectedIndex2, setSelectedIndex2 := splotch.UseState(ctx, 0)
+		selectedIndex3, setSelectedIndex3 := splotch.UseState(ctx, 0)
 
 		return splotch.NewBox(
 			splotch.Style{

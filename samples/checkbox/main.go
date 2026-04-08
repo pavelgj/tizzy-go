@@ -15,11 +15,8 @@ func main() {
 	}
 
 	render := func(ctx *splotch.RenderContext) splotch.Node {
-		checkedObj, setChecked := ctx.UseState(false)
-		checked := checkedObj.(bool)
-
-		checkedCustomObj, setCheckedCustom := ctx.UseState(false)
-		checkedCustom := checkedCustomObj.(bool)
+		checked, setChecked := splotch.UseState(ctx, false)
+		checkedCustom, setCheckedCustom := splotch.UseState(ctx, false)
 
 		status := "Unchecked"
 		if checked {

@@ -16,8 +16,7 @@ func main() {
 
 	err = app.Run(
 		func(ctx *splotch.RenderContext) splotch.Node {
-			countObj, setCount := ctx.UseState(0)
-			count := countObj.(int)
+			count, setCount := splotch.UseState(ctx, 0)
 
 			return splotch.NewBox(
 				splotch.Style{FlexDirection: "column", Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},

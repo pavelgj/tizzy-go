@@ -74,11 +74,11 @@ Layout is handled by the `Box` component using a Flexbox-style system.
 Splotch supports React-like hooks for state management and lifecycle effects within the render function.
 
 ### UseState
-Allows components to have local state that persists across renders.
+Allows components to have local state that persists across renders. Splotch provides a generic wrapper for type safety.
+
 ```go
 app.Run(func(ctx *splotch.RenderContext) splotch.Node {
-    countObj, setCount := ctx.UseState(0)
-    count := countObj.(int)
+    count, setCount := splotch.UseState(ctx, 0) // T is inferred as int
     
     return splotch.NewButton(splotch.Style{}, "Clicks: "+strconv.Itoa(count), func() {
         setCount(count + 1)
