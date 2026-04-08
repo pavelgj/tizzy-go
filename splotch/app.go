@@ -83,9 +83,9 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 							maxH = len(drp.Options)
 						}
 						listH := maxH
-						
+
 						style := tcell.StyleDefault.Foreground(drp.Style.Color).Background(drp.Style.Background)
-						
+
 						for y := 0; y < listH; y++ {
 							for x := 0; x < listW; x++ {
 								if listY+y < h && res.X+x < w {
@@ -93,7 +93,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 								}
 							}
 						}
-						
+
 						for i := 0; i < listH; i++ {
 							optIdx := i + state.ScrollOffset
 							if optIdx >= len(drp.Options) {
@@ -104,7 +104,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 							if optIdx == state.FocusedIndex {
 								optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
 							}
-							
+
 							curX := res.X + 1
 							for _, r := range opt {
 								if listY+i < h && curX < w {
@@ -112,7 +112,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 									curX++
 								}
 							}
-							
+
 							for j := len(opt) + 1; j < listW; j++ {
 								if listY+i < h && res.X+j < w {
 									grid.SetContent(res.X+j, listY+i, ' ', optStyle)
@@ -206,7 +206,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 								listY := res.Y + res.H
 								listW := res.W
 								listH := len(drp.Options)
-								
+
 								if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
 									clickedIndex := my - listY
 									drp.SelectedIndex = clickedIndex
@@ -226,7 +226,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 					path := findNodePathAt(layout, mx, my, a.componentStates)
 					if len(path) > 0 {
 						clickedNode := path[len(path)-1]
-						
+
 						var nodeStyle Style
 						var focusableNode Node
 						for i := len(path) - 1; i >= 0; i-- {
@@ -258,7 +258,7 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 								break
 							}
 						}
-						
+
 						if focusableNode != nil {
 							a.focusedID = nodeStyle.ID
 							a.closeOtherDropdowns(a.focusedID)
@@ -293,34 +293,103 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 						}
 					}
 				}
-			} else if ev.Buttons()&tcell.Button4 != 0 { // Wheel Up
-				sv := findScrollViewAt(layout, mx, my, a.componentStates)
-				if sv != nil && sv.Style.ID != "" {
-					stateObj, ok := a.componentStates[sv.Style.ID]
-					var state *ScrollViewState
-					if !ok {
-						state = &ScrollViewState{}
-						a.componentStates[sv.Style.ID] = state
-					} else {
-						state = stateObj.(*ScrollViewState)
-					}
-					state.ScrollOffset--
-					if state.ScrollOffset < 0 {
-						state.ScrollOffset = 0
+			} else if ev.Buttons()&tcell.Button4 != 0 || ev.Buttons()&tcell.WheelUp != 0 { // Wheel Up
+				dropdownScrolled := false
+				for id, stateObj := range a.componentStates {
+					if state, ok := stateObj.(*DropdownState); ok && state.Open {
+						res := findLayoutResultByID(layout, id)
+						dropdownNode := findNodeByID(root, id)
+						if res != nil && dropdownNode != nil {
+							if drp, ok := dropdownNode.(*Dropdown); ok {
+								listY := res.Y + res.H
+								listW := res.W
+								maxH := drp.MaxListHeight
+								if maxH <= 0 {
+									maxH = 5
+								}
+								if maxH > len(drp.Options) {
+									maxH = len(drp.Options)
+								}
+								listH := maxH
+								
+								if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+									state.ScrollOffset--
+									if state.ScrollOffset < 0 {
+										state.ScrollOffset = 0
+									}
+									dropdownScrolled = true
+									break
+								}
+							}
+						}
 					}
 				}
-			} else if ev.Buttons()&tcell.Button5 != 0 { // Wheel Down
-				sv := findScrollViewAt(layout, mx, my, a.componentStates)
-				if sv != nil && sv.Style.ID != "" {
-					stateObj, ok := a.componentStates[sv.Style.ID]
-					var state *ScrollViewState
-					if !ok {
-						state = &ScrollViewState{}
-						a.componentStates[sv.Style.ID] = state
-					} else {
-						state = stateObj.(*ScrollViewState)
+				
+				if !dropdownScrolled {
+					sv := findScrollViewAt(layout, mx, my, a.componentStates)
+					if sv != nil && sv.Style.ID != "" {
+						stateObj, ok := a.componentStates[sv.Style.ID]
+						var state *ScrollViewState
+						if !ok {
+							state = &ScrollViewState{}
+							a.componentStates[sv.Style.ID] = state
+						} else {
+							state = stateObj.(*ScrollViewState)
+						}
+						state.ScrollOffset--
+						if state.ScrollOffset < 0 {
+							state.ScrollOffset = 0
+						}
 					}
-					state.ScrollOffset++
+				}
+			} else if ev.Buttons()&tcell.Button5 != 0 || ev.Buttons()&tcell.WheelDown != 0 { // Wheel Down
+				dropdownScrolled := false
+				for id, stateObj := range a.componentStates {
+					if state, ok := stateObj.(*DropdownState); ok && state.Open {
+						res := findLayoutResultByID(layout, id)
+						dropdownNode := findNodeByID(root, id)
+						if res != nil && dropdownNode != nil {
+							if drp, ok := dropdownNode.(*Dropdown); ok {
+								listY := res.Y + res.H
+								listW := res.W
+								maxH := drp.MaxListHeight
+								if maxH <= 0 {
+									maxH = 5
+								}
+								if maxH > len(drp.Options) {
+									maxH = len(drp.Options)
+								}
+								listH := maxH
+								
+								if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+									state.ScrollOffset++
+									if state.ScrollOffset+maxH > len(drp.Options) {
+										state.ScrollOffset = len(drp.Options) - maxH
+										if state.ScrollOffset < 0 {
+											state.ScrollOffset = 0
+										}
+									}
+									dropdownScrolled = true
+									break
+								}
+							}
+						}
+					}
+				}
+				
+				if !dropdownScrolled {
+					sv := findScrollViewAt(layout, mx, my, a.componentStates)
+					if sv != nil && sv.Style.ID != "" {
+						stateObj, ok := a.componentStates[sv.Style.ID]
+						var state *ScrollViewState
+						if !ok {
+							state = &ScrollViewState{}
+							a.componentStates[sv.Style.ID] = state
+						} else {
+							state = stateObj.(*ScrollViewState)
+						}
+						state.ScrollOffset++
+					}
 				}
 			}
 		case *tcell.EventResize:
@@ -517,12 +586,12 @@ func lineColToOffset(text string, line, col int) int {
 	if line >= len(lines) {
 		return len(text)
 	}
-	
+
 	offset := 0
 	for i := 0; i < line; i++ {
 		offset += len(lines[i]) + 1
 	}
-	
+
 	c := col
 	if c > len(lines[line]) {
 		c = len(lines[line])
@@ -749,7 +818,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					if state.FocusedIndex > 0 {
 						state.FocusedIndex--
 					}
-					
+
 					maxH := drp.MaxListHeight
 					if maxH <= 0 {
 						maxH = 5
@@ -757,11 +826,11 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					if maxH > len(drp.Options) {
 						maxH = len(drp.Options)
 					}
-					
+
 					if state.FocusedIndex < state.ScrollOffset {
 						state.ScrollOffset = state.FocusedIndex
 					}
-					if state.FocusedIndex >= state.ScrollOffset + maxH {
+					if state.FocusedIndex >= state.ScrollOffset+maxH {
 						state.ScrollOffset = state.FocusedIndex - maxH + 1
 					}
 				}
@@ -770,7 +839,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					if state.FocusedIndex < len(drp.Options)-1 {
 						state.FocusedIndex++
 					}
-					
+
 					maxH := drp.MaxListHeight
 					if maxH <= 0 {
 						maxH = 5
@@ -778,8 +847,8 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					if maxH > len(drp.Options) {
 						maxH = len(drp.Options)
 					}
-					
-					if state.FocusedIndex >= state.ScrollOffset + maxH {
+
+					if state.FocusedIndex >= state.ScrollOffset+maxH {
 						state.ScrollOffset = state.FocusedIndex - maxH + 1
 					}
 					if state.FocusedIndex < state.ScrollOffset {
@@ -795,12 +864,12 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					if maxH > len(drp.Options) {
 						maxH = len(drp.Options)
 					}
-					
+
 					state.FocusedIndex -= maxH
 					if state.FocusedIndex < 0 {
 						state.FocusedIndex = 0
 					}
-					
+
 					state.ScrollOffset -= maxH
 					if state.ScrollOffset < 0 {
 						state.ScrollOffset = 0
@@ -815,14 +884,14 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					if maxH > len(drp.Options) {
 						maxH = len(drp.Options)
 					}
-					
+
 					state.FocusedIndex += maxH
 					if state.FocusedIndex >= len(drp.Options) {
 						state.FocusedIndex = len(drp.Options) - 1
 					}
-					
+
 					state.ScrollOffset += maxH
-					if state.ScrollOffset + maxH > len(drp.Options) {
+					if state.ScrollOffset+maxH > len(drp.Options) {
 						state.ScrollOffset = len(drp.Options) - maxH
 						if state.ScrollOffset < 0 {
 							state.ScrollOffset = 0
