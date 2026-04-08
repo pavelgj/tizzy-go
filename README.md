@@ -69,6 +69,31 @@ Layout is handled by the `Box` component using a Flexbox-style system.
 -   `FillWidth` / `FillHeight`: Fill available space.
 -   `JustifyContent`: "flex-start", "center", "flex-end".
 
+## Styling
+
+All components take a `Style` struct to define their appearance and layout.
+
+### Style Properties
+
+-   `ID` (`string`): Unique identifier for the component. Required for stateful hooks and focus management.
+-   `Focusable` (`bool`): If true, the component can receive focus.
+-   `Multiline` (`bool`): For text components, allows text to wrap.
+-   `Width` (`int`): Fixed width in cells.
+-   `Height` (`int`): Fixed height in cells.
+-   `MaxHeight` (`int`): Maximum height in cells.
+-   `FlexDirection` (`string`): "row" or "column" (default). Used by `Box`.
+-   `JustifyContent` (`string`): "flex-start", "center", "flex-end". Used by `Box`.
+-   `Border` (`bool`): If true, draws a border around the component.
+-   `Padding` (`Padding`): Inward spacing.
+-   `Margin` (`Margin`): Outward spacing.
+-   `Color` (`tcell.Color`): Foreground color.
+-   `Background` (`tcell.Color`): Background color.
+-   `FocusColor` (`tcell.Color`): Foreground color when focused. Falls back to yellow if not set.
+-   `FocusBackground` (`tcell.Color`): Background color when focused.
+-   `FillWidth` (`bool`): If true, fills available width.
+-   `FillHeight` (`bool`): If true, fills available height.
+-   `GridRow`, `GridCol`, `GridRowSpan`, `GridColSpan` (`int`): Used by `GridBox` layout.
+
 ## Hooks and Lifecycle
 
 Splotch supports React-like hooks for state management and lifecycle effects within the render function.
@@ -168,6 +193,26 @@ splotch.NewTextInput(ctx, splotch.Style{Focusable: true}, "initial value", func(
 ```
 
 ### Selection Components
+
+#### List
+Displays a list of selectable items.
+```go
+splotch.NewList(
+    ctx,
+    splotch.Style{Focusable: true},
+    "state-key", // Key to identify list state across renders
+    items,       // []any
+    func(item any, index int, selected bool, cursor bool) splotch.Node {
+        return splotch.NewListItem(label, selected, cursor)
+    },
+    func(idx int) {
+        // handle selection
+    },
+)
+```
+Options on the returned `*List` struct:
+- `OnSelectionChange func(int)`: Called when the cursor moves.
+- `OnFocus func(state *ListState)`: Called when the list gains focus.
 
 #### Checkbox
 A toggleable checkbox.
