@@ -253,7 +253,7 @@ func (g *GridBox) Render(grid *Grid, layout LayoutResult, focusedID string, comp
 		borderStyle = tcell.StyleDefault.Foreground(focusColor).Background(focusBg)
 	}
 	if g.Style.Border {
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, g.Style.Title, borderStyle)
 	}
 	for _, child := range layout.Children {
 		Render(grid, child, focusedID, componentStates)

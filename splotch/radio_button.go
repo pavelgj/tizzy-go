@@ -90,7 +90,7 @@ func (n *RadioButton) Render(grid *Grid, layout LayoutResult, focusedID string, 
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
 	if n.Style.Border {
 		borderOffset = 1
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
 	
 	indicator := n.UnselectedChar

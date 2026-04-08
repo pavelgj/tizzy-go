@@ -33,6 +33,7 @@ type Margin struct {
 // Style defines the layout and appearance of a node.
 type Style struct {
 	ID             string
+	Title          string
 	Focusable      bool
 	Multiline      bool
 	Width          int // 0 means auto or stretch? Let's assume absolute or percentage later. For now, absolute cells.
@@ -224,7 +225,7 @@ func (n *Box) Render(grid *Grid, layout LayoutResult, focusedID string, componen
 		}
 	}
 	if n.Style.Border {
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, n.Style.Title, borderStyle)
 	}
 	for _, child := range layout.Children {
 		Render(grid, child, focusedID, componentStates)

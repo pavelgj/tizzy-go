@@ -256,3 +256,44 @@ func TestRenderFocusStyle(t *testing.T) {
 		t.Errorf("Expected focus style %v, got %v", expectedStyle, style)
 	}
 }
+
+func TestRenderTitledBorder(t *testing.T) {
+	s := tcell.NewSimulationScreen("")
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	box := NewBox(Style{Border: true, Title: "Title"},
+		NewText(Style{}, "Hello World Wide"),
+	)
+
+	layout := Layout(box, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+	
+	s.SetSize(10, 10)
+
+	renderToScreen(s, layout, "", nil)
+	s.Show()
+
+	mainc, _, _, _ := s.GetContent(0, 0)
+	if mainc != '┌' {
+		t.Errorf("Expected '┌' at 0,0, got '%c'", mainc)
+	}
+
+	mainc, _, _, _ = s.GetContent(1, 0)
+	if mainc != ' ' {
+		t.Errorf("Expected ' ' at 1,0, got '%c'", mainc)
+	}
+
+	expectedTitle := "Title"
+	for i, r := range expectedTitle {
+		mainc, _, _, _ = s.GetContent(2+i, 0)
+		if mainc != r {
+			t.Errorf("Expected '%c' at %d,0, got '%c'", r, 2+i, mainc)
+		}
+	}
+
+	mainc, _, _, _ = s.GetContent(2+len(expectedTitle), 0)
+	if mainc != ' ' {
+		t.Errorf("Expected ' ' at %d,0, got '%c'", 2+len(expectedTitle), mainc)
+	}
+}

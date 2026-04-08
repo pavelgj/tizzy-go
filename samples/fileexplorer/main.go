@@ -90,7 +90,7 @@ func main() {
 			fileItems = append(fileItems, f)
 		}
 
-		leftList := splotch.NewList(ctx, splotch.Style{ID: "list-left", Focusable: true}, currentDir, dirItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		leftList := splotch.NewList(ctx, splotch.Style{ID: "list-left", Focusable: true, Border: true, Title: "Folders", FillWidth: true, FillHeight: true}, currentDir, dirItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
 			label := ""
 			if s, ok := item.(string); ok {
 				label = s
@@ -139,7 +139,7 @@ func main() {
 			state.CursorIndex = 0
 		}
 
-		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true}, currentDir, fileItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true, Border: true, Title: "Files", FillWidth: true, FillHeight: true}, currentDir, fileItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
 			label := ""
 			if f, ok := item.(os.DirEntry); ok {
 				label = f.Name()
@@ -166,20 +166,17 @@ func main() {
 			[]splotch.GridTrack{splotch.Flex(1)},
 
 			// Left Panel
-			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 0, Border: true, FillHeight: true, FillWidth: true, Color: leftBorder},
-				splotch.NewText(splotch.Style{Color: tcell.ColorYellow}, "Folders"),
+			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 0, FillHeight: true, FillWidth: true, Color: leftBorder},
 				leftList,
 			),
 
 			// Middle Panel
-			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 1, Border: true, FillHeight: true, FillWidth: true, Color: middleBorder},
-				splotch.NewText(splotch.Style{Color: tcell.ColorYellow}, "Files"),
+			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 1, FillHeight: true, FillWidth: true, Color: middleBorder},
 				middleList,
 			),
 
 			// Right Panel
-			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 2, Border: true, FillHeight: true, FillWidth: true},
-				splotch.NewText(splotch.Style{Color: tcell.ColorYellow}, "Preview"),
+			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 2, Border: true, FillHeight: true, FillWidth: true, Title: "Preview"},
 				splotch.NewScrollView(ctx, splotch.Style{ID: "scroll-right", FillHeight: true, FillWidth: true},
 					splotch.NewTextView(splotch.Style{FillWidth: true}, previewContent),
 				),

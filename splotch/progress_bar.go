@@ -66,7 +66,7 @@ func (n *ProgressBar) Render(grid *Grid, layout LayoutResult, focusedID string, 
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
 	if n.Style.Border {
 		borderOffset = 1
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
 	
 	w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2

@@ -104,7 +104,7 @@ func (n *MenuBar) Render(grid *Grid, layout LayoutResult, focusedID string, comp
 	borderOffset := 0
 	if n.Style.Border {
 		borderOffset = 1
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
 
 	curX := layout.X + borderOffset + n.Style.Padding.Left

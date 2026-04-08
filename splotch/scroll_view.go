@@ -121,7 +121,7 @@ func (n *ScrollView) Render(grid *Grid, layout LayoutResult, focusedID string, c
 	}
 	if n.Style.Border {
 		borderOffset = 1
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, n.Style.Title, borderStyle)
 	}
 	
 	pad := n.Style.Padding

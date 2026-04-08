@@ -100,7 +100,7 @@ func (n *Dropdown) Render(grid *Grid, layout LayoutResult, focusedID string, com
 	}
 	if n.Style.Border {
 		borderOffset = 1
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
 
 	pad := n.Style.Padding

@@ -17,11 +17,20 @@ func Render(grid *Grid, layout LayoutResult, focusedID string, componentStates m
 
 }
 
-func drawBorder(grid *Grid, x, y, w, h int, style tcell.Style) {
+func drawBorder(grid *Grid, x, y, w, h int, title string, style tcell.Style) {
 	// Top and bottom borders
 	for i := 0; i < w; i++ {
 		grid.SetContent(x+i, y, '─', style)
 		grid.SetContent(x+i, y+h-1, '─', style)
+	}
+
+	// Draw title if present
+	if title != "" && w > len(title)+4 {
+		grid.SetContent(x+1, y, ' ', style)
+		for i, r := range title {
+			grid.SetContent(x+2+i, y, r, style)
+		}
+		grid.SetContent(x+2+len(title), y, ' ', style)
 	}
 
 	// Left and right borders

@@ -45,6 +45,7 @@ func main() {
 					FillWidth:  true,
 					FillHeight: true,
 					Focusable:  true,
+					Title:      "Users Table",
 				},
 				splotch.NewTable(splotch.Style{Color: tcell.ColorWhite, FillWidth: true}, headers, rows),
 			),

@@ -100,7 +100,7 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 	borderOffset := 0
 	if n.Style.Border {
 		borderOffset = 1
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
 
 	if n.Style.Multiline {

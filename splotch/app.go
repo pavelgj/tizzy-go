@@ -287,7 +287,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 			modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
 
 			style := tcell.StyleDefault.Foreground(activeModal.Style.Color).Background(activeModal.Style.Background)
-			drawBorder(grid, modalX, modalY, modalW, modalH, style)
+			drawBorder(grid, modalX, modalY, modalW, modalH, "", style)
 
 			for y := modalY + 1; y < modalY+modalH-1; y++ {
 				for x := modalX + 1; x < modalX+modalW-1; x++ {
@@ -416,7 +416,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 						}
 						
 						// Draw Border
-						drawBorder(grid, menuX, listY, listW, listH, style)
+						drawBorder(grid, menuX, listY, listW, listH, "", style)
 						
 						for i, item := range openMenu.Items {
 							itemStyle := style

@@ -120,7 +120,7 @@ func (l *List) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 			}
 			borderStyle = tcell.StyleDefault.Foreground(focusColor).Background(focusBg)
 		}
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, l.Style.Title, borderStyle)
 	}
 
 	viewportH := layout.H - borderOffset*2

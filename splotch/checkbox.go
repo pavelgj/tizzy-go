@@ -88,7 +88,7 @@ func (n *Checkbox) Render(grid *Grid, layout LayoutResult, focusedID string, com
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
 	if n.Style.Border {
 		borderOffset = 1
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
 	
 	indicator := n.UncheckedChar
