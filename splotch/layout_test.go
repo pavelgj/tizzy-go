@@ -175,4 +175,25 @@ func TestLayoutProgressBar(t *testing.T) {
 	}
 }
 
+func TestLayoutMarginAccumulation(t *testing.T) {
+	root := NewBox(Style{FlexDirection: "row"},
+		NewText(Style{Margin: Margin{Left: 2, Right: 1}}, "A"),
+		NewText(Style{Margin: Margin{Left: 3, Right: 2}}, "B"),
+	)
 
+	res := Layout(root, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+
+	if len(res.Children) != 2 {
+		t.Fatalf("Expected 2 children, got %d", len(res.Children))
+	}
+
+	c0 := res.Children[0]
+	if c0.X != 2 {
+		t.Errorf("Expected child 0 X=2, got %d", c0.X)
+	}
+
+	c1 := res.Children[1]
+	if c1.X != 7 {
+		t.Errorf("Expected child 1 X=7, got %d", c1.X)
+	}
+}

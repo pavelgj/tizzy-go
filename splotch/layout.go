@@ -218,16 +218,16 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			res.Children = append(res.Children, cRes)
 
 			if n.Style.FlexDirection == "row" {
-				curX += cRes.W + childMargin.Right
-				contentW += cRes.W + childMargin.Left + childMargin.Right
+				curX += childMargin.Left + cRes.W + childMargin.Right
+				contentW += childMargin.Left + cRes.W + childMargin.Right
 				if cRes.H+childMargin.Top+childMargin.Bottom > contentH {
 					contentH = cRes.H + childMargin.Top + childMargin.Bottom
 				}
 			} else { // default to column
-				curY += cRes.H + childMargin.Bottom
-				contentH += cRes.H + childMargin.Top + childMargin.Bottom
+				curY += childMargin.Top + cRes.H + childMargin.Bottom
+				contentH += childMargin.Top + cRes.H + childMargin.Bottom
 				if cRes.W+childMargin.Left+childMargin.Right > contentW {
-					contentW = cRes.W + childMargin.Left + childMargin.Right
+					contentW = childMargin.Left + cRes.W + childMargin.Right
 				}
 			}
 		}
