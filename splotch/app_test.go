@@ -143,7 +143,7 @@ func TestScrollViewKeyboardScrolling(t *testing.T) {
 
 func TestFindLayoutResultByID(t *testing.T) {
 	ctx := makeTestContext()
-	list := NewList(ctx, Style{ID: "list-1"}, "key", []any{"item1"}, nil, nil)
+	list := NewList(ctx, Style{ID: "list-1"}, "key", []any{"item1"}, -1, nil, nil)
 	grid := NewGridBox(Style{ID: "grid-1"},
 		[]GridTrack{Flex(1)},
 		[]GridTrack{Flex(1)},
@@ -168,7 +168,7 @@ func TestListOnFocus(t *testing.T) {
 	ctx := &RenderContext{app: app}
 	
 	focusCalled := false
-	list := NewList(ctx, Style{ID: "list-1", Focusable: true}, "key", []any{"item1"}, nil, nil)
+	list := NewList(ctx, Style{ID: "list-1", Focusable: true}, "key", []any{"item1"}, -1, nil, nil)
 	list.OnFocus = func(state *ListState) {
 		focusCalled = true
 		state.CursorIndex = 99

@@ -9,7 +9,7 @@ import (
 
 func TestLayoutList(t *testing.T) {
 	ctx := makeTestContext()
-	list := NewList(ctx, Style{ID: "list"}, "", []any{"Item 1", "Item 2"}, func(item any, index int, selected bool, cursor bool) Node {
+	list := NewList(ctx, Style{ID: "list"}, "", []any{"Item 1", "Item 2"}, -1, func(item any, index int, selected bool, cursor bool) Node {
 		return NewText(Style{}, item.(string))
 	}, nil)
 
@@ -142,7 +142,7 @@ func TestListResetKey(t *testing.T) {
 	ctx.app.componentStates["mylist"] = &ListState{SelectedIndex: 5, CursorIndex: 2, ScrollOffset: 1, Key: "old-key"}
 
 	// Call NewList with a NEW key!
-	NewList(ctx, Style{ID: "mylist"}, "new-key", []any{"1"}, func(item any, index int, selected bool, cursor bool) Node {
+	NewList(ctx, Style{ID: "mylist"}, "new-key", []any{"1"}, -1, func(item any, index int, selected bool, cursor bool) Node {
 		return NewText(Style{}, "")
 	}, nil)
 

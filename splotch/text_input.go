@@ -12,6 +12,7 @@ type TextInput struct {
 	Style    Style
 	Value    string
 	OnChange func(string)
+	OnSubmit func(string)
 	Cursor   *int // Optional controlled cursor position
 }
 
@@ -76,11 +77,16 @@ func (n *TextInput) Layout(x, y int, c Constraints) LayoutResult {
 		layoutH = n.Style.MaxHeight
 	}
 
+	finalW := w + pad.Left + pad.Right + borderSize
+	if n.Style.FillWidth && c.MaxW > finalW {
+		finalW = c.MaxW
+	}
+
 	return LayoutResult{
 		Node: n,
 		X:    boxX,
 		Y:    boxY,
-		W:    w + pad.Left + pad.Right + borderSize,
+		W:    finalW,
 		H:    layoutH,
 	}
 }
@@ -109,6 +115,9 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 		if n.Style.ID != "" && componentStates != nil {
 			if stateObj, ok := componentStates[n.Style.ID]; ok {
 				state := stateObj.(*TextInputState)
+				if state.cursorOffset > len(n.Value) {
+					state.cursorOffset = len(n.Value)
+				}
 				vScrollOffset = state.vScrollOffset
 				scrollOffset = state.scrollOffset
 			}
@@ -140,6 +149,9 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 		if n.Style.ID != "" && componentStates != nil {
 			if stateObj, ok := componentStates[n.Style.ID]; ok {
 				state := stateObj.(*TextInputState)
+				if state.cursorOffset > len(n.Value) {
+					state.cursorOffset = len(n.Value)
+				}
 				scrollOffset = state.scrollOffset
 			}
 		}
@@ -242,6 +254,10 @@ func (n *TextInput) HandleEvent(ev tcell.Event, state any, ctx EventContext) boo
 			dirty = true
 			if n.OnChange != nil {
 				n.OnChange(newVal)
+			}
+		} else {
+			if n.OnSubmit != nil {
+				n.OnSubmit(n.Value)
 			}
 		}
 	} else if key.Key() == tcell.KeyUp {

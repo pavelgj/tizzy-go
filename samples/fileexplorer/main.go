@@ -27,10 +27,13 @@ func main() {
 	render := func(ctx *splotch.RenderContext) splotch.Node {
 		previewContent, setPreviewContent := splotch.UseState[string](ctx, "")
 		currentDir, setCurrentDirFn := splotch.UseState[string](ctx, ".")
+		pathInput, setPathInput := splotch.UseState[string](ctx, currentDir)
+		selectedFileIdx, setSelectedFileIdx := splotch.UseState[int](ctx, -1)
 		
 		setCurrentDir := func(s string) {
 			setCurrentDirFn(s)
 			setPreviewContent("")
+			setPathInput(s)
 		}
 
 		items, setItems := splotch.UseState[[]os.DirEntry](ctx, initialEntries)
@@ -79,7 +82,7 @@ func main() {
 			fileItems = append(fileItems, f)
 		}
 
-		leftList := splotch.NewList(ctx, splotch.Style{ID: "list-left", Focusable: true, Border: true, Title: "Folders", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, currentDir, dirItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		leftList := splotch.NewList(ctx, splotch.Style{ID: "list-left", Focusable: true, Border: true, Title: "Folders", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, currentDir, dirItems, -1, func(item any, index int, selected bool, cursor bool) splotch.Node {
 			label := ""
 			if s, ok := item.(string); ok {
 				label = s
@@ -128,7 +131,11 @@ func main() {
 			state.CursorIndex = 0
 		}
 
-		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true, Border: true, Title: "Files", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, currentDir, fileItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		middleListKey := currentDir
+		if selectedFileIdx >= 0 && selectedFileIdx < len(fileItems) {
+			middleListKey += ":" + fileItems[selectedFileIdx].(os.DirEntry).Name()
+		}
+		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true, Border: true, Title: "Files", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, middleListKey, fileItems, selectedFileIdx, func(item any, index int, selected bool, cursor bool) splotch.Node {
 			label := ""
 			if f, ok := item.(os.DirEntry); ok {
 				label = f.Name()
@@ -160,25 +167,91 @@ func main() {
 			}
 		}
 
+		pathInputNode := splotch.NewTextInput(ctx, splotch.Style{ID: "path-input", Focusable: true, Border: true, Title: "Path", FillWidth: true, GridRow: 0, GridCol: 0}, pathInput, func(val string) {
+			setPathInput(val)
+		})
+		pathInputNode.OnSubmit = func(val string) {
+			info, err := os.Stat(val)
+			if err == nil {
+				if info.IsDir() {
+					setCurrentDirFn(val)
+					entries, err := os.ReadDir(val)
+					if err == nil {
+						sort.Slice(entries, func(i, j int) bool {
+							if entries[i].IsDir() != entries[j].IsDir() {
+								return entries[i].IsDir()
+							}
+							return entries[i].Name() < entries[j].Name()
+						})
+						setItems(entries)
+					}
+				} else {
+					setCurrentDirFn(filepath.Dir(val))
+					f, err := os.Open(val)
+					if err == nil {
+						defer f.Close()
+						buf := make([]byte, 1000)
+						n, _ := f.Read(buf)
+						setPreviewContent(string(buf[:n]))
+					} else {
+						setPreviewContent("Error reading file: " + err.Error())
+					}
+					entries, err := os.ReadDir(filepath.Dir(val))
+					if err == nil {
+						sort.Slice(entries, func(i, j int) bool {
+							if entries[i].IsDir() != entries[j].IsDir() {
+								return entries[i].IsDir()
+							}
+							return entries[i].Name() < entries[j].Name()
+						})
+						setItems(entries)
+
+						// Find index of the file to select it
+						var files []os.DirEntry
+						for _, item := range entries {
+							if !item.IsDir() {
+								files = append(files, item)
+							}
+						}
+						fileName := filepath.Base(val)
+						for i, f := range files {
+							if f.Name() == fileName {
+								setSelectedFileIdx(i)
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+
 		return splotch.NewGridBox(
 			splotch.Style{Border: true, FillWidth: true, FillHeight: true},
-			[]splotch.GridTrack{splotch.Fixed(25), splotch.Flex(1), splotch.Flex(1)},
 			[]splotch.GridTrack{splotch.Flex(1)},
+			[]splotch.GridTrack{splotch.Fixed(3), splotch.Flex(1)},
 
-			// Left Panel
-			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 0, FillHeight: true, FillWidth: true},
-				leftList,
-			),
+			pathInputNode,
 
-			// Middle Panel
-			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 1, FillHeight: true, FillWidth: true},
-				middleList,
-			),
+			splotch.NewGridBox(
+				splotch.Style{GridRow: 1, GridCol: 0, FillWidth: true, FillHeight: true},
+				[]splotch.GridTrack{splotch.Fixed(25), splotch.Flex(1), splotch.Flex(1)},
+				[]splotch.GridTrack{splotch.Flex(1)},
 
-			// Right Panel
-			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 2, Border: true, FillHeight: true, FillWidth: true, Title: "Preview"},
-				splotch.NewScrollView(ctx, splotch.Style{ID: "scroll-right", FillHeight: true, FillWidth: true},
-					splotch.NewTextView(splotch.Style{FillWidth: true}, previewContent),
+				// Left Panel
+				splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 0, FillHeight: true, FillWidth: true},
+					leftList,
+				),
+
+				// Middle Panel
+				splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 1, FillHeight: true, FillWidth: true},
+					middleList,
+				),
+
+				// Right Panel
+				splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 2, Border: true, FillHeight: true, FillWidth: true, Title: "Preview"},
+					splotch.NewScrollView(ctx, splotch.Style{ID: "scroll-right", FillHeight: true, FillWidth: true},
+						splotch.NewTextView(splotch.Style{FillWidth: true}, previewContent),
+					),
 				),
 			),
 		)

@@ -18,7 +18,7 @@ type List struct {
 func (l *List) node() {}
 
 // NewList creates a new List component.
-func NewList(ctx *RenderContext, style Style, key string, items []any, renderItem func(item any, index int, selected bool, cursor bool) Node, onSelect func(int)) *List {
+func NewList(ctx *RenderContext, style Style, key string, items []any, initialSelectedIndex int, renderItem func(item any, index int, selected bool, cursor bool) Node, onSelect func(int)) *List {
 	if style.ID == "" {
 		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex)
 		ctx.hookIndex++
@@ -27,13 +27,19 @@ func NewList(ctx *RenderContext, style Style, key string, items []any, renderIte
 	stateObj, ok := ctx.app.componentStates[style.ID]
 	var state *ListState
 	if !ok {
-		state = &ListState{SelectedIndex: -1, CursorIndex: 0, Key: key}
+		state = &ListState{SelectedIndex: initialSelectedIndex, CursorIndex: 0, Key: key}
+		if initialSelectedIndex >= 0 {
+			state.CursorIndex = initialSelectedIndex
+		}
 		ctx.app.componentStates[style.ID] = state
 	} else {
 		state = stateObj.(*ListState)
 		if state.Key != key {
-			state.SelectedIndex = -1
+			state.SelectedIndex = initialSelectedIndex
 			state.CursorIndex = 0
+			if initialSelectedIndex >= 0 {
+				state.CursorIndex = initialSelectedIndex
+			}
 			state.ScrollOffset = 0
 			state.Key = key
 		}
