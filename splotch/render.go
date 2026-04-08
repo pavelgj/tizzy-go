@@ -153,6 +153,61 @@ func Render(grid *Grid, layout LayoutResult, focusedID string, componentStates m
 		
 		text := "(" + indicator + ") " + n.Label
 		drawText(grid, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, text, style)
+	case *Table:
+		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+		
+		borderOffset := 0
+		borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+		if n.Style.Border {
+			borderOffset = 1
+			drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
+		}
+		
+		pad := n.Style.Padding
+		curY := layout.Y + pad.Top + borderOffset
+		
+		// Draw headers
+		if len(n.Headers) > 0 {
+			curX := layout.X + pad.Left + borderOffset
+			headerStyle := style.Bold(true)
+			
+			for i, h := range n.Headers {
+				drawText(grid, curX, curY, h, headerStyle)
+				for j := len(h); j < n.CalculatedColWidths[i]; j++ {
+					grid.SetContent(curX+j, curY, ' ', headerStyle)
+				}
+				curX += n.CalculatedColWidths[i] + 1
+			}
+			curY++
+			
+			// Draw separator line
+			curX = layout.X + pad.Left + borderOffset
+			for i, cw := range n.CalculatedColWidths {
+				for j := 0; j < cw; j++ {
+					grid.SetContent(curX+j, curY, '-', style)
+				}
+				if i < len(n.CalculatedColWidths)-1 {
+					grid.SetContent(curX+cw, curY, '+', style)
+				}
+				curX += cw + 1
+			}
+			curY++
+		}
+		
+		// Draw rows
+		for _, row := range n.Rows {
+			curX := layout.X + pad.Left + borderOffset
+			for i, cell := range row {
+				if i < len(n.CalculatedColWidths) {
+					drawText(grid, curX, curY, cell, style)
+					for j := len(cell); j < n.CalculatedColWidths[i]; j++ {
+						grid.SetContent(curX+j, curY, ' ', style)
+					}
+					curX += n.CalculatedColWidths[i] + 1
+				}
+			}
+			curY++
+		}
 	case *Spinner:
 		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
 		

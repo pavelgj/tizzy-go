@@ -269,3 +269,45 @@ func TestRenderRadioButton(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderTable(t *testing.T) {
+	s := tcell.NewSimulationScreen("")
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	headers := []string{"ID", "Name"}
+	rows := [][]string{
+		{"1", "Alice"},
+	}
+	table := NewTable(Style{}, headers, rows)
+	layout := Layout(table, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+
+	s.SetSize(20, 5)
+	renderToScreen(s, layout, "", nil)
+	s.Show()
+
+	expectedRow0 := "ID Name"
+	for i, r := range expectedRow0 {
+		mainc, _, _, _ := s.GetContent(i, 0)
+		if mainc != r {
+			t.Errorf("Row 0: Expected '%c' at %d,0, got '%c'", r, i, mainc)
+		}
+	}
+
+	expectedRow1 := "--+-----"
+	for i, r := range expectedRow1 {
+		mainc, _, _, _ := s.GetContent(i, 1)
+		if mainc != r {
+			t.Errorf("Row 1: Expected '%c' at %d,1, got '%c'", r, i, mainc)
+		}
+	}
+
+	expectedRow2 := "1  Alice"
+	for i, r := range expectedRow2 {
+		mainc, _, _, _ := s.GetContent(i, 2)
+		if mainc != r {
+			t.Errorf("Row 2: Expected '%c' at %d,2, got '%c'", r, i, mainc)
+		}
+	}
+}

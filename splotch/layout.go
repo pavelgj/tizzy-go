@@ -173,6 +173,73 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			W:    w + pad.Left + pad.Right + borderSize,
 			H:    layoutH,
 		}
+	case *Table:
+		pad := n.Style.Padding
+		margin := n.Style.Margin
+		boxX := x + margin.Left
+		boxY := y + margin.Top
+
+		colWidths := make([]int, len(n.Headers))
+		for i, h := range n.Headers {
+			colWidths[i] = len(h)
+		}
+
+		for _, row := range n.Rows {
+			for i, cell := range row {
+				if i < len(colWidths) {
+					if len(cell) > colWidths[i] {
+						colWidths[i] = len(cell)
+					}
+				} else {
+					colWidths = append(colWidths, len(cell))
+				}
+			}
+		}
+
+		if len(n.ColWidths) > 0 {
+			for i, w := range n.ColWidths {
+				if i < len(colWidths) {
+					colWidths[i] = w
+				}
+			}
+		}
+
+		n.CalculatedColWidths = colWidths
+
+		w := 0
+		for _, cw := range colWidths {
+			w += cw
+		}
+		if len(colWidths) > 1 {
+			w += len(colWidths) - 1
+		}
+
+		h := len(n.Rows)
+		if len(n.Headers) > 0 {
+			h += 2
+		}
+
+		if n.Style.Width > 0 {
+			w = n.Style.Width
+		}
+
+		borderSize := 0
+		if n.Style.Border {
+			borderSize = 2
+		}
+
+		layoutH := h + pad.Top + pad.Bottom + borderSize
+		if n.Style.MaxHeight > 0 && layoutH > n.Style.MaxHeight {
+			layoutH = n.Style.MaxHeight
+		}
+
+		return LayoutResult{
+			Node: node,
+			X:    boxX,
+			Y:    boxY,
+			W:    w + pad.Left + pad.Right + borderSize,
+			H:    layoutH,
+		}
 	case *Spinner:
 		pad := n.Style.Padding
 		margin := n.Style.Margin

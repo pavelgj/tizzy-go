@@ -221,3 +221,20 @@ func TestLayoutRadioButton(t *testing.T) {
 		t.Errorf("Expected W=10, H=1, got W=%d, H=%d", res.W, res.H)
 	}
 }
+
+func TestLayoutTable(t *testing.T) {
+	headers := []string{"ID", "Name"}
+	rows := [][]string{
+		{"1", "Alice"},
+		{"2", "Bob"},
+	}
+	table := NewTable(Style{}, headers, rows)
+	res := Layout(table, 10, 20, Constraints{MaxW: 100, MaxH: 100})
+
+	if res.X != 10 || res.Y != 20 {
+		t.Errorf("Expected X=10, Y=20, got X=%d, Y=%d", res.X, res.Y)
+	}
+	if res.W != 8 || res.H != 4 {
+		t.Errorf("Expected W=8, H=4, got W=%d, H=%d", res.W, res.H)
+	}
+}
