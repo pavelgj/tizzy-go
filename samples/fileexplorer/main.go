@@ -10,33 +10,8 @@ import (
 	"splotch/splotch"
 )
 
-func updatePreview(currentDir string, items []os.DirEntry, idx int, activePanel string, setPreviewContent func(string)) {
-	if activePanel == "middle" && idx < len(items) {
-		entry := items[idx]
-		if !entry.IsDir() {
-			f, err := os.Open(filepath.Join(currentDir, entry.Name()))
-			if err == nil {
-				defer f.Close()
-				buf := make([]byte, 1000)
-				n, _ := f.Read(buf)
-				setPreviewContent(string(buf[:n]))
-			} else {
-				setPreviewContent("Error reading file: " + err.Error())
-			}
-		} else {
-			setPreviewContent("[Directory]")
-		}
-	}
-}
-
 func main() {
-	var currentDir string
-	var items []os.DirEntry
-	var previewContent string
-
-	var setCurrentDir func(string)
-	var setItems func([]os.DirEntry)
-	var setPreviewContent func(string)
+	var currentUpdate func(tcell.Event)
 
 	var realApp *splotch.App
 	var err error
@@ -50,20 +25,15 @@ func main() {
 	})
 
 	render := func(ctx *splotch.RenderContext) splotch.Node {
-		previewContentObj, setPreviewContentFn := splotch.UseState[string](ctx, "")
-		previewContent = previewContentObj
-		setPreviewContent = func(s string) { setPreviewContentFn(s) }
-
-		currentDirObj, setCurrentDirFn := splotch.UseState[string](ctx, ".")
-		currentDir = currentDirObj
-		setCurrentDir = func(s string) {
+		previewContent, setPreviewContent := splotch.UseState[string](ctx, "")
+		currentDir, setCurrentDirFn := splotch.UseState[string](ctx, ".")
+		
+		setCurrentDir := func(s string) {
 			setCurrentDirFn(s)
-			setPreviewContentFn("")
+			setPreviewContent("")
 		}
 
-		itemsObj, setItemsFn := splotch.UseState[[]os.DirEntry](ctx, initialEntries)
-		items = itemsObj
-		setItems = func(e []os.DirEntry) { setItemsFn(e) }
+		items, setItems := splotch.UseState[[]os.DirEntry](ctx, initialEntries)
 
 		var dirs []os.DirEntry
 		var files []os.DirEntry
@@ -73,6 +43,25 @@ func main() {
 				dirs = append(dirs, item)
 			} else {
 				files = append(files, item)
+			}
+		}
+
+		updatePreview := func(idx int) {
+			if idx < len(files) {
+				entry := files[idx]
+				if !entry.IsDir() {
+					f, err := os.Open(filepath.Join(currentDir, entry.Name()))
+					if err == nil {
+						defer f.Close()
+						buf := make([]byte, 1000)
+						n, _ := f.Read(buf)
+						setPreviewContent(string(buf[:n]))
+					} else {
+						setPreviewContent("Error reading file: " + err.Error())
+					}
+				} else {
+					setPreviewContent("[Directory]")
+				}
 			}
 		}
 
@@ -146,9 +135,30 @@ func main() {
 			}
 			return splotch.NewListItem(label, selected, cursor)
 		}, func(idx int) {
-			updatePreview(currentDir, files, idx, "middle", setPreviewContent)
+			updatePreview(idx)
 		})
 		// Preview updates on selection (Enter or click) now
+
+		currentUpdate = func(ev tcell.Event) {
+			if key, ok := ev.(*tcell.EventKey); ok {
+				if key.Key() == tcell.KeyBackspace || key.Key() == tcell.KeyBackspace2 {
+					parent := filepath.Dir(currentDir)
+					if parent != currentDir {
+						setCurrentDir(parent)
+						entries, err := os.ReadDir(parent)
+						if err == nil {
+							sort.Slice(entries, func(i, j int) bool {
+								if entries[i].IsDir() != entries[j].IsDir() {
+									return entries[i].IsDir()
+								}
+								return entries[i].Name() < entries[j].Name()
+							})
+							setItems(entries)
+						}
+					}
+				}
+			}
+		}
 
 		return splotch.NewGridBox(
 			splotch.Style{Border: true, FillWidth: true, FillHeight: true},
@@ -174,26 +184,7 @@ func main() {
 		)
 	}
 
-	update := func(ev tcell.Event) {
-		if key, ok := ev.(*tcell.EventKey); ok {
-			if key.Key() == tcell.KeyBackspace || key.Key() == tcell.KeyBackspace2 {
-				parent := filepath.Dir(currentDir)
-				if parent != currentDir {
-					setCurrentDir(parent)
-					entries, err := os.ReadDir(parent)
-					if err == nil {
-						sort.Slice(entries, func(i, j int) bool {
-							if entries[i].IsDir() != entries[j].IsDir() {
-								return entries[i].IsDir()
-							}
-							return entries[i].Name() < entries[j].Name()
-						})
-						setItems(entries)
-					}
-				}
-			}
-		}
-	}
+
 
 	realApp, err = splotch.NewApp()
 	if err != nil {
@@ -208,7 +199,9 @@ func main() {
 				return
 			}
 		}
-		update(ev)
+		if currentUpdate != nil {
+			currentUpdate(ev)
+		}
 	}
 
 	if err := realApp.Run(render, wrappedUpdate); err != nil {
