@@ -47,6 +47,10 @@ type Style struct {
 	Background     tcell.Color
 	FillWidth      bool
 	FillHeight     bool
+	GridRow        int
+	GridCol        int
+	GridRowSpan    int
+	GridColSpan    int
 }
 
 // Box is a container node that can hold children.
