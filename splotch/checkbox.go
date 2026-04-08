@@ -1,6 +1,7 @@
 package splotch
 
 import (
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -15,7 +16,12 @@ type Checkbox struct {
 }
 
 // NewCheckbox creates a new Checkbox node.
-func NewCheckbox(style Style, label string, checked bool, onChange func(bool)) *Checkbox {
+func NewCheckbox(ctx *RenderContext, style Style, label string, checked bool, onChange func(bool)) *Checkbox {
+	if style.ID == "" {
+		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex)
+		ctx.hookIndex++
+	}
+
 	return &Checkbox{
 		Style:         style,
 		Label:         label,

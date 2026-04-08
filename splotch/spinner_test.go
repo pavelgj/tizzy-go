@@ -7,7 +7,8 @@ import (
 )
 
 func TestLayoutSpinner(t *testing.T) {
-	spinner := NewSpinner(Style{})
+	ctx := makeTestContext()
+	spinner := NewSpinner(ctx, Style{})
 	res := Layout(spinner, 10, 20, Constraints{MaxW: 100, MaxH: 100})
 
 	if res.X != 10 || res.Y != 20 {
@@ -24,7 +25,8 @@ func TestRenderSpinner(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	spinner := NewSpinner(Style{})
+	ctx := makeTestContext()
+	spinner := NewSpinner(ctx, Style{})
 	layout := Layout(spinner, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(20, 5)

@@ -1,6 +1,7 @@
 package splotch
 
 import (
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -16,7 +17,12 @@ type RadioButton struct {
 }
 
 // NewRadioButton creates a new RadioButton node.
-func NewRadioButton(style Style, label string, value string, selected bool, onChange func(string)) *RadioButton {
+func NewRadioButton(ctx *RenderContext, style Style, label string, value string, selected bool, onChange func(string)) *RadioButton {
+	if style.ID == "" {
+		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex)
+		ctx.hookIndex++
+	}
+
 	return &RadioButton{
 		Style:          style,
 		Label:          label,

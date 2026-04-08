@@ -7,7 +7,8 @@ import (
 )
 
 func TestLayoutRadioButton(t *testing.T) {
-	rb := NewRadioButton(Style{}, "Option", "val", false, nil)
+	ctx := makeTestContext()
+	rb := NewRadioButton(ctx, Style{}, "Option", "val", false, nil)
 	res := Layout(rb, 10, 20, Constraints{MaxW: 100, MaxH: 100})
 
 	if res.X != 10 || res.Y != 20 {
@@ -24,7 +25,8 @@ func TestRenderRadioButton(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rb := NewRadioButton(Style{}, "Option", "val", true, nil)
+	ctx := makeTestContext()
+	rb := NewRadioButton(ctx, Style{}, "Option", "val", true, nil)
 	layout := Layout(rb, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(20, 5)

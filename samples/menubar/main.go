@@ -15,13 +15,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	app.SetState("last_action", "None")
-
 	render := func(ctx *splotch.RenderContext) splotch.Node {
-		lastAction := "None"
-		if val := app.GetState("last_action"); val != nil {
-			lastAction = val.(string)
-		}
+		lastAction, setLastAction := splotch.UseState(ctx, "None")
 
 		return splotch.NewBox(
 			splotch.Style{
@@ -43,9 +38,9 @@ func main() {
 						Title:   "File",
 						AltRune: 'f',
 						Items: []splotch.MenuItem{
-							{Label: "New", Action: func() { app.SetState("last_action", "New") }},
-							{Label: "Open", Action: func() { app.SetState("last_action", "Open") }},
-							{Label: "Save", Action: func() { app.SetState("last_action", "Save") }},
+							{Label: "New", Action: func() { setLastAction("New") }},
+							{Label: "Open", Action: func() { setLastAction("Open") }},
+							{Label: "Save", Action: func() { setLastAction("Save") }},
 							{Label: "Exit", Action: func() { app.Stop() }},
 						},
 					},
@@ -53,16 +48,16 @@ func main() {
 						Title:   "Edit",
 						AltRune: 'e',
 						Items: []splotch.MenuItem{
-							{Label: "Cut", Action: func() { app.SetState("last_action", "Cut") }},
-							{Label: "Copy", Action: func() { app.SetState("last_action", "Copy") }},
-							{Label: "Paste", Action: func() { app.SetState("last_action", "Paste") }},
+							{Label: "Cut", Action: func() { setLastAction("Cut") }},
+							{Label: "Copy", Action: func() { setLastAction("Copy") }},
+							{Label: "Paste", Action: func() { setLastAction("Paste") }},
 						},
 					},
 					{
 						Title:   "Help",
 						AltRune: 'h',
 						Items: []splotch.MenuItem{
-							{Label: "About", Action: func() { app.SetState("last_action", "About") }},
+							{Label: "About", Action: func() { setLastAction("About") }},
 						},
 					},
 				},

@@ -1,6 +1,7 @@
 package splotch
 
 import (
+	"fmt"
 	"time"
 	"github.com/gdamore/tcell/v2"
 )
@@ -13,12 +14,44 @@ type Spinner struct {
 }
 
 // NewSpinner creates a new Spinner node.
-func NewSpinner(style Style) *Spinner {
-	return &Spinner{
+func NewSpinner(ctx *RenderContext, style Style) *Spinner {
+	hookId := fmt.Sprintf("hook-%d", ctx.hookIndex)
+	_, setFrameIdx := UseState(ctx, 0)
+
+	if style.ID == "" {
+		style.ID = hookId
+	}
+
+	s := &Spinner{
 		Style:    style,
 		Frames:   []string{"|", "/", "-", "\\"},
 		Interval: 100 * time.Millisecond,
 	}
+
+	ctx.UseEffect(func() func() {
+		ticker := time.NewTicker(s.Interval)
+		done := make(chan bool)
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					currentVal := 0
+					if stateObj, ok := ctx.app.componentStates[style.ID]; ok {
+						currentVal = stateObj.(int)
+					}
+					setFrameIdx((currentVal + 1) % len(s.Frames))
+				case <-done:
+					ticker.Stop()
+					return
+				}
+			}
+		}()
+		return func() {
+			done <- true
+		}
+	})
+
+	return s
 }
 
 // node implements the Node interface.
@@ -68,8 +101,13 @@ func (n *Spinner) Render(grid *Grid, layout LayoutResult, focusedID string, comp
 		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, borderStyle)
 	}
 	
-	now := time.Now()
-	frameIdx := int((now.UnixNano() / int64(n.Interval)) % int64(len(n.Frames)))
+	frameIdx := 0
+	if stateObj, ok := componentStates[n.Style.ID]; ok {
+		frameIdx = stateObj.(int)
+	}
+	if frameIdx >= len(n.Frames) {
+		frameIdx = 0
+	}
 	val := n.Frames[frameIdx]
 	
 	drawText(grid, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, val, style)

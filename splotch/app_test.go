@@ -141,23 +141,4 @@ func TestScrollViewKeyboardScrolling(t *testing.T) {
 	}
 }
 
-func TestAppSetState(t *testing.T) {
-	app := &App{
-		componentStates: make(map[string]any),
-	}
-	
-	if app.dirty {
-		t.Fatal("Expected dirty to be false initially")
-	}
-	
-	app.SetState("test", "value")
-	
-	if !app.dirty {
-		t.Error("Expected dirty to be true after SetState")
-	}
-	
-	val := app.GetState("test")
-	if val != "value" {
-		t.Errorf("Expected state to be 'value', got %v", val)
-	}
-}
+

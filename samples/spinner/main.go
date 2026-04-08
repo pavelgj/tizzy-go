@@ -16,13 +16,13 @@ func main() {
 
 	err = app.Run(
 		func(ctx *splotch.RenderContext) splotch.Node {
-			s1 := splotch.NewSpinner(splotch.Style{Color: tcell.ColorBlue})
+			s1 := splotch.NewSpinner(ctx, splotch.Style{Color: tcell.ColorBlue})
 
-			s2 := splotch.NewSpinner(splotch.Style{Color: tcell.ColorGreen})
+			s2 := splotch.NewSpinner(ctx, splotch.Style{Color: tcell.ColorGreen})
 			s2.Frames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 			s2.Interval = 40 * time.Millisecond
 
-			s3 := splotch.NewSpinner(splotch.Style{Color: tcell.ColorYellow})
+			s3 := splotch.NewSpinner(ctx, splotch.Style{Color: tcell.ColorYellow})
 			s3.Frames = []string{".  ", ".. ", "...", "   "}
 			s3.Interval = 200 * time.Millisecond
 

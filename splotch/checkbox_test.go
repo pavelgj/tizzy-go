@@ -7,7 +7,8 @@ import (
 )
 
 func TestLayoutCheckbox(t *testing.T) {
-	cb := NewCheckbox(Style{}, "Check", false, nil)
+	ctx := makeTestContext()
+	cb := NewCheckbox(ctx, Style{}, "Check", false, nil)
 	res := Layout(cb, 10, 20, Constraints{MaxW: 100, MaxH: 100})
 
 	if res.X != 10 || res.Y != 20 {
@@ -24,7 +25,8 @@ func TestRenderCheckbox(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cb := NewCheckbox(Style{}, "Check", true, nil)
+	ctx := makeTestContext()
+	cb := NewCheckbox(ctx, Style{}, "Check", true, nil)
 	layout := Layout(cb, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(20, 5)

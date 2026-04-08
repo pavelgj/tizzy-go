@@ -18,13 +18,13 @@ func main() {
 		selectedValue, setSelectedVal := splotch.UseState(ctx, "option1")
 		selectedCustomValue, setSelectedCustomVal := splotch.UseState(ctx, "apple")
 
-		rbCustom1 := splotch.NewRadioButton(splotch.Style{ID: "rb_apple", Focusable: true, Color: tcell.ColorGreen}, "Apple", "apple", selectedCustomValue == "apple", func(v string) {
+		rbCustom1 := splotch.NewRadioButton(ctx, splotch.Style{Focusable: true, Color: tcell.ColorGreen}, "Apple", "apple", selectedCustomValue == "apple", func(v string) {
 			setSelectedCustomVal(v)
 		})
 		rbCustom1.SelectedChar = "⚫"
 		rbCustom1.UnselectedChar = "⚪"
 
-		rbCustom2 := splotch.NewRadioButton(splotch.Style{ID: "rb_banana", Focusable: true, Color: tcell.ColorYellow}, "Banana", "banana", selectedCustomValue == "banana", func(v string) {
+		rbCustom2 := splotch.NewRadioButton(ctx, splotch.Style{Focusable: true, Color: tcell.ColorYellow}, "Banana", "banana", selectedCustomValue == "banana", func(v string) {
 			setSelectedCustomVal(v)
 		})
 		rbCustom2.SelectedChar = "⚫"
@@ -39,10 +39,10 @@ func main() {
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Radio Button Sample"),
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "-------------------"),
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Standard Radio Buttons:"),
-			splotch.NewRadioButton(splotch.Style{ID: "rb1", Focusable: true, Color: tcell.ColorWhite}, "Option 1", "option1", selectedValue == "option1", func(v string) {
+			splotch.NewRadioButton(ctx, splotch.Style{Focusable: true, Color: tcell.ColorWhite}, "Option 1", "option1", selectedValue == "option1", func(v string) {
 				setSelectedVal(v)
 			}),
-			splotch.NewRadioButton(splotch.Style{ID: "rb2", Focusable: true, Color: tcell.ColorWhite}, "Option 2", "option2", selectedValue == "option2", func(v string) {
+			splotch.NewRadioButton(ctx, splotch.Style{Focusable: true, Color: tcell.ColorWhite}, "Option 2", "option2", selectedValue == "option2", func(v string) {
 				setSelectedVal(v)
 			}),
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Selected: "+selectedValue),

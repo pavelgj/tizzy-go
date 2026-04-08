@@ -126,6 +126,7 @@ splotch.NewBox(
 A container that allows scrolling its content if it exceeds available size.
 ```go
 splotch.NewScrollView(
+    ctx,
     splotch.Style{Height: 10},
     largeContentNode,
 )
@@ -161,7 +162,7 @@ splotch.NewButton(splotch.Style{Focusable: true}, "Click Me", func() {
 #### TextInput
 A single-line text input field.
 ```go
-splotch.NewTextInput(splotch.Style{Focusable: true}, "initial value", func(newValue string) {
+splotch.NewTextInput(ctx, splotch.Style{Focusable: true}, "initial value", func(newValue string) {
     // handle change
 })
 ```
@@ -171,7 +172,7 @@ splotch.NewTextInput(splotch.Style{Focusable: true}, "initial value", func(newVa
 #### Checkbox
 A toggleable checkbox.
 ```go
-splotch.NewCheckbox(splotch.Style{Focusable: true}, "Enable Feature", true, func(checked bool) {
+splotch.NewCheckbox(ctx, splotch.Style{Focusable: true}, "Enable Feature", true, func(checked bool) {
     // handle change
 })
 ```
@@ -179,7 +180,7 @@ splotch.NewCheckbox(splotch.Style{Focusable: true}, "Enable Feature", true, func
 #### RadioButton
 A mutually exclusive selection button.
 ```go
-splotch.NewRadioButton(splotch.Style{Focusable: true}, "Option 1", "value1", isSelected, func(value string) {
+splotch.NewRadioButton(ctx, splotch.Style{Focusable: true}, "Option 1", "value1", isSelected, func(value string) {
     // handle selection
 })
 ```
@@ -188,6 +189,7 @@ splotch.NewRadioButton(splotch.Style{Focusable: true}, "Option 1", "value1", isS
 A dropdown menu for selecting from a list.
 ```go
 splotch.NewDropdown(
+    ctx,
     splotch.Style{Focusable: true},
     []string{"Option A", "Option B", "Option C"},
     selectedIndex,
@@ -203,6 +205,7 @@ splotch.NewDropdown(
 A tabbed interface for switching between views.
 ```go
 splotch.NewTabs(
+    ctx,
     splotch.Style{Focusable: true},
     []splotch.Tab{
         {Title: "Home", Content: homeNode},
@@ -240,7 +243,7 @@ splotch.NewProgressBar(splotch.Style{}, 0.75) // 75%
 #### Spinner
 An animated loading spinner.
 ```go
-splotch.NewSpinner(splotch.Style{Color: tcell.ColorCyan})
+splotch.NewSpinner(ctx, splotch.Style{Color: tcell.ColorCyan})
 ```
 
 #### Table

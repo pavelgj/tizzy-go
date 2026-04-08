@@ -52,7 +52,7 @@ func main() {
 						Content: splotch.NewBox(
 							splotch.Style{Border: true, Padding: splotch.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
 							splotch.NewText(splotch.Style{Color: tcell.ColorBlue}, "Settings Tab"),
-							splotch.NewCheckbox(splotch.Style{ID: "cb1", Focusable: true}, "Enable Notifications", notificationsEnabled, func(val bool) {
+							splotch.NewCheckbox(ctx, splotch.Style{Focusable: true}, "Enable Notifications", notificationsEnabled, func(val bool) {
 								setNotificationsEnabled(val)
 							}),
 							splotch.NewTextInput(ctx, splotch.Style{Focusable: true, Width: 20, Margin: splotch.Margin{Top: 1}}, "Initial Value", func(val string) {}),
