@@ -249,6 +249,32 @@ func TestLayoutFillWidth(t *testing.T) {
 	}
 }
 
+func TestLayoutFillWidthRow(t *testing.T) {
+	sidebar := NewBox(Style{Width: 20}, NewText(Style{}, "Sidebar"))
+	content := NewBox(Style{FillWidth: true}, NewText(Style{}, "Content"))
+	root := NewBox(Style{FlexDirection: "row", FillWidth: true}, sidebar, content)
+	
+	res := Layout(root, 0, 0, Constraints{MaxW: 100, MaxH: 100})
+	
+	if res.W != 100 {
+		t.Errorf("Expected root W=100, got %d", res.W)
+	}
+	if len(res.Children) != 2 {
+		t.Fatalf("Expected 2 children, got %d", len(res.Children))
+	}
+	
+	sidebarRes := res.Children[0]
+	contentRes := res.Children[1]
+	
+	if sidebarRes.W != 7 {
+		t.Errorf("Expected sidebar W=7, got %d", sidebarRes.W)
+	}
+	
+	if contentRes.W != 93 {
+		t.Errorf("Expected content W=93, got %d", contentRes.W)
+	}
+}
+
 func TestLayoutScrollView(t *testing.T) {
 	text := NewText(Style{}, "Hello")
 	sv := NewScrollView(Style{Width: 10, Height: 5}, text)

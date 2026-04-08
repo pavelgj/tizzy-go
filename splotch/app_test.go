@@ -14,7 +14,7 @@ func TestFindFocusableIDs(t *testing.T) {
 		NewText(Style{ID: "t3"}, "Not Focusable"), // Should not be found
 	)
 
-	ids := findFocusableIDs(root)
+	ids := findFocusableIDs(root, nil)
 
 	expected := []string{"t1", "b1", "t2"}
 	if len(ids) != len(expected) {

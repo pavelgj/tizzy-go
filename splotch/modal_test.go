@@ -33,7 +33,7 @@ func TestModalFocusTrapping(t *testing.T) {
 
 	// Simulate App.Run behavior when modal is open:
 	// It calls findFocusableIDs on activeModal.Child!
-	ids := findFocusableIDs(modal.Child)
+	ids := findFocusableIDs(modal.Child, nil)
 
 	if len(ids) != 2 {
 		t.Fatalf("Expected 2 focusable IDs, got %d", len(ids))

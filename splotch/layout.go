@@ -552,11 +552,19 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 				if cRes.H+childMargin.Top+childMargin.Bottom > contentH {
 					contentH = cRes.H + childMargin.Top + childMargin.Bottom
 				}
+				childConstraints.MaxW -= (childMargin.Left + cRes.W + childMargin.Right)
+				if childConstraints.MaxW < 0 {
+					childConstraints.MaxW = 0
+				}
 			} else { // default to column
 				curY += childMargin.Top + cRes.H + childMargin.Bottom
 				contentH += childMargin.Top + cRes.H + childMargin.Bottom
 				if cRes.W+childMargin.Left+childMargin.Right > contentW {
 					contentW = childMargin.Left + cRes.W + childMargin.Right
+				}
+				childConstraints.MaxH -= (childMargin.Top + cRes.H + childMargin.Bottom)
+				if childConstraints.MaxH < 0 {
+					childConstraints.MaxH = 0
 				}
 			}
 		}
