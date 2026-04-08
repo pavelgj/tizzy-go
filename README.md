@@ -21,26 +21,9 @@ import (
 	"log"
 	"strconv"
 	"tizzy/tizzy"
+
+	"github.com/gdamore/tcell/v2"
 )
-
-type Counter struct {
-	count int
-}
-
-func (c *Counter) Render() tizzy.Node {
-	return tizzy.NewBox(
-		tizzy.Style{
-			Border:        true,
-			Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
-			FlexDirection: "column",
-			FillWidth:     true,
-		},
-		tizzy.NewText(tizzy.Style{}, "Clicks: "+strconv.Itoa(c.count)),
-		tizzy.NewButton(tizzy.Style{Focusable: true}, "Increment", func() {
-			c.count++
-		}),
-	)
-}
 
 func main() {
 	app, err := tizzy.NewApp()
@@ -48,11 +31,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	counter := &Counter{}
+	render := func(ctx *tizzy.RenderContext) tizzy.Node {
+		count, setCount := tizzy.UseState(ctx, 0)
 
-	app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
-		return counter.Render()
-	})
+		return tizzy.NewBox(
+			tizzy.Style{
+				Border:        true,
+				Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+				FlexDirection: "column",
+				FillWidth:     true,
+			},
+			tizzy.NewText(tizzy.Style{}, "Clicks: "+strconv.Itoa(count)),
+			tizzy.NewButton(tizzy.Style{Focusable: true}, "Increment", func() {
+				setCount(count + 1)
+			}),
+		)
+	}
+
+	if err := app.Run(render, func(ev tcell.Event) {}); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
@@ -113,7 +111,7 @@ app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
     return tizzy.NewButton(tizzy.Style{}, "Clicks: "+strconv.Itoa(count), func() {
         setCount(count + 1)
     })
-})
+}, func(ev tcell.Event) {})
 ```
 
 ### UseEffect
@@ -133,7 +131,7 @@ app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
     })
 
     return tizzy.NewText(tizzy.Style{}, "I keep track of my lifecycle")
-})
+}, func(ev tcell.Event) {})
 ```
 
 > [!NOTE]
