@@ -56,14 +56,7 @@ func main() {
 		)
 	}
 
-	update := func(ev tcell.Event) {
-		if evKey, ok := ev.(*tcell.EventKey); ok {
-			if evKey.Key() == tcell.KeyEscape {
-				// We don't have an explicit Exit method on App yet, but we could add it.
-				// For now we just let the user use Ctrl-C which is handled by default usually.
-			}
-		}
-	}
+	update := func(ev tcell.Event) {}
 
 	if err := app.Run(render, update); err != nil {
 		log.Fatal(err)

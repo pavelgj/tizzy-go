@@ -235,10 +235,7 @@ func (g *GridBox) Layout(x, y int, c Constraints) LayoutResult {
 
 // Render draws the GridBox node to the grid.
 func (g *GridBox) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
-	focused := false
-	if g.Style.ID != "" && g.Style.ID == focusedID {
-		focused = true
-	}
+	focused := g.Style.ID != "" && g.Style.ID == focusedID
 	style := tcell.StyleDefault.Foreground(g.Style.Color).Background(g.Style.Background)
 	borderStyle := style
 	if focused {

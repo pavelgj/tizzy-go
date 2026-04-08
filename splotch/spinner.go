@@ -54,8 +54,6 @@ func NewSpinner(ctx *RenderContext, style Style) *Spinner {
 	return s
 }
 
-// node implements the Node interface.
-func (s *Spinner) node() {}
 
 // Layout calculates the layout for the Spinner node.
 func (n *Spinner) Layout(x, y int, c Constraints) LayoutResult {

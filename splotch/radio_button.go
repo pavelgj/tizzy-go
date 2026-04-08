@@ -34,8 +34,6 @@ func NewRadioButton(ctx *RenderContext, style Style, label string, value string,
 	}
 }
 
-// node implements the Node interface.
-func (r *RadioButton) node() {}
 
 // Layout calculates the layout for the RadioButton node.
 func (n *RadioButton) Layout(x, y int, c Constraints) LayoutResult {
@@ -76,10 +74,7 @@ func (n *RadioButton) Layout(x, y int, c Constraints) LayoutResult {
 
 // Render draws the RadioButton node to the grid.
 func (n *RadioButton) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
-	focused := false
-	if n.Style.ID != "" && n.Style.ID == focusedID {
-		focused = true
-	}
+	focused := n.Style.ID != "" && n.Style.ID == focusedID
 
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
 	if focused {

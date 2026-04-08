@@ -31,12 +31,13 @@ func TestUseState(t *testing.T) {
 		countObj, setCount := ctx.UseState(0)
 		count := countObj.(int)
 
-		if renderCount == 1 {
+		switch renderCount {
+		case 1:
 			if count != 0 {
 				t.Errorf("Expected initial count 0, got %d", count)
 			}
 			setCount(1)
-		} else if renderCount == 2 {
+		case 2:
 			if count != 1 {
 				t.Errorf("Expected count 1 on second render, got %d", count)
 			}

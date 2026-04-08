@@ -22,8 +22,6 @@ func NewTable(style Style, headers []string, rows [][]string) *Table {
 	}
 }
 
-// node implements the Node interface.
-func (t *Table) node() {}
 
 // Layout calculates the layout for the Table.
 func (n *Table) Layout(x, y int, c Constraints) LayoutResult {

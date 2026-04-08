@@ -116,7 +116,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 	go func() {
 		for {
 			time.Sleep(100 * time.Millisecond) // 10 FPS
-			a.screen.PostEvent(&EventTick{t: time.Now()})
+			_ = a.screen.PostEvent(&EventTick{t: time.Now()})
 		}
 	}()
 
@@ -171,7 +171,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 			}
 		}
 
-		focusableIDs := []string{}
+		var focusableIDs []string
 		if activeModal != nil {
 			focusableIDs = findFocusableIDs(activeModal.Child, a.componentStates)
 			// Ensure focus is inside modal
@@ -878,27 +878,6 @@ func (e *EventTick) When() time.Time {
 	return e.t
 }
 
-func findNodeAt(res LayoutResult, x, y int, componentStates map[string]any) Node {
-	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
-		scrollOffset := 0
-		if sv, ok := res.Node.(*ScrollView); ok {
-			if sv.Style.ID != "" && componentStates != nil {
-				if stateObj, ok := componentStates[sv.Style.ID]; ok {
-					state := stateObj.(*ScrollViewState)
-					scrollOffset = state.ScrollOffset
-				}
-			}
-		}
-
-		for _, child := range res.Children {
-			if n := findNodeAt(child, x, y+scrollOffset, componentStates); n != nil {
-				return n
-			}
-		}
-		return res.Node
-	}
-	return nil
-}
 
 func findScrollViewAt(res LayoutResult, x, y int, componentStates map[string]any) *ScrollView {
 	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
@@ -1488,7 +1467,6 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 							}
 						}
 					}
-					handled = true
 				}
 				if btn, ok := clickedNode.(*Button); ok {
 					if btn.OnClick != nil {
@@ -1633,7 +1611,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				}
 
 				if !validPath {
-					handled = true
+					// Do nothing
 				} else {
 					clickedNode := path[len(path)-1]
 

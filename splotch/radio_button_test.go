@@ -35,9 +35,9 @@ func TestRenderRadioButton(t *testing.T) {
 
 	expected := "(*) Option"
 	for i, r := range expected {
-		mainc, _, _, _ := s.GetContent(i, 0)
-		if mainc != r {
-			t.Errorf("Expected '%c' at %d,0, got '%c'", r, i, mainc)
+		str, _, _ := s.Get(i, 0)
+		if str != string(r) {
+			t.Errorf("Expected '%c' at %d,0, got '%s'", r, i, str)
 		}
 	}
 }

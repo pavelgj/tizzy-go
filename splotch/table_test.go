@@ -42,25 +42,25 @@ func TestRenderTable(t *testing.T) {
 
 	expectedRow0 := "ID Name"
 	for i, r := range expectedRow0 {
-		mainc, _, _, _ := s.GetContent(i, 0)
-		if mainc != r {
-			t.Errorf("Row 0: Expected '%c' at %d,0, got '%c'", r, i, mainc)
+		str, _, _ := s.Get(i, 0)
+		if str != string(r) {
+			t.Errorf("Row 0: Expected '%c' at %d,0, got '%s'", r, i, str)
 		}
 	}
 
 	expectedRow1 := "--+-----"
 	for i, r := range expectedRow1 {
-		mainc, _, _, _ := s.GetContent(i, 1)
-		if mainc != r {
-			t.Errorf("Row 1: Expected '%c' at %d,1, got '%c'", r, i, mainc)
+		str, _, _ := s.Get(i, 1)
+		if str != string(r) {
+			t.Errorf("Row 1: Expected '%c' at %d,1, got '%s'", r, i, str)
 		}
 	}
 
 	expectedRow2 := "1  Alice"
 	for i, r := range expectedRow2 {
-		mainc, _, _, _ := s.GetContent(i, 2)
-		if mainc != r {
-			t.Errorf("Row 2: Expected '%c' at %d,2, got '%c'", r, i, mainc)
+		str, _, _ := s.Get(i, 2)
+		if str != string(r) {
+			t.Errorf("Row 2: Expected '%c' at %d,2, got '%s'", r, i, str)
 		}
 	}
 }

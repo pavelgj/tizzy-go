@@ -22,9 +22,6 @@ func NewProgressBar(style Style, percent float64) *ProgressBar {
 	}
 }
 
-// node implements the Node interface.
-func (p *ProgressBar) node() {}
-
 // Layout calculates the layout for the ProgressBar node.
 func (n *ProgressBar) Layout(x, y int, c Constraints) LayoutResult {
 	pad := n.Style.Padding

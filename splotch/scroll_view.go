@@ -35,8 +35,6 @@ func NewScrollView(ctx *RenderContext, style Style, child Node) *ScrollView {
 	}
 }
 
-// node implements the Node interface.
-func (s *ScrollView) node() {}
 
 // GetStyle returns the style of the ScrollView node.
 func (s *ScrollView) GetStyle() Style {

@@ -20,8 +20,6 @@ func NewButton(style Style, label string, onClick func()) *Button {
 	}
 }
 
-// node implements the Node interface.
-func (b *Button) node() {}
 
 // Layout calculates the layout for the Button node.
 func (n *Button) Layout(x, y int, c Constraints) LayoutResult {
@@ -58,10 +56,7 @@ func (n *Button) Layout(x, y int, c Constraints) LayoutResult {
 
 // Render draws the Button node to the grid.
 func (n *Button) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
-	focused := false
-	if n.Style.ID != "" && n.Style.ID == focusedID {
-		focused = true
-	}
+	focused := n.Style.ID != "" && n.Style.ID == focusedID
 
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
 	if focused {

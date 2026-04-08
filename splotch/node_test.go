@@ -207,29 +207,29 @@ func TestRenderBorder(t *testing.T) {
 	renderToScreen(s, layout, "", nil)
 	s.Show()
 
-	mainc, _, _, _ := s.GetContent(0, 0)
-	if mainc != '┌' {
-		t.Errorf("Expected '┌' at 0,0, got '%c'", mainc)
+	str, _, _ := s.Get(0, 0)
+	if str != "┌" {
+		t.Errorf("Expected '┌' at 0,0, got '%s'", str)
 	}
 
-	mainc, _, _, _ = s.GetContent(1, 0)
-	if mainc != '─' {
-		t.Errorf("Expected '─' at 1,0, got '%c'", mainc)
+	str, _, _ = s.Get(1, 0)
+	if str != "─" {
+		t.Errorf("Expected '─' at 1,0, got '%s'", str)
 	}
 
-	mainc, _, _, _ = s.GetContent(1, 1)
-	if mainc != 'H' {
-		t.Errorf("Expected 'H' at 1,1, got '%c'", mainc)
+	str, _, _ = s.Get(1, 1)
+	if str != "H" {
+		t.Errorf("Expected 'H' at 1,1, got '%s'", str)
 	}
 
-	mainc, _, _, _ = s.GetContent(2, 1)
-	if mainc != 'i' {
-		t.Errorf("Expected 'i' at 2,1, got '%c'", mainc)
+	str, _, _ = s.Get(2, 1)
+	if str != "i" {
+		t.Errorf("Expected 'i' at 2,1, got '%s'", str)
 	}
 
-	mainc, _, _, _ = s.GetContent(3, 2)
-	if mainc != '┘' {
-		t.Errorf("Expected '┘' at 3,2, got '%c'", mainc)
+	str, _, _ = s.Get(3, 2)
+	if str != "┘" {
+		t.Errorf("Expected '┘' at 3,2, got '%s'", str)
 	}
 }
 
@@ -250,7 +250,7 @@ func TestRenderFocusStyle(t *testing.T) {
 	renderToScreen(s, layout, "box-1", nil)
 	s.Show()
 
-	_, _, style, _ := s.GetContent(0, 0)
+	_, style, _ := s.Get(0, 0)
 	expectedStyle := tcell.StyleDefault.Foreground(tcell.ColorRed)
 	if style != expectedStyle {
 		t.Errorf("Expected focus style %v, got %v", expectedStyle, style)
@@ -274,26 +274,26 @@ func TestRenderTitledBorder(t *testing.T) {
 	renderToScreen(s, layout, "", nil)
 	s.Show()
 
-	mainc, _, _, _ := s.GetContent(0, 0)
-	if mainc != '┌' {
-		t.Errorf("Expected '┌' at 0,0, got '%c'", mainc)
+	str, _, _ := s.Get(0, 0)
+	if str != "┌" {
+		t.Errorf("Expected '┌' at 0,0, got '%s'", str)
 	}
 
-	mainc, _, _, _ = s.GetContent(1, 0)
-	if mainc != ' ' {
-		t.Errorf("Expected ' ' at 1,0, got '%c'", mainc)
+	str, _, _ = s.Get(1, 0)
+	if str != " " {
+		t.Errorf("Expected ' ' at 1,0, got '%s'", str)
 	}
 
 	expectedTitle := "Title"
 	for i, r := range expectedTitle {
-		mainc, _, _, _ = s.GetContent(2+i, 0)
-		if mainc != r {
-			t.Errorf("Expected '%c' at %d,0, got '%c'", r, 2+i, mainc)
+		str, _, _ = s.Get(2+i, 0)
+		if str != string(r) {
+			t.Errorf("Expected '%c' at %d,0, got '%s'", r, 2+i, str)
 		}
 	}
 
-	mainc, _, _, _ = s.GetContent(2+len(expectedTitle), 0)
-	if mainc != ' ' {
-		t.Errorf("Expected ' ' at %d,0, got '%c'", 2+len(expectedTitle), mainc)
+	str, _, _ = s.Get(2+len(expectedTitle), 0)
+	if str != " " {
+		t.Errorf("Expected ' ' at %d,0, got '%s'", 2+len(expectedTitle), str)
 	}
 }

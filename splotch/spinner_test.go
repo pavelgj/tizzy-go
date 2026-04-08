@@ -33,9 +33,9 @@ func TestRenderSpinner(t *testing.T) {
 	renderToScreen(s, layout, "", nil)
 	s.Show()
 
-	mainc, _, _, _ := s.GetContent(0, 0)
-	validFrames := map[rune]bool{'|': true, '/': true, '-': true, '\\': true}
-	if !validFrames[mainc] {
-		t.Errorf("Expected one of '|', '/', '-', '\\', got '%c'", mainc)
+	str, _, _ := s.Get(0, 0)
+	validFrames := map[string]bool{"|": true, "/": true, "-": true, "\\": true}
+	if !validFrames[str] {
+		t.Errorf("Expected one of '|', '/', '-', '\\', got '%s'", str)
 	}
 }

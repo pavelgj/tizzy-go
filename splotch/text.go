@@ -35,10 +35,7 @@ func (n *Text) Layout(x, y int, c Constraints) LayoutResult {
 
 // Render draws the Text node to the grid.
 func (n *Text) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
-	focused := false
-	if n.Style.ID != "" && n.Style.ID == focusedID {
-		focused = true
-	}
+	focused := n.Style.ID != "" && n.Style.ID == focusedID
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
 	if focused {
 		style = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)

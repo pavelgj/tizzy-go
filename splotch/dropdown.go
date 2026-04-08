@@ -15,7 +15,6 @@ type Dropdown struct {
 	MaxListHeight int
 }
 
-func (d *Dropdown) node() {}
 
 // NewDropdown creates a new Dropdown component.
 func NewDropdown(ctx *RenderContext, style Style, options []string, selectedIndex int, onChange func(int), maxListHeight ...int) *Dropdown {

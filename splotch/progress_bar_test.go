@@ -32,15 +32,15 @@ func TestRenderProgressBar(t *testing.T) {
 	s.Show()
 
 	for i := 0; i < 5; i++ {
-		mainc, _, _, _ := s.GetContent(i, 0)
-		if mainc != '█' {
-			t.Errorf("At col %d, expected '█', got '%c'", i, mainc)
+		str, _, _ := s.Get(i, 0)
+		if str != "█" {
+			t.Errorf("At col %d, expected '█', got '%s'", i, str)
 		}
 	}
 	for i := 5; i < 10; i++ {
-		mainc, _, _, _ := s.GetContent(i, 0)
-		if mainc != '░' {
-			t.Errorf("At col %d, expected '░', got '%c'", i, mainc)
+		str, _, _ := s.Get(i, 0)
+		if str != "░" {
+			t.Errorf("At col %d, expected '░', got '%s'", i, str)
 		}
 	}
 }

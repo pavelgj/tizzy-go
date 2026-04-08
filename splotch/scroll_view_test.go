@@ -38,7 +38,9 @@ func TestRenderScrollView(t *testing.T) {
 
 	layout := Layout(sv, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 	s := tcell.NewSimulationScreen("")
-	s.Init()
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
 	s.SetSize(10, 2)
 
 	grid := NewGrid(10, 2)
@@ -53,17 +55,17 @@ func TestRenderScrollView(t *testing.T) {
 
 	expectedRow0 := "Line 2"
 	for i, r := range expectedRow0 {
-		mainc, _, _, _ := s.GetContent(i, 0)
-		if mainc != r {
-			t.Errorf("Row 0: Expected '%c' at %d,0, got '%c'", r, i, mainc)
+		str, _, _ := s.Get(i, 0)
+		if str != string(r) {
+			t.Errorf("Row 0: Expected '%c' at %d,0, got '%s'", r, i, str)
 		}
 	}
 
 	expectedRow1 := "Line 3"
 	for i, r := range expectedRow1 {
-		mainc, _, _, _ := s.GetContent(i, 1)
-		if mainc != r {
-			t.Errorf("Row 1: Expected '%c' at %d,1, got '%c'", r, i, mainc)
+		str, _, _ := s.Get(i, 1)
+		if str != string(r) {
+			t.Errorf("Row 1: Expected '%c' at %d,1, got '%s'", r, i, str)
 		}
 	}
 }

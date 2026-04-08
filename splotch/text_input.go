@@ -39,7 +39,6 @@ func NewTextInput(ctx *RenderContext, style Style, value string, onChange func(s
 }
 
 // node implements the Node interface.
-func (t *TextInput) node() {}
 
 // Layout calculates the layout for the TextInput node.
 func (n *TextInput) Layout(x, y int, c Constraints) LayoutResult {
@@ -93,10 +92,7 @@ func (n *TextInput) Layout(x, y int, c Constraints) LayoutResult {
 
 // Render draws the TextInput node to the grid.
 func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
-	focused := false
-	if n.Style.ID != "" && n.Style.ID == focusedID {
-		focused = true
-	}
+	focused := n.Style.ID != "" && n.Style.ID == focusedID
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
 	borderStyle := style
 	if focused {

@@ -29,9 +29,9 @@ func TestRenderTextInputScrolling(t *testing.T) {
 	// Should show "67890"
 	expected := "67890"
 	for i, c := range expected {
-		mainc, _, _, _ := s.GetContent(i, 0)
-		if mainc != c {
-			t.Errorf("At col %d, expected '%c', got '%c'", i, c, mainc)
+		str, _, _ := s.Get(i, 0)
+		if str != string(c) {
+			t.Errorf("At col %d, expected '%c', got '%s'", i, c, str)
 		}
 	}
 }
@@ -53,18 +53,18 @@ func TestRenderTextInputMultiline(t *testing.T) {
 	// Check line 0 "abc"
 	expectedLine0 := "abc"
 	for i, c := range expectedLine0 {
-		mainc, _, _, _ := s.GetContent(i, 0)
-		if mainc != c {
-			t.Errorf("At line 0, col %d, expected '%c', got '%c'", i, c, mainc)
+		str, _, _ := s.Get(i, 0)
+		if str != string(c) {
+			t.Errorf("At line 0, col %d, expected '%c', got '%s'", i, c, str)
 		}
 	}
 
 	// Check line 1 "def"
 	expectedLine1 := "def"
 	for i, c := range expectedLine1 {
-		mainc, _, _, _ := s.GetContent(i, 1)
-		if mainc != c {
-			t.Errorf("At line 1, col %d, expected '%c', got '%c'", i, c, mainc)
+		str, _, _ := s.Get(i, 1)
+		if str != string(c) {
+			t.Errorf("At line 1, col %d, expected '%c', got '%s'", i, c, str)
 		}
 	}
 }

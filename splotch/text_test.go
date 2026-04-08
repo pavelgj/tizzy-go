@@ -31,9 +31,9 @@ func TestRenderColors(t *testing.T) {
 	renderToScreen(s, layout, "", nil)
 	s.Show()
 
-	mainc, _, style, _ := s.GetContent(0, 0)
-	if mainc != 'R' {
-		t.Errorf("Expected 'R' at 0,0, got '%c'", mainc)
+	str, style, _ := s.Get(0, 0)
+	if str != "R" {
+		t.Errorf("Expected 'R' at 0,0, got '%s'", str)
 	}
 
 	// Check style

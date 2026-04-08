@@ -37,8 +37,6 @@ func NewTabs(ctx *RenderContext, style Style, tabs []Tab) *Tabs {
 	}
 }
 
-// node implements the Node interface.
-func (t *Tabs) node() {}
 
 // Layout calculates the layout for the Tabs component.
 func (n *Tabs) Layout(x, y int, c Constraints) LayoutResult {

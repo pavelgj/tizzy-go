@@ -27,7 +27,6 @@ type MenuItem struct {
 	Shortcut string
 }
 
-func (m *MenuBar) node() {}
 
 // NewMenuBar creates a new MenuBar component.
 func NewMenuBar(ctx *RenderContext, style Style, menus []Menu) *MenuBar {

@@ -55,7 +55,7 @@ func main() {
 				if !entry.IsDir() {
 					f, err := os.Open(filepath.Join(currentDir, entry.Name()))
 					if err == nil {
-						defer f.Close()
+						defer func() { _ = f.Close() }()
 						buf := make([]byte, 1000)
 						n, _ := f.Read(buf)
 						setPreviewContent(string(buf[:n]))
@@ -189,7 +189,7 @@ func main() {
 					setCurrentDirFn(filepath.Dir(val))
 					f, err := os.Open(val)
 					if err == nil {
-						defer f.Close()
+						defer func() { _ = f.Close() }()
 						buf := make([]byte, 1000)
 						n, _ := f.Read(buf)
 						setPreviewContent(string(buf[:n]))

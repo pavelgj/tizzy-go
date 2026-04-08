@@ -92,5 +92,5 @@ func main() {
 		)
 	}
 
-	app.Run(render, func(ev tcell.Event) {})
+	_ = app.Run(render, func(ev tcell.Event) {})
 }

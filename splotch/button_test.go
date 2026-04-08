@@ -33,9 +33,9 @@ func TestRenderButton(t *testing.T) {
 
 	expected := "[ Click ]"
 	for i, c := range expected {
-		mainc, _, _, _ := s.GetContent(i, 0)
-		if mainc != c {
-			t.Errorf("At col %d, expected '%c', got '%c'", i, c, mainc)
+		str, _, _ := s.Get(i, 0)
+		if str != string(c) {
+			t.Errorf("At col %d, expected '%c', got '%s'", i, c, str)
 		}
 	}
 }

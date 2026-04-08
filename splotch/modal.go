@@ -8,7 +8,6 @@ type Modal struct {
 	Child Node
 }
 
-func (m *Modal) node() {}
 
 // NewModal creates a new Modal component.
 func NewModal(ctx *RenderContext, style Style, child Node, isOpen bool) *Modal {
