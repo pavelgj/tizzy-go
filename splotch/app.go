@@ -232,11 +232,27 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 						for _, item := range openMenu.Items {
 							if len(item.Label) > listW { listW = len(item.Label) }
 						}
-						listW += 2
+						listW += 4 // +2 for padding, +2 for borders
 						
-						listH := len(openMenu.Items)
+						listH := len(openMenu.Items) + 2 // +2 for top/bottom borders
 						
-						style := tcell.StyleDefault.Foreground(mb.Style.Color).Background(mb.Style.Background)
+						style := tcell.StyleDefault.Foreground(mb.Style.Color).Background(tcell.ColorBlack)
+						
+						// Draw Shadow (right and bottom edges only)
+						for i := 1; i <= listH; i++ {
+							if listY+i < h && menuX+listW < w {
+								currentCell := grid.Cells[listY+i][menuX+listW]
+								grid.SetContent(menuX+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+							}
+						}
+						for j := 1; j <= listW; j++ {
+							if listY+listH < h && menuX+j < w {
+								currentCell := grid.Cells[listY+listH][menuX+j]
+								grid.SetContent(menuX+j, listY+listH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+							}
+						}
+
+						// Fill background
 						for i := 0; i < listH; i++ {
 							for j := 0; j < listW; j++ {
 								if listY+i < h && menuX+j < w {
@@ -244,6 +260,9 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 								}
 							}
 						}
+						
+						// Draw Border
+						drawBorder(grid, menuX, listY, listW, listH, style)
 						
 						for i, item := range openMenu.Items {
 							itemStyle := style
@@ -255,14 +274,14 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 							}
 							
 							label := " " + item.Label
-							for len(label) < listW {
+							for len(label) < listW-2 {
 								label += " "
 							}
 							
-							curItemX := menuX
+							curItemX := menuX + 1
 							for _, r := range label {
-								if listY+i < h && curItemX < w {
-									grid.SetContent(curItemX, listY+i, r, itemStyle)
+								if listY+i+1 < h && curItemX < w {
+									grid.SetContent(curItemX, listY+i+1, r, itemStyle)
 									curItemX++
 								}
 							}
@@ -516,17 +535,19 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 								for _, item := range openMenu.Items {
 									if len(item.Label) > listW { listW = len(item.Label) }
 								}
-								listW += 2
-								listH := len(openMenu.Items)
+								listW += 4 // +2 for padding, +2 for borders
+								listH := len(openMenu.Items) + 2 // +2 for borders
 								
 								if mx >= menuX && mx < menuX+listW && my >= listY && my < listY+listH {
-									clickedIndex := my - listY
-									item := openMenu.Items[clickedIndex]
-									if !item.Disabled && item.Action != nil {
-										item.Action()
+									clickedIndex := my - listY - 1 // -1 for top border
+									if clickedIndex >= 0 && clickedIndex < len(openMenu.Items) {
+										item := openMenu.Items[clickedIndex]
+										if !item.Disabled && item.Action != nil {
+											item.Action()
+										}
+										state.OpenMenuIndex = -1
+										handled = true
 									}
-									state.OpenMenuIndex = -1
-									handled = true
 								}
 							}
 						}
@@ -1073,13 +1094,22 @@ func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) 
 }
 
 func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult, focusableIDs []string) bool {
+	debugLog(fmt.Sprintf("Key Event: Key=%v, Rune=%v, Mod=%v", ev.Key(), ev.Rune(), ev.Modifiers()))
 	if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
 		return true // Request exit
 	}
 
-	// Handle MenuBar shortcuts (Alt+Letter)
-	if ev.Modifiers()&tcell.ModAlt != 0 && ev.Key() == tcell.KeyRune {
-		runeLower := unicode.ToLower(ev.Rune())
+	// Handle MenuBar shortcuts (Alt+Letter or Mac fallback)
+	runeLower := unicode.ToLower(ev.Rune())
+	isMacAlt := false
+	if ev.Key() == tcell.KeyRune && ev.Modifiers() == 0 {
+		// Map common Mac Option+Letter characters
+		if runeLower == 402 { runeLower = 'f'; isMacAlt = true }
+		if runeLower == 180 { runeLower = 'e'; isMacAlt = true }
+		if runeLower == 729 { runeLower = 'h'; isMacAlt = true }
+	}
+
+	if (ev.Modifiers()&tcell.ModAlt != 0 && ev.Key() == tcell.KeyRune) || isMacAlt {
 		menuBar := findMenuBar(root)
 		
 		if menuBar != nil && menuBar.Style.ID != "" {
@@ -1101,6 +1131,30 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 						state.FocusedItemIndex = -1 // Reset focus
 					}
 					return false // Handled
+				}
+			}
+		}
+	}
+
+	// Handle MenuBar direct letter shortcuts when focused
+	if ev.Modifiers()&tcell.ModAlt == 0 && ev.Key() == tcell.KeyRune {
+		menuBar := findMenuBar(root)
+		if menuBar != nil && menuBar.Style.ID != "" && a.focusedID == menuBar.Style.ID {
+			runeLower := unicode.ToLower(ev.Rune())
+			for i, menu := range menuBar.Menus {
+				if unicode.ToLower(menu.AltRune) == runeLower {
+					stateObj, ok := a.componentStates[menuBar.Style.ID]
+					var state *MenuBarState
+					if !ok {
+						state = &MenuBarState{OpenMenuIndex: -1}
+						a.componentStates[menuBar.Style.ID] = state
+					} else {
+						state = stateObj.(*MenuBarState)
+					}
+					
+					state.OpenMenuIndex = i
+					state.FocusedItemIndex = -1
+					return false
 				}
 			}
 		}
@@ -1478,10 +1532,13 @@ func findMenuBar(node Node) *MenuBar {
 }
 
 func debugLog(msg string) {
-	f, err := os.OpenFile("/Users/pavelj/.gemini/jetski/brain/ef9ba78c-fa9b-4c4a-b879-50cbf427f6ce/scratch/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if os.Getenv("SPLOTCH_DEBUG") != "1" {
+		return
+	}
+	f, err := os.OpenFile("debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return
 	}
 	defer f.Close()
-	f.WriteString(time.Now().Format("15:04:05 ") + msg + "\n")
+	f.WriteString(time.Now().Format("2006-01-02 15:04:05 ") + msg + "\n")
 }

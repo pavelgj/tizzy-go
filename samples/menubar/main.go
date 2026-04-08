@@ -35,7 +35,7 @@ func main() {
 				splotch.Style{
 					ID:         "menubar",
 					Color:      tcell.ColorWhite,
-					Background: tcell.ColorBlue,
+					Background: tcell.ColorTeal,
 					FillWidth:  true,
 					Focusable:  true,
 				},
