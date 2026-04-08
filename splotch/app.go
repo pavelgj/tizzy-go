@@ -1699,6 +1699,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 
 func (a *App) SetState(id string, state any) {
 	a.componentStates[id] = state
+	a.dirty = true
 }
 
 func (a *App) GetState(id string) any {
