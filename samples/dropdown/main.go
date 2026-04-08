@@ -24,11 +24,16 @@ func main() {
 		"Item 16", "Item 17", "Item 18", "Item 19", "Item 20",
 	}
 	
-	selectedIndex1 := 0
-	selectedIndex2 := 0
-	selectedIndex3 := 0
-
 	render := func(ctx *splotch.RenderContext) splotch.Node {
+		selectedIndex1Obj, setSelectedIndex1 := ctx.UseState(0)
+		selectedIndex1 := selectedIndex1Obj.(int)
+
+		selectedIndex2Obj, setSelectedIndex2 := ctx.UseState(0)
+		selectedIndex2 := selectedIndex2Obj.(int)
+
+		selectedIndex3Obj, setSelectedIndex3 := ctx.UseState(0)
+		selectedIndex3 := selectedIndex3Obj.(int)
+
 		return splotch.NewBox(
 			splotch.Style{
 				Width:          40,
@@ -52,7 +57,7 @@ func main() {
 				options,
 				selectedIndex1,
 				func(idx int) {
-					selectedIndex1 = idx
+					setSelectedIndex1(idx)
 				},
 			),
 			splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex1)),
@@ -68,7 +73,7 @@ func main() {
 				options[:3],
 				selectedIndex2,
 				func(idx int) {
-					selectedIndex2 = idx
+					setSelectedIndex2(idx)
 				},
 			),
 			splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex2)),
@@ -84,7 +89,7 @@ func main() {
 				longOptions,
 				selectedIndex3,
 				func(idx int) {
-					selectedIndex3 = idx
+					setSelectedIndex3(idx)
 				},
 				10,
 			),

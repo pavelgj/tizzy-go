@@ -13,11 +13,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// State
-	inputValue := "Type here..."
-
 	err = app.Run(
 		func(ctx *splotch.RenderContext) splotch.Node {
+			valObj, setVal := ctx.UseState("Type here...")
+			inputValue := valObj.(string)
+
 			return splotch.NewBox(
 				splotch.Style{FlexDirection: "column", Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
 				splotch.NewText(splotch.Style{}, "Text Input Sample"),
@@ -32,7 +32,7 @@ func main() {
 					},
 					inputValue,
 					func(newValue string) {
-						inputValue = newValue
+						setVal(newValue)
 					},
 				),
 				splotch.NewText(splotch.Style{}, "You typed: "+inputValue),

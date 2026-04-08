@@ -16,11 +16,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	count := 0
-	countOutside := 0
-	notificationsEnabled := true
-
 	render := func(ctx *splotch.RenderContext) splotch.Node {
+		countObj, setCount := ctx.UseState(0)
+		count := countObj.(int)
+
+		countOutsideObj, setCountOutside := ctx.UseState(0)
+		countOutside := countOutsideObj.(int)
+
+		notificationsEnabledObj, setNotificationsEnabled := ctx.UseState(true)
+		notificationsEnabled := notificationsEnabledObj.(bool)
+
 		return splotch.NewBox(
 			splotch.Style{
 				Padding: splotch.Padding{Top: 1, Left: 2},
@@ -43,7 +48,7 @@ func main() {
 							splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Welcome to Home Tab!"),
 							splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, fmt.Sprintf("Button clicks: %d", count)),
 							splotch.NewButton(splotch.Style{ID: "btn_home", Focusable: true, Margin: splotch.Margin{Top: 1}}, "Home Action", func() {
-								count++
+								setCount(count + 1)
 							}),
 						),
 					},
@@ -53,7 +58,7 @@ func main() {
 							splotch.Style{Border: true, Padding: splotch.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
 							splotch.NewText(splotch.Style{Color: tcell.ColorBlue}, "Settings Tab"),
 							splotch.NewCheckbox(splotch.Style{ID: "cb1", Focusable: true}, "Enable Notifications", notificationsEnabled, func(val bool) {
-								notificationsEnabled = val
+								setNotificationsEnabled(val)
 							}),
 							splotch.NewTextInput(splotch.Style{ID: "input1", Focusable: true, Width: 20, Margin: splotch.Margin{Top: 1}}, "Initial Value", func(val string) {}),
 						),
@@ -70,7 +75,7 @@ func main() {
 			),
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite, Margin: splotch.Margin{Top: 1}}, fmt.Sprintf("Outside clicks: %d", countOutside)),
 			splotch.NewButton(splotch.Style{ID: "btn1", Focusable: true}, "Focusable Button", func() {
-				countOutside++
+				setCountOutside(countOutside + 1)
 			}),
 		)
 	}

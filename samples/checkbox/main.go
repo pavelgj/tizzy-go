@@ -14,10 +14,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	checked := false
-	checkedCustom := false
-
 	render := func(ctx *splotch.RenderContext) splotch.Node {
+		checkedObj, setChecked := ctx.UseState(false)
+		checked := checkedObj.(bool)
+
+		checkedCustomObj, setCheckedCustom := ctx.UseState(false)
+		checkedCustom := checkedCustomObj.(bool)
+
 		status := "Unchecked"
 		if checked {
 			status = "Checked"
@@ -29,7 +32,7 @@ func main() {
 		}
 
 		cbCustom := splotch.NewCheckbox(splotch.Style{ID: "cb2", Focusable: true, Color: tcell.ColorGreen}, "Accept Terms", checkedCustom, func(v bool) {
-			checkedCustom = v
+			setCheckedCustom(v)
 		})
 		cbCustom.CheckedChar = "✔"
 		cbCustom.UncheckedChar = "✘"
@@ -44,7 +47,7 @@ func main() {
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "----------------"),
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Standard Checkbox:"),
 			splotch.NewCheckbox(splotch.Style{ID: "cb1", Focusable: true, Color: tcell.ColorWhite}, "Enable Feature", checked, func(v bool) {
-				checked = v
+				setChecked(v)
 			}),
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Status: "+status),
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, ""),

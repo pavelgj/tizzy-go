@@ -14,11 +14,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// State
-	count := 0
-
 	err = app.Run(
 		func(ctx *splotch.RenderContext) splotch.Node {
+			countObj, setCount := ctx.UseState(0)
+			count := countObj.(int)
+
 			return splotch.NewBox(
 				splotch.Style{FlexDirection: "column", Padding: splotch.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
 				splotch.NewText(splotch.Style{}, "Button Sample"),
@@ -32,7 +32,7 @@ func main() {
 					},
 					"Click Me++",
 					func() {
-						count++
+						setCount(count + 1)
 					},
 				),
 				splotch.NewButton(
@@ -44,7 +44,7 @@ func main() {
 					},
 					"Click Me--",
 					func() {
-						count--
+						setCount(count - 1)
 					},
 				),
 				splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, fmt.Sprintf("Button clicked %d times", count)),
