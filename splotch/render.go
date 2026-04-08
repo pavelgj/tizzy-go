@@ -208,6 +208,8 @@ func Render(grid *Grid, layout LayoutResult, focusedID string, componentStates m
 			}
 			curY++
 		}
+	case *Modal:
+		// Do nothing, rendered as overlay in App.Run
 	case *Dropdown:
 		borderOffset := 0
 		style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)

@@ -112,6 +112,14 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			W:    w + pad.Left + pad.Right + borderSize,
 			H:    layoutH,
 		}
+	case *Modal:
+		return LayoutResult{
+			Node: node,
+			X:    x,
+			Y:    y,
+			W:    0,
+			H:    0,
+		}
 	case *Button:
 		pad := n.Style.Padding
 		margin := n.Style.Margin

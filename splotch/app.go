@@ -53,9 +53,37 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 		// 1. Get the current UI tree
 		root := renderFn()
 
-		focusableIDs := findFocusableIDs(root)
-		if a.focusedID == "" && len(focusableIDs) > 0 {
-			a.focusedID = focusableIDs[0]
+		// Find open modal if any
+		var activeModal *Modal
+		for id, stateObj := range a.componentStates {
+			if state, ok := stateObj.(*ModalState); ok && state.Open {
+				node := findNodeByID(root, id)
+				if n, ok := node.(*Modal); ok {
+					activeModal = n
+					break
+				}
+			}
+		}
+
+		focusableIDs := []string{}
+		if activeModal != nil {
+			focusableIDs = findFocusableIDs(activeModal.Child)
+			// Ensure focus is inside modal
+			found := false
+			for _, id := range focusableIDs {
+				if id == a.focusedID {
+					found = true
+					break
+				}
+			}
+			if !found && len(focusableIDs) > 0 {
+				a.focusedID = focusableIDs[0]
+			}
+		} else {
+			focusableIDs = findFocusableIDs(root)
+			if a.focusedID == "" && len(focusableIDs) > 0 {
+				a.focusedID = focusableIDs[0]
+			}
 		}
 
 		// 2. Compute layout
@@ -65,6 +93,53 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 		// 3. Render to grid
 		grid := NewGrid(w, h)
 		Render(grid, layout, a.focusedID, a.componentStates)
+
+		// Render Modal overlay if active
+		if activeModal != nil {
+			maxModalW := w - 4
+			maxModalH := h - 4
+			if maxModalW < 0 {
+				maxModalW = 0
+			}
+			if maxModalH < 0 {
+				maxModalH = 0
+			}
+
+			modalConstraints := Constraints{
+				MaxW: maxModalW,
+				MaxH: maxModalH,
+			}
+
+			// Layout at 0,0 to find size
+			modalLayout := Layout(activeModal.Child, 0, 0, modalConstraints)
+
+			modalW := modalLayout.W + 2
+			modalH := modalLayout.H + 2
+
+			if modalW > w {
+				modalW = w
+			}
+			if modalH > h {
+				modalH = h
+			}
+
+			modalX := (w - modalW) / 2
+			modalY := (h - modalH) / 2
+
+			// Layout at correct position
+			modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
+
+			style := tcell.StyleDefault.Foreground(activeModal.Style.Color).Background(activeModal.Style.Background)
+			drawBorder(grid, modalX, modalY, modalW, modalH, style)
+
+			for y := modalY + 1; y < modalY+modalH-1; y++ {
+				for x := modalX + 1; x < modalX+modalW-1; x++ {
+					grid.SetContent(x, y, ' ', style)
+				}
+			}
+
+			Render(grid, modalLayout, a.focusedID, a.componentStates)
+		}
 
 		// Render dropdown overlays
 		for id, stateObj := range a.componentStates {
@@ -197,25 +272,122 @@ func (a *App) Run(renderFn func() Node, updateFn func(tcell.Event)) error {
 			mx, my := ev.Position()
 			if ev.Buttons()&tcell.Button1 != 0 {
 				handled := false
+				
+				// Find open modal if any
+				var activeModal *Modal
 				for id, stateObj := range a.componentStates {
-					if state, ok := stateObj.(*DropdownState); ok && state.Open {
-						res := findLayoutResultByID(layout, id)
-						dropdownNode := findNodeByID(root, id)
-						if res != nil && dropdownNode != nil {
-							if drp, ok := dropdownNode.(*Dropdown); ok {
-								listY := res.Y + res.H
-								listW := res.W
-								listH := len(drp.Options)
+					if state, ok := stateObj.(*ModalState); ok && state.Open {
+						node := findNodeByID(root, id)
+						if n, ok := node.(*Modal); ok {
+							activeModal = n
+							break
+						}
+					}
+				}
+				
+				if activeModal != nil {
+					w, h := a.screen.Size()
+					maxModalW := w - 4
+					maxModalH := h - 4
+					if maxModalW < 0 { maxModalW = 0 }
+					if maxModalH < 0 { maxModalH = 0 }
+					
+					modalConstraints := Constraints{
+						MaxW: maxModalW,
+						MaxH: maxModalH,
+					}
+					
+					modalLayout := Layout(activeModal.Child, 0, 0, modalConstraints)
+					modalW := modalLayout.W + 2
+					modalH := modalLayout.H + 2
+					
+					if modalW > w { modalW = w }
+					if modalH > h { modalH = h }
+					
+					modalX := (w - modalW) / 2
+					modalY := (h - modalH) / 2
+					
+					modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
+					
+					path := findNodePathAt(modalLayout, mx, my, a.componentStates)
+					if len(path) > 0 {
+						clickedNode := path[len(path)-1]
+						
+						var nodeStyle Style
+						var focusableNode Node
+						for i := len(path) - 1; i >= 0; i-- {
+							n := path[i]
+							var s Style
+							switch node := n.(type) {
+							case *Text: s = node.Style
+							case *TextInput: s = node.Style
+							case *Button: s = node.Style
+							case *Checkbox: s = node.Style
+							case *RadioButton: s = node.Style
+							case *Spinner: s = node.Style
+							case *ProgressBar: s = node.Style
+							case *ScrollView: s = node.Style
+							case *Dropdown: s = node.Style
+							case *Box: s = node.Style
+							case *Modal: s = node.Style
+							}
+							if s.Focusable && s.ID != "" {
+								focusableNode = n
+								nodeStyle = s
+								break
+							}
+						}
+						
+						if focusableNode != nil {
+							a.focusedID = nodeStyle.ID
+							a.closeOtherDropdowns(a.focusedID)
+						}
+						
+						if btn, ok := clickedNode.(*Button); ok {
+							if btn.OnClick != nil {
+								btn.OnClick()
+							}
+						}
+						if cb, ok := clickedNode.(*Checkbox); ok {
+							cb.Checked = !cb.Checked
+							if cb.OnChange != nil {
+								cb.OnChange(cb.Checked)
+							}
+						}
+						if rb, ok := clickedNode.(*RadioButton); ok {
+							if rb.OnChange != nil {
+								rb.OnChange(rb.Value)
+							}
+						}
+						
+						handled = true
+					} else {
+						// Trap clicks outside modal
+						handled = true
+					}
+				}
+				
+				if !handled {
+					for id, stateObj := range a.componentStates {
+						if state, ok := stateObj.(*DropdownState); ok && state.Open {
+							res := findLayoutResultByID(layout, id)
+							dropdownNode := findNodeByID(root, id)
+							if res != nil && dropdownNode != nil {
+								if drp, ok := dropdownNode.(*Dropdown); ok {
+									listY := res.Y + res.H
+									listW := res.W
+									listH := len(drp.Options)
 
-								if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
-									clickedIndex := my - listY
-									drp.SelectedIndex = clickedIndex
-									if drp.OnChange != nil {
-										drp.OnChange(clickedIndex)
+									if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+										clickedIndex := my - listY
+										drp.SelectedIndex = clickedIndex
+										if drp.OnChange != nil {
+											drp.OnChange(clickedIndex)
+										}
+										state.Open = false
+										handled = true
+										break
 									}
-									state.Open = false
-									handled = true
-									break
 								}
 							}
 						}
@@ -511,6 +683,11 @@ func findNodeByID(node Node, id string) Node {
 		if n.Style.ID == id {
 			return n
 		}
+	case *Modal:
+		if n.Style.ID == id {
+			return n
+		}
+		return findNodeByID(n.Child, id)
 	}
 	return nil
 }
@@ -946,4 +1123,12 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 		}
 	}
 	return false
+}
+
+func (a *App) SetState(id string, state any) {
+	a.componentStates[id] = state
+}
+
+func (a *App) GetState(id string) any {
+	return a.componentStates[id]
 }
