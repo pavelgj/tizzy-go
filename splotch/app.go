@@ -17,6 +17,8 @@ type App struct {
 	componentStates map[string]any
 	previousGrid    *Grid
 	activeCleanups  map[string]func()
+	dirty           bool
+	previousRoot    Node
 }
 
 // NewApp creates a new App instance.
@@ -40,13 +42,17 @@ type EffectRecord struct {
 
 // RenderContext provides hooks and state scoping during rendering.
 type RenderContext struct {
-	app     *App
-	effects []EffectRecord
+	app       *App
+	effects   []EffectRecord
+	hookIndex int
 }
 
-// UseState retrieves or initializes state for a given ID.
+// UseState retrieves or initializes state.
 // It returns the current state and a setter function.
-func (ctx *RenderContext) UseState(id string, initial any) (any, func(any)) {
+func (ctx *RenderContext) UseState(initial any) (any, func(any)) {
+	id := fmt.Sprintf("hook-%d", ctx.hookIndex)
+	ctx.hookIndex++
+
 	state := ctx.app.componentStates[id]
 	if state == nil {
 		state = initial
@@ -54,13 +60,17 @@ func (ctx *RenderContext) UseState(id string, initial any) (any, func(any)) {
 	}
 	setter := func(newVal any) {
 		ctx.app.componentStates[id] = newVal
+		ctx.app.dirty = true
 	}
 	return state, setter
 }
 
-// UseEffect registers a lifecycle effect for a given ID.
+// UseEffect registers a lifecycle effect.
 // The effect function should return a cleanup function (or nil).
-func (ctx *RenderContext) UseEffect(id string, effect func() func()) {
+func (ctx *RenderContext) UseEffect(effect func() func()) {
+	id := fmt.Sprintf("hook-%d", ctx.hookIndex)
+	ctx.hookIndex++
+
 	ctx.effects = append(ctx.effects, EffectRecord{ID: id, Effect: effect})
 }
 
@@ -87,36 +97,42 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 	}()
 
 	for {
-		// 1. Get the current UI tree
-		ctx := &RenderContext{app: a}
-		root := renderFn(ctx)
+		// 1. Get the current UI tree or reuse previous
+		var root Node
+		if a.dirty || a.previousRoot == nil {
+			ctx := &RenderContext{app: a}
+			root = renderFn(ctx)
+			a.previousRoot = root
+			a.dirty = false
 
-		// Collect all IDs in the current tree
-		currentIDs := collectAllIDs(root)
-		currentIDMap := make(map[string]bool)
-		for _, id := range currentIDs {
-			currentIDMap[id] = true
-		}
-
-		// Detect Unmounts and run cleanups
-		for id, cleanup := range a.activeCleanups {
-			if !currentIDMap[id] {
-				if cleanup != nil {
-					cleanup()
-				}
-				delete(a.activeCleanups, id)
+			// Collect all effect IDs requested in this frame
+			requestedEffects := make(map[string]bool)
+			for _, eff := range ctx.effects {
+				requestedEffects[eff.ID] = true
 			}
-		}
 
-		// Detect Mounts and run effects
-		for _, effectRec := range ctx.effects {
-			id := effectRec.ID
-			if _, active := a.activeCleanups[id]; !active {
-				cleanup := effectRec.Effect()
-				if cleanup != nil {
-					a.activeCleanups[id] = cleanup
+			// Detect Unmounts and run cleanups (not called implies unmounted)
+			for id, cleanup := range a.activeCleanups {
+				if !requestedEffects[id] {
+					if cleanup != nil {
+						cleanup()
+					}
+					delete(a.activeCleanups, id)
 				}
 			}
+
+			// Detect Mounts and run effects
+			for _, effectRec := range ctx.effects {
+				id := effectRec.ID
+				if _, active := a.activeCleanups[id]; !active {
+					cleanup := effectRec.Effect()
+					if cleanup != nil {
+						a.activeCleanups[id] = cleanup
+					}
+				}
+			}
+		} else {
+			root = a.previousRoot
 		}
 
 		// Find open modal if any
@@ -921,32 +937,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 	}
 }
 
-func collectAllIDs(node Node) []string {
-	var ids []string
-	if node == nil {
-		return ids
-	}
-	style := node.GetStyle()
-	if style.ID != "" {
-		ids = append(ids, style.ID)
-	}
 
-	switch n := node.(type) {
-	case *Box:
-		for _, child := range n.Children {
-			ids = append(ids, collectAllIDs(child)...)
-		}
-	case *Modal:
-		ids = append(ids, collectAllIDs(n.Child)...)
-	case *ScrollView:
-		ids = append(ids, collectAllIDs(n.Child)...)
-	case *Tabs:
-		for _, tab := range n.Tabs {
-			ids = append(ids, collectAllIDs(tab.Content)...)
-		}
-	}
-	return ids
-}
 
 func findFocusableIDs(node Node, componentStates map[string]any) []string {
 	var ids []string
