@@ -180,6 +180,57 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 		w, h := a.screen.Size()
 		layout := Layout(root, 0, 0, Constraints{MaxW: w, MaxH: h})
 
+		// Update scroll offset for focused TextInput based on up-to-date layout
+		if a.focusedID != "" {
+			focusedNode := findNodeByID(root, a.focusedID)
+			if input, ok := focusedNode.(*TextInput); ok {
+				res := findLayoutResultByID(layout, a.focusedID)
+				if res != nil {
+					stateObj, ok := a.componentStates[a.focusedID]
+					if ok {
+						state := stateObj.(*TextInputState)
+						borderOffset := 0
+						if input.Style.Border {
+							borderOffset = 1
+						}
+
+						w := res.W - input.Style.Padding.Left - input.Style.Padding.Right - borderOffset*2
+						if w > 0 && !input.Style.Multiline {
+							if state.cursorOffset < state.scrollOffset {
+								state.scrollOffset = state.cursorOffset
+							}
+							if state.cursorOffset > state.scrollOffset+w {
+								state.scrollOffset = state.cursorOffset - w
+							}
+						}
+
+						if input.Style.Multiline {
+							line, col := offsetToLineCol(input.Value, state.cursorOffset)
+							h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
+							if h > 0 {
+								if line < state.vScrollOffset {
+									state.vScrollOffset = line
+								}
+								if line >= state.vScrollOffset+h {
+									state.vScrollOffset = line - h + 1
+								}
+							}
+
+							// Horizontal scroll for multiline
+							if w > 0 {
+								if col < state.scrollOffset {
+									state.scrollOffset = col
+								}
+								if col >= state.scrollOffset+w {
+									state.scrollOffset = col - w + 1
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 		// 3. Render to grid
 		grid := NewGrid(w, h)
 		Render(grid, layout, a.focusedID, a.componentStates)
@@ -1584,6 +1635,45 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					line, col := offsetToLineCol(input.Value, state.cursorOffset)
 					state.cursorOffset = lineColToOffset(input.Value, line+1, col)
 				}
+			} else if ev.Key() == tcell.KeyPgUp {
+				if input.Style.Multiline {
+					line, col := offsetToLineCol(input.Value, state.cursorOffset)
+					res := findLayoutResultByID(layout, a.focusedID)
+					if res != nil {
+						borderOffset := 0
+						if input.Style.Border {
+							borderOffset = 1
+						}
+						h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
+						if h > 0 {
+							newLine := line - h
+							if newLine < 0 {
+								newLine = 0
+							}
+							state.cursorOffset = lineColToOffset(input.Value, newLine, col)
+						}
+					}
+				}
+			} else if ev.Key() == tcell.KeyPgDn {
+				if input.Style.Multiline {
+					line, col := offsetToLineCol(input.Value, state.cursorOffset)
+					res := findLayoutResultByID(layout, a.focusedID)
+					if res != nil {
+						borderOffset := 0
+						if input.Style.Border {
+							borderOffset = 1
+						}
+						h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
+						if h > 0 {
+							lines := strings.Split(input.Value, "\n")
+							newLine := line + h
+							if newLine >= len(lines) {
+								newLine = len(lines) - 1
+							}
+							state.cursorOffset = lineColToOffset(input.Value, newLine, col)
+						}
+					}
+				}
 			} else if ev.Key() == tcell.KeyHome {
 				state.cursorOffset = 0
 			} else if ev.Key() == tcell.KeyEnd {
@@ -1597,47 +1687,6 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 				}
 			}
 
-			// Update scroll offset
-			res := findLayoutResultByID(layout, a.focusedID)
-			if res != nil {
-				borderOffset := 0
-				if input.Style.Border {
-					borderOffset = 1
-				}
-
-				w := res.W - input.Style.Padding.Left - input.Style.Padding.Right - borderOffset*2
-				if w > 0 && !input.Style.Multiline {
-					if state.cursorOffset < state.scrollOffset {
-						state.scrollOffset = state.cursorOffset
-					}
-					if state.cursorOffset > state.scrollOffset+w {
-						state.scrollOffset = state.cursorOffset - w
-					}
-				}
-
-				if input.Style.Multiline {
-					line, col := offsetToLineCol(input.Value, state.cursorOffset)
-					h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
-					if h > 0 {
-						if line < state.vScrollOffset {
-							state.vScrollOffset = line
-						}
-						if line >= state.vScrollOffset+h {
-							state.vScrollOffset = line - h + 1
-						}
-					}
-
-					// Horizontal scroll for multiline
-					if w > 0 {
-						if col < state.scrollOffset {
-							state.scrollOffset = col
-						}
-						if col >= state.scrollOffset+w {
-							state.scrollOffset = col - w + 1
-						}
-					}
-				}
-			}
 			a.dirty = true
 		} else if drp, ok := focusedNode.(*Dropdown); ok {
 			stateObj, ok := a.componentStates[a.focusedID]
