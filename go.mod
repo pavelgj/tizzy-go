@@ -1,4 +1,4 @@
-module tizzy
+module github.com/pavelgj/tizzy-go
 
 go 1.24.5
 

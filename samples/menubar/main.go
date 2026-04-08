@@ -4,41 +4,41 @@ import (
 	"fmt"
 	"os"
 
-	"tizzy/tizzy"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	render := func(ctx *tizzy.RenderContext) tizzy.Node {
-		lastAction, setLastAction := tizzy.UseState(ctx, "None")
+	render := func(ctx *tz.RenderContext) tz.Node {
+		lastAction, setLastAction := tz.UseState(ctx, "None")
 
-		return tizzy.NewBox(
-			tizzy.Style{
+		return tz.NewBox(
+			tz.Style{
 				FillWidth:  true,
 				FillHeight: true,
 				Color:      tcell.ColorWhite,
 				Background: tcell.ColorBlack,
 			},
-			tizzy.NewMenuBar(
+			tz.NewMenuBar(
 				ctx,
-				tizzy.Style{
+				tz.Style{
 					Color:      tcell.ColorWhite,
 					Background: tcell.ColorTeal,
 					FillWidth:  true,
 					Focusable:  true,
 				},
-				[]tizzy.Menu{
+				[]tz.Menu{
 					{
 						Title:   "File",
 						AltRune: 'f',
-						Items: []tizzy.MenuItem{
+						Items: []tz.MenuItem{
 							{Label: "New", Action: func() { setLastAction("New") }},
 							{Label: "Open", Action: func() { setLastAction("Open") }},
 							{Label: "Save", Action: func() { setLastAction("Save") }},
@@ -48,7 +48,7 @@ func main() {
 					{
 						Title:   "Edit",
 						AltRune: 'e',
-						Items: []tizzy.MenuItem{
+						Items: []tz.MenuItem{
 							{Label: "Cut", Action: func() { setLastAction("Cut") }},
 							{Label: "Copy", Action: func() { setLastAction("Copy") }},
 							{Label: "Paste", Action: func() { setLastAction("Paste") }},
@@ -57,22 +57,22 @@ func main() {
 					{
 						Title:   "Help",
 						AltRune: 'h',
-						Items: []tizzy.MenuItem{
+						Items: []tz.MenuItem{
 							{Label: "About", Action: func() { setLastAction("About") }},
 						},
 					},
 				},
 			),
-			tizzy.NewBox(
-				tizzy.Style{
-					Padding: tizzy.Padding{Top: 2, Left: 2},
+			tz.NewBox(
+				tz.Style{
+					Padding: tz.Padding{Top: 2, Left: 2},
 				},
-				tizzy.NewText(tizzy.Style{Color: tcell.ColorYellow}, "MenuBar Sample"),
-				tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Press Alt+F, Alt+E, or Alt+H to open menus."),
-				tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Or click on them with the mouse."),
-				tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Or use Tab to focus the MenuBar (opens File menu)."),
-				tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen, Margin: tizzy.Margin{Top: 1}}, "Last Action: "+lastAction),
-				tizzy.NewButton(tizzy.Style{ID: "btn1", Focusable: true, Margin: tizzy.Margin{Top: 1}}, "Focusable Button", func() {}),
+				tz.NewText(tz.Style{Color: tcell.ColorYellow}, "MenuBar Sample"),
+				tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Press Alt+F, Alt+E, or Alt+H to open menus."),
+				tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Or click on them with the mouse."),
+				tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Or use Tab to focus the MenuBar (opens File menu)."),
+				tz.NewText(tz.Style{Color: tcell.ColorGreen, Margin: tz.Margin{Top: 1}}, "Last Action: "+lastAction),
+				tz.NewButton(tz.Style{ID: "btn1", Focusable: true, Margin: tz.Margin{Top: 1}}, "Focusable Button", func() {}),
 			),
 		)
 	}

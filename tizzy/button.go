@@ -20,7 +20,6 @@ func NewButton(style Style, label string, onClick func()) *Button {
 	}
 }
 
-
 // Layout calculates the layout for the Button node.
 func (n *Button) Layout(x, y int, c Constraints) LayoutResult {
 	pad := n.Style.Padding

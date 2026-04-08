@@ -35,7 +35,6 @@ func NewRadioButton(ctx *RenderContext, style Style, label string, value string,
 	}
 }
 
-
 // Layout calculates the layout for the RadioButton node.
 func (n *RadioButton) Layout(x, y int, c Constraints) LayoutResult {
 	pad := n.Style.Padding

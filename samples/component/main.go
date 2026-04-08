@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 	"log"
-	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -18,17 +18,17 @@ func NewCounterComponent(id string) *CounterComponent {
 	return &CounterComponent{id: id}
 }
 
-func (c *CounterComponent) Render() tizzy.Node {
-	return tizzy.NewBox(
-		tizzy.Style{
+func (c *CounterComponent) Render() tz.Node {
+	return tz.NewBox(
+		tz.Style{
 			Border:  true,
-			Padding: tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
-			Margin:  tizzy.Margin{Top: 1},
+			Padding: tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+			Margin:  tz.Margin{Top: 1},
 		},
-		tizzy.NewText(tizzy.Style{Color: tcell.ColorYellow}, fmt.Sprintf("Counter [%s]", c.id)),
-		tizzy.NewText(tizzy.Style{}, fmt.Sprintf("Clicks: %d", c.count)),
-		tizzy.NewButton(
-			tizzy.Style{ID: c.id + "_btn", Focusable: true, Margin: tizzy.Margin{Top: 1}},
+		tz.NewText(tz.Style{Color: tcell.ColorYellow}, fmt.Sprintf("Counter [%s]", c.id)),
+		tz.NewText(tz.Style{}, fmt.Sprintf("Clicks: %d", c.count)),
+		tz.NewButton(
+			tz.Style{ID: c.id + "_btn", Focusable: true, Margin: tz.Margin{Top: 1}},
 			"Increment",
 			func() {
 				c.count++
@@ -43,16 +43,16 @@ type SidebarComponent struct {
 	onSelect    func(int)
 }
 
-func (s *SidebarComponent) Render() tizzy.Node {
+func (s *SidebarComponent) Render() tz.Node {
 	items := []string{"Dashboard", "Settings", "About"}
-	var children []tizzy.Node
-	children = append(children, tizzy.NewText(tizzy.Style{Color: tcell.ColorLightCyan}, " NAVIGATION "))
+	var children []tz.Node
+	children = append(children, tz.NewText(tz.Style{Color: tcell.ColorLightCyan}, " NAVIGATION "))
 
 	for i, item := range items {
-		style := tizzy.Style{
+		style := tz.Style{
 			Focusable: true,
 			ID:        fmt.Sprintf("side_%d", i),
-			Margin:    tizzy.Margin{Top: 1},
+			Margin:    tz.Margin{Top: 1},
 		}
 		label := "  " + item
 		if i == s.selectedTab {
@@ -61,7 +61,7 @@ func (s *SidebarComponent) Render() tizzy.Node {
 		}
 
 		idx := i // capture for closure
-		children = append(children, tizzy.NewButton(style, label, func() {
+		children = append(children, tz.NewButton(style, label, func() {
 			s.selectedTab = idx
 			if s.onSelect != nil {
 				s.onSelect(idx)
@@ -69,10 +69,10 @@ func (s *SidebarComponent) Render() tizzy.Node {
 		}))
 	}
 
-	return tizzy.NewBox(
-		tizzy.Style{
+	return tz.NewBox(
+		tz.Style{
 			Border:        true,
-			Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
+			Padding:       tz.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
 			FlexDirection: "column",
 			Width:         20,
 		},
@@ -94,38 +94,38 @@ func NewMainContentComponent() *MainContentComponent {
 	}
 }
 
-func (m *MainContentComponent) Render() tizzy.Node {
-	var content tizzy.Node
+func (m *MainContentComponent) Render() tz.Node {
+	var content tz.Node
 
 	switch m.currentView {
 	case 0:
-		content = tizzy.NewBox(
-			tizzy.Style{FlexDirection: "column"},
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Dashboard View"),
-			tizzy.NewText(tizzy.Style{}, "Welcome to the main dashboard."),
+		content = tz.NewBox(
+			tz.Style{FlexDirection: "column"},
+			tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Dashboard View"),
+			tz.NewText(tz.Style{}, "Welcome to the main dashboard."),
 			m.counter1.Render(),
 		)
 	case 1:
-		content = tizzy.NewBox(
-			tizzy.Style{FlexDirection: "column"},
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Settings View"),
-			tizzy.NewText(tizzy.Style{}, "Configure your application here."),
+		content = tz.NewBox(
+			tz.Style{FlexDirection: "column"},
+			tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Settings View"),
+			tz.NewText(tz.Style{}, "Configure your application here."),
 			m.counter2.Render(),
 		)
 	case 2:
-		content = tizzy.NewBox(
-			tizzy.Style{FlexDirection: "column"},
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "About View"),
-			tizzy.NewText(tizzy.Style{}, "Tizzy Component Demo"),
-			tizzy.NewText(tizzy.Style{}, "This demonstrates state isolation."),
+		content = tz.NewBox(
+			tz.Style{FlexDirection: "column"},
+			tz.NewText(tz.Style{Color: tcell.ColorGreen}, "About View"),
+			tz.NewText(tz.Style{}, "Tizzy Component Demo"),
+			tz.NewText(tz.Style{}, "This demonstrates state isolation."),
 		)
 	}
 
-	return tizzy.NewBox(
-		tizzy.Style{
+	return tz.NewBox(
+		tz.Style{
 			Border:        true,
-			Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
-			Margin:        tizzy.Margin{Left: 1},
+			Padding:       tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+			Margin:        tz.Margin{Left: 1},
 			FlexDirection: "column",
 			FillWidth:     true,
 			FillHeight:    true,
@@ -135,7 +135,7 @@ func (m *MainContentComponent) Render() tizzy.Node {
 }
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -147,10 +147,10 @@ func main() {
 		},
 	}
 
-	render := func(ctx *tizzy.RenderContext) tizzy.Node {
-		return tizzy.NewBox(
-			tizzy.Style{
-				Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+	render := func(ctx *tz.RenderContext) tz.Node {
+		return tz.NewBox(
+			tz.Style{
+				Padding:       tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
 				FlexDirection: "row",
 				FillWidth:     true,
 				FillHeight:    true,

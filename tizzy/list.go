@@ -16,7 +16,6 @@ type List struct {
 	OnFocus           func(state *ListState)
 }
 
-
 // NewList creates a new List component.
 func NewList(ctx *RenderContext, style Style, key string, items []any, initialSelectedIndex int, renderItem func(item any, index int, selected bool, cursor bool) Node, onSelect func(int)) *List {
 	if style.ID == "" {

@@ -2,60 +2,60 @@ package main
 
 import (
 	"fmt"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 	"os"
-	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	root := tizzy.NewGridBox(
-		tizzy.Style{
+	root := tz.NewGridBox(
+		tz.Style{
 			Border:     true,
 			FillWidth:  true,
 			FillHeight: true,
 			Title:      "Main Grid",
 		},
 		// Columns: Fixed 15 cells for sidebar, 1fraction for main, Fixed 15 for right panel
-		[]tizzy.GridTrack{tizzy.Fixed(15), tizzy.Flex(1), tizzy.Fixed(15)},
+		[]tz.GridTrack{tz.Fixed(15), tz.Flex(1), tz.Fixed(15)},
 		// Rows: Fixed 3 for header, 1fraction for main area, Fixed 3 for footer
-		[]tizzy.GridTrack{tizzy.Fixed(3), tizzy.Flex(1), tizzy.Fixed(3)},
+		[]tz.GridTrack{tz.Fixed(3), tz.Flex(1), tz.Fixed(3)},
 
 		// Header spanning all 3 columns
-		tizzy.NewBox(tizzy.Style{GridRow: 0, GridCol: 0, GridColSpan: 3, Border: true, Background: tcell.ColorBlue, FillWidth: true, FillHeight: true, Title: "Header"},
-			tizzy.NewText(tizzy.Style{}, "Spans 3 Columns"),
+		tz.NewBox(tz.Style{GridRow: 0, GridCol: 0, GridColSpan: 3, Border: true, Background: tcell.ColorBlue, FillWidth: true, FillHeight: true, Title: "Header"},
+			tz.NewText(tz.Style{}, "Spans 3 Columns"),
 		),
 
 		// Left Sidebar
-		tizzy.NewBox(tizzy.Style{GridRow: 1, GridCol: 0, Border: true, Background: tcell.ColorGreen, FillWidth: true, FillHeight: true, Title: "Sidebar"},
-			tizzy.NewText(tizzy.Style{}, "Navigation"),
+		tz.NewBox(tz.Style{GridRow: 1, GridCol: 0, Border: true, Background: tcell.ColorGreen, FillWidth: true, FillHeight: true, Title: "Sidebar"},
+			tz.NewText(tz.Style{}, "Navigation"),
 		),
 
 		// Main Content
-		tizzy.NewBox(tizzy.Style{GridRow: 1, GridCol: 1, Border: true, FillWidth: true, FillHeight: true, Title: "Main Content"},
-			tizzy.NewBox(tizzy.Style{Padding: tizzy.Padding{Left: 1, Right: 1, Top: 1, Bottom: 1}},
-				tizzy.NewText(tizzy.Style{}, "This area takes up the remaining space."),
+		tz.NewBox(tz.Style{GridRow: 1, GridCol: 1, Border: true, FillWidth: true, FillHeight: true, Title: "Main Content"},
+			tz.NewBox(tz.Style{Padding: tz.Padding{Left: 1, Right: 1, Top: 1, Bottom: 1}},
+				tz.NewText(tz.Style{}, "This area takes up the remaining space."),
 			),
 		),
 
 		// Right Panel
-		tizzy.NewBox(tizzy.Style{GridRow: 1, GridCol: 2, Border: true, Background: tcell.ColorYellow, FillWidth: true, FillHeight: true, Title: "Right Panel"},
-			tizzy.NewText(tizzy.Style{}, "Info"),
+		tz.NewBox(tz.Style{GridRow: 1, GridCol: 2, Border: true, Background: tcell.ColorYellow, FillWidth: true, FillHeight: true, Title: "Right Panel"},
+			tz.NewText(tz.Style{}, "Info"),
 		),
 
 		// Footer spanning all 3 columns
-		tizzy.NewBox(tizzy.Style{GridRow: 2, GridCol: 0, GridColSpan: 3, Border: true, Background: tcell.ColorRed, FillWidth: true, FillHeight: true, Title: "Footer"},
-			tizzy.NewText(tizzy.Style{}, "Spans 3 Columns"),
+		tz.NewBox(tz.Style{GridRow: 2, GridCol: 0, GridColSpan: 3, Border: true, Background: tcell.ColorRed, FillWidth: true, FillHeight: true, Title: "Footer"},
+			tz.NewText(tz.Style{}, "Spans 3 Columns"),
 		),
 	)
 
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating app: %v\n", err)
 		os.Exit(1)
 	}
 
-	render := func(ctx *tizzy.RenderContext) tizzy.Node {
+	render := func(ctx *tz.RenderContext) tz.Node {
 		return root
 	}
 

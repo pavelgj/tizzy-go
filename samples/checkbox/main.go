@@ -3,20 +3,20 @@ package main
 import (
 	"log"
 
-	"tizzy/tizzy"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	render := func(ctx *tizzy.RenderContext) tizzy.Node {
-		checked, setChecked := tizzy.UseState(ctx, false)
-		checkedCustom, setCheckedCustom := tizzy.UseState(ctx, false)
+	render := func(ctx *tz.RenderContext) tz.Node {
+		checked, setChecked := tz.UseState(ctx, false)
+		checkedCustom, setCheckedCustom := tz.UseState(ctx, false)
 
 		status := "Unchecked"
 		if checked {
@@ -28,31 +28,31 @@ func main() {
 			customStatus = "Checked"
 		}
 
-		cbCustom := tizzy.NewCheckbox(ctx, tizzy.Style{Focusable: true, Color: tcell.ColorGreen}, "Accept Terms", checkedCustom, func(v bool) {
+		cbCustom := tz.NewCheckbox(ctx, tz.Style{Focusable: true, Color: tcell.ColorGreen}, "Accept Terms", checkedCustom, func(v bool) {
 			setCheckedCustom(v)
 		})
 		cbCustom.CheckedChar = "✔"
 		cbCustom.UncheckedChar = "✘"
 
-		return tizzy.NewBox(
-			tizzy.Style{
+		return tz.NewBox(
+			tz.Style{
 				FlexDirection: "column",
-				Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+				Padding:       tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
 				Background:    tcell.ColorReset,
 			},
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Checkbox Sample"),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "----------------"),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Standard Checkbox:"),
-			tizzy.NewCheckbox(ctx, tizzy.Style{Focusable: true, Color: tcell.ColorWhite}, "Enable Feature", checked, func(v bool) {
+			tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Checkbox Sample"),
+			tz.NewText(tz.Style{Color: tcell.ColorGray}, "----------------"),
+			tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Standard Checkbox:"),
+			tz.NewCheckbox(ctx, tz.Style{Focusable: true, Color: tcell.ColorWhite}, "Enable Feature", checked, func(v bool) {
 				setChecked(v)
 			}),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "Status: "+status),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, ""),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Custom Characters Checkbox:"),
+			tz.NewText(tz.Style{Color: tcell.ColorGray}, "Status: "+status),
+			tz.NewText(tz.Style{Color: tcell.ColorWhite}, ""),
+			tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Custom Characters Checkbox:"),
 			cbCustom,
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "Status: "+customStatus),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, ""),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "Use Tab/Shift-Tab to navigate, Space/Enter to toggle, or mouse click."),
+			tz.NewText(tz.Style{Color: tcell.ColorGray}, "Status: "+customStatus),
+			tz.NewText(tz.Style{Color: tcell.ColorWhite}, ""),
+			tz.NewText(tz.Style{Color: tcell.ColorGray}, "Use Tab/Shift-Tab to navigate, Space/Enter to toggle, or mouse click."),
 		)
 	}
 

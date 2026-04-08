@@ -28,7 +28,6 @@ type MenuItem struct {
 	Shortcut string
 }
 
-
 // NewMenuBar creates a new MenuBar component.
 func NewMenuBar(ctx *RenderContext, style Style, menus []Menu) *MenuBar {
 	stateObj, _ := ctx.UseState(&MenuBarState{OpenMenuIndex: -1})

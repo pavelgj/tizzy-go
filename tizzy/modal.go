@@ -8,7 +8,6 @@ type Modal struct {
 	Child Node
 }
 
-
 // NewModal creates a new Modal component.
 func NewModal(ctx *RenderContext, style Style, child Node, isOpen bool) *Modal {
 	stateObj, _ := ctx.UseState(&ModalState{Open: isOpen})

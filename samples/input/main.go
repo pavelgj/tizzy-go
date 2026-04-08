@@ -1,32 +1,32 @@
 package main
 
 import (
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 	"log"
-	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = app.Run(
-		func(ctx *tizzy.RenderContext) tizzy.Node {
-			inputValue, setVal := tizzy.UseState(ctx, "Type here...")
+		func(ctx *tz.RenderContext) tz.Node {
+			inputValue, setVal := tz.UseState(ctx, "Type here...")
 
-			return tizzy.NewBox(
-				tizzy.Style{FlexDirection: "column", Padding: tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
-				tizzy.NewText(tizzy.Style{}, "Text Input Sample"),
-				tizzy.NewText(tizzy.Style{}, "Press Tab to focus input, ESC to quit."),
-				tizzy.NewTextInput(
+			return tz.NewBox(
+				tz.Style{FlexDirection: "column", Padding: tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
+				tz.NewText(tz.Style{}, "Text Input Sample"),
+				tz.NewText(tz.Style{}, "Press Tab to focus input, ESC to quit."),
+				tz.NewTextInput(
 					ctx,
-					tizzy.Style{
+					tz.Style{
 						Focusable: true,
 						Border:    true,
-						Padding:   tizzy.Padding{Left: 1, Right: 1},
+						Padding:   tz.Padding{Left: 1, Right: 1},
 						Width:     20,
 					},
 					inputValue,
@@ -34,7 +34,7 @@ func main() {
 						setVal(newValue)
 					},
 				),
-				tizzy.NewText(tizzy.Style{}, "You typed: "+inputValue),
+				tz.NewText(tz.Style{}, "You typed: "+inputValue),
 			)
 		},
 		func(ev tcell.Event) {

@@ -878,7 +878,6 @@ func (e *EventTick) When() time.Time {
 	return e.t
 }
 
-
 func findScrollViewAt(res LayoutResult, x, y int, componentStates map[string]any) *ScrollView {
 	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
 		scrollOffset := 0

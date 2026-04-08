@@ -15,7 +15,6 @@ type Dropdown struct {
 	MaxListHeight int
 }
 
-
 // NewDropdown creates a new Dropdown component.
 func NewDropdown(ctx *RenderContext, style Style, options []string, selectedIndex int, onChange func(int), maxListHeight ...int) *Dropdown {
 	_, _ = UseState[*DropdownState](ctx, &DropdownState{Open: false, FocusedIndex: selectedIndex})

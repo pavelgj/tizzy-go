@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"tizzy/tizzy"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -14,7 +14,7 @@ import (
 func main() {
 	var currentUpdate func(tcell.Event)
 
-	var realApp *tizzy.App
+	var realApp *tz.App
 	var err error
 
 	initialEntries, _ := os.ReadDir(".")
@@ -25,11 +25,11 @@ func main() {
 		return initialEntries[i].Name() < initialEntries[j].Name()
 	})
 
-	render := func(ctx *tizzy.RenderContext) tizzy.Node {
-		previewContent, setPreviewContent := tizzy.UseState[string](ctx, "")
-		currentDir, setCurrentDirFn := tizzy.UseState[string](ctx, ".")
-		pathInput, setPathInput := tizzy.UseState[string](ctx, currentDir)
-		selectedFileIdx, setSelectedFileIdx := tizzy.UseState[int](ctx, -1)
+	render := func(ctx *tz.RenderContext) tz.Node {
+		previewContent, setPreviewContent := tz.UseState[string](ctx, "")
+		currentDir, setCurrentDirFn := tz.UseState[string](ctx, ".")
+		pathInput, setPathInput := tz.UseState[string](ctx, currentDir)
+		selectedFileIdx, setSelectedFileIdx := tz.UseState[int](ctx, -1)
 
 		setCurrentDir := func(s string) {
 			setCurrentDirFn(s)
@@ -37,7 +37,7 @@ func main() {
 			setPathInput(s)
 		}
 
-		items, setItems := tizzy.UseState[[]os.DirEntry](ctx, initialEntries)
+		items, setItems := tz.UseState[[]os.DirEntry](ctx, initialEntries)
 
 		var dirs []os.DirEntry
 		var files []os.DirEntry
@@ -83,14 +83,14 @@ func main() {
 			fileItems = append(fileItems, f)
 		}
 
-		leftList := tizzy.NewList(ctx, tizzy.Style{ID: "list-left", Focusable: true, Border: true, Title: "Folders", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, currentDir, dirItems, -1, func(item any, index int, selected bool, cursor bool) tizzy.Node {
+		leftList := tz.NewList(ctx, tz.Style{ID: "list-left", Focusable: true, Border: true, Title: "Folders", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, currentDir, dirItems, -1, func(item any, index int, selected bool, cursor bool) tz.Node {
 			label := ""
 			if s, ok := item.(string); ok {
 				label = s
 			} else if d, ok := item.(os.DirEntry); ok {
 				label = d.Name() + "/"
 			}
-			return tizzy.NewListItem(label, selected, cursor)
+			return tz.NewListItem(label, selected, cursor)
 		}, func(idx int) {
 			// OnSelect
 			if hasParent && idx == 0 {
@@ -127,7 +127,7 @@ func main() {
 				}
 			}
 		})
-		leftList.OnFocus = func(state *tizzy.ListState) {
+		leftList.OnFocus = func(state *tz.ListState) {
 			state.ScrollOffset = 0
 			state.CursorIndex = 0
 		}
@@ -136,12 +136,12 @@ func main() {
 		if selectedFileIdx >= 0 && selectedFileIdx < len(fileItems) {
 			middleListKey += ":" + fileItems[selectedFileIdx].(os.DirEntry).Name()
 		}
-		middleList := tizzy.NewList(ctx, tizzy.Style{ID: "list-middle", Focusable: true, Border: true, Title: "Files", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, middleListKey, fileItems, selectedFileIdx, func(item any, index int, selected bool, cursor bool) tizzy.Node {
+		middleList := tz.NewList(ctx, tz.Style{ID: "list-middle", Focusable: true, Border: true, Title: "Files", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, middleListKey, fileItems, selectedFileIdx, func(item any, index int, selected bool, cursor bool) tz.Node {
 			label := ""
 			if f, ok := item.(os.DirEntry); ok {
 				label = f.Name()
 			}
-			return tizzy.NewListItem(label, selected, cursor)
+			return tz.NewListItem(label, selected, cursor)
 		}, func(idx int) {
 			updatePreview(idx)
 		})
@@ -168,7 +168,7 @@ func main() {
 			}
 		}
 
-		pathInputNode := tizzy.NewTextInput(ctx, tizzy.Style{ID: "path-input", Focusable: true, Border: true, Title: "Path", FillWidth: true, GridRow: 0, GridCol: 0}, pathInput, func(val string) {
+		pathInputNode := tz.NewTextInput(ctx, tz.Style{ID: "path-input", Focusable: true, Border: true, Title: "Path", FillWidth: true, GridRow: 0, GridCol: 0}, pathInput, func(val string) {
 			setPathInput(val)
 		})
 		pathInputNode.OnSubmit = func(val string) {
@@ -226,39 +226,39 @@ func main() {
 			}
 		}
 
-		return tizzy.NewGridBox(
-			tizzy.Style{Border: true, FillWidth: true, FillHeight: true},
-			[]tizzy.GridTrack{tizzy.Flex(1)},
-			[]tizzy.GridTrack{tizzy.Fixed(3), tizzy.Flex(1)},
+		return tz.NewGridBox(
+			tz.Style{Border: true, FillWidth: true, FillHeight: true},
+			[]tz.GridTrack{tz.Flex(1)},
+			[]tz.GridTrack{tz.Fixed(3), tz.Flex(1)},
 
 			pathInputNode,
 
-			tizzy.NewGridBox(
-				tizzy.Style{GridRow: 1, GridCol: 0, FillWidth: true, FillHeight: true},
-				[]tizzy.GridTrack{tizzy.Fixed(25), tizzy.Flex(1), tizzy.Flex(1)},
-				[]tizzy.GridTrack{tizzy.Flex(1)},
+			tz.NewGridBox(
+				tz.Style{GridRow: 1, GridCol: 0, FillWidth: true, FillHeight: true},
+				[]tz.GridTrack{tz.Fixed(25), tz.Flex(1), tz.Flex(1)},
+				[]tz.GridTrack{tz.Flex(1)},
 
 				// Left Panel
-				tizzy.NewBox(tizzy.Style{GridRow: 0, GridCol: 0, FillHeight: true, FillWidth: true},
+				tz.NewBox(tz.Style{GridRow: 0, GridCol: 0, FillHeight: true, FillWidth: true},
 					leftList,
 				),
 
 				// Middle Panel
-				tizzy.NewBox(tizzy.Style{GridRow: 0, GridCol: 1, FillHeight: true, FillWidth: true},
+				tz.NewBox(tz.Style{GridRow: 0, GridCol: 1, FillHeight: true, FillWidth: true},
 					middleList,
 				),
 
 				// Right Panel
-				tizzy.NewBox(tizzy.Style{GridRow: 0, GridCol: 2, Border: true, FillHeight: true, FillWidth: true, Title: "Preview"},
-					tizzy.NewScrollView(ctx, tizzy.Style{ID: "scroll-right", FillHeight: true, FillWidth: true},
-						tizzy.NewTextView(tizzy.Style{FillWidth: true}, previewContent),
+				tz.NewBox(tz.Style{GridRow: 0, GridCol: 2, Border: true, FillHeight: true, FillWidth: true, Title: "Preview"},
+					tz.NewScrollView(ctx, tz.Style{ID: "scroll-right", FillHeight: true, FillWidth: true},
+						tz.NewTextView(tz.Style{FillWidth: true}, previewContent),
 					),
 				),
 			),
 		)
 	}
 
-	realApp, err = tizzy.NewApp()
+	realApp, err = tz.NewApp()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating app: %v\n", err)
 		os.Exit(1)

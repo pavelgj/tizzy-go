@@ -2,51 +2,51 @@ package main
 
 import (
 	"fmt"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 	"log"
-	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = app.Run(
-		func(ctx *tizzy.RenderContext) tizzy.Node {
-			count, setCount := tizzy.UseState(ctx, 0)
+		func(ctx *tz.RenderContext) tz.Node {
+			count, setCount := tz.UseState(ctx, 0)
 
-			return tizzy.NewBox(
-				tizzy.Style{FlexDirection: "column", Padding: tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
-				tizzy.NewText(tizzy.Style{}, "Button Sample"),
-				tizzy.NewText(tizzy.Style{}, "Press Tab to focus the button, then Enter to click."),
-				tizzy.NewButton(
-					tizzy.Style{
+			return tz.NewBox(
+				tz.Style{FlexDirection: "column", Padding: tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
+				tz.NewText(tz.Style{}, "Button Sample"),
+				tz.NewText(tz.Style{}, "Press Tab to focus the button, then Enter to click."),
+				tz.NewButton(
+					tz.Style{
 						ID:        "btn1",
 						Focusable: true,
 						Border:    true,
-						Padding:   tizzy.Padding{Left: 1, Right: 1},
+						Padding:   tz.Padding{Left: 1, Right: 1},
 					},
 					"Click Me++",
 					func() {
 						setCount(count + 1)
 					},
 				),
-				tizzy.NewButton(
-					tizzy.Style{
+				tz.NewButton(
+					tz.Style{
 						ID:        "btn2",
 						Focusable: true,
 						Border:    true,
-						Padding:   tizzy.Padding{Left: 1, Right: 1},
+						Padding:   tz.Padding{Left: 1, Right: 1},
 					},
 					"Click Me--",
 					func() {
 						setCount(count - 1)
 					},
 				),
-				tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, fmt.Sprintf("Button clicked %d times", count)),
+				tz.NewText(tz.Style{Color: tcell.ColorGreen}, fmt.Sprintf("Button clicked %d times", count)),
 			)
 		},
 		func(ev tcell.Event) {

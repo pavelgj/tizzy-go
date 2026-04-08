@@ -33,7 +33,6 @@ func NewCheckbox(ctx *RenderContext, style Style, label string, checked bool, on
 	}
 }
 
-
 // Layout calculates the layout for the Checkbox node.
 func (n *Checkbox) Layout(x, y int, c Constraints) LayoutResult {
 	pad := n.Style.Padding

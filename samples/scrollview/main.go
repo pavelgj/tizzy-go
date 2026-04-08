@@ -4,13 +4,13 @@ import (
 	"log"
 	"strconv"
 
-	"tizzy/tizzy"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -26,20 +26,20 @@ func main() {
 		})
 	}
 
-	render := func(ctx *tizzy.RenderContext) tizzy.Node {
-		return tizzy.NewBox(
-			tizzy.Style{
+	render := func(ctx *tz.RenderContext) tz.Node {
+		return tz.NewBox(
+			tz.Style{
 				FlexDirection: "column",
-				Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+				Padding:       tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
 				Background:    tcell.ColorReset,
 				FillWidth:     true,
 				FillHeight:    true,
 			},
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "ScrollView Sample (Scroll with Mouse Wheel)"),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "------------------------------------------"),
-			tizzy.NewScrollView(
+			tz.NewText(tz.Style{Color: tcell.ColorWhite}, "ScrollView Sample (Scroll with Mouse Wheel)"),
+			tz.NewText(tz.Style{Color: tcell.ColorGray}, "------------------------------------------"),
+			tz.NewScrollView(
 				ctx,
-				tizzy.Style{
+				tz.Style{
 					Color:      tcell.ColorWhite,
 					Border:     true,
 					FillWidth:  true,
@@ -47,7 +47,7 @@ func main() {
 					Focusable:  true,
 					Title:      "Users Table",
 				},
-				tizzy.NewTable(tizzy.Style{Color: tcell.ColorWhite, FillWidth: true}, headers, rows),
+				tz.NewTable(tz.Style{Color: tcell.ColorWhite, FillWidth: true}, headers, rows),
 			),
 		)
 	}

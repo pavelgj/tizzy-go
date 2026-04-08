@@ -10,7 +10,6 @@ type Popup struct {
 	Y     int
 }
 
-
 // NewPopup creates a new Popup component.
 func NewPopup(ctx *RenderContext, style Style, child Node, x, y int, isOpen bool) *Popup {
 	stateObj, _ := ctx.UseState(&PopupState{Open: isOpen})

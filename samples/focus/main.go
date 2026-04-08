@@ -1,42 +1,42 @@
 package main
 
 import (
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 	"log"
-	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = app.Run(
-		func(ctx *tizzy.RenderContext) tizzy.Node {
-			return tizzy.NewBox(
-				tizzy.Style{FlexDirection: "column", Padding: tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
-				tizzy.NewText(tizzy.Style{}, "Focus Management Sample"),
-				tizzy.NewText(tizzy.Style{}, "Press Tab to cycle focus, ESC to quit."),
-				tizzy.NewBox(
-					tizzy.Style{
+		func(ctx *tz.RenderContext) tz.Node {
+			return tz.NewBox(
+				tz.Style{FlexDirection: "column", Padding: tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
+				tz.NewText(tz.Style{}, "Focus Management Sample"),
+				tz.NewText(tz.Style{}, "Press Tab to cycle focus, ESC to quit."),
+				tz.NewBox(
+					tz.Style{
 						ID:        "box1",
 						Focusable: true,
 						Border:    true,
-						Padding:   tizzy.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
-						Margin:    tizzy.Margin{Top: 1, Bottom: 1},
+						Padding:   tz.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
+						Margin:    tz.Margin{Top: 1, Bottom: 1},
 					},
-					tizzy.NewText(tizzy.Style{}, "Box 1 (Focusable)"),
+					tz.NewText(tz.Style{}, "Box 1 (Focusable)"),
 				),
-				tizzy.NewBox(
-					tizzy.Style{
+				tz.NewBox(
+					tz.Style{
 						ID:        "box2",
 						Focusable: true,
 						Border:    true,
-						Padding:   tizzy.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
+						Padding:   tz.Padding{Top: 1, Bottom: 1, Left: 1, Right: 1},
 					},
-					tizzy.NewText(tizzy.Style{}, "Box 2 (Focusable)"),
+					tz.NewText(tz.Style{}, "Box 2 (Focusable)"),
 				),
 			)
 		},

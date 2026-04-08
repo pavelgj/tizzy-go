@@ -5,13 +5,13 @@ import (
 	"os"
 	"strconv"
 
-	"tizzy/tizzy"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating app: %v\n", err)
 		os.Exit(1)
@@ -25,13 +25,13 @@ func main() {
 		"Item 16", "Item 17", "Item 18", "Item 19", "Item 20",
 	}
 
-	render := func(ctx *tizzy.RenderContext) tizzy.Node {
-		selectedIndex1, setSelectedIndex1 := tizzy.UseState(ctx, 0)
-		selectedIndex2, setSelectedIndex2 := tizzy.UseState(ctx, 0)
-		selectedIndex3, setSelectedIndex3 := tizzy.UseState(ctx, 0)
+	render := func(ctx *tz.RenderContext) tz.Node {
+		selectedIndex1, setSelectedIndex1 := tz.UseState(ctx, 0)
+		selectedIndex2, setSelectedIndex2 := tz.UseState(ctx, 0)
+		selectedIndex3, setSelectedIndex3 := tz.UseState(ctx, 0)
 
-		return tizzy.NewBox(
-			tizzy.Style{
+		return tz.NewBox(
+			tz.Style{
 				Width:          40,
 				Height:         25,
 				Border:         true,
@@ -39,13 +39,13 @@ func main() {
 				JustifyContent: "center",
 				Background:     tcell.ColorBlack,
 			},
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Dropdown Sample"),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "---------------"),
+			tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Dropdown Sample"),
+			tz.NewText(tz.Style{Color: tcell.ColorGray}, "---------------"),
 
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "Dropdown 1 (Default Limit 5):"),
-			tizzy.NewDropdown(
+			tz.NewText(tz.Style{Color: tcell.ColorGray}, "Dropdown 1 (Default Limit 5):"),
+			tz.NewDropdown(
 				ctx,
-				tizzy.Style{
+				tz.Style{
 					Color:     tcell.ColorWhite,
 					Border:    true,
 					Focusable: true,
@@ -56,12 +56,12 @@ func main() {
 					setSelectedIndex1(idx)
 				},
 			),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex1)),
+			tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex1)),
 
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "Dropdown 2 (Short List):"),
-			tizzy.NewDropdown(
+			tz.NewText(tz.Style{Color: tcell.ColorGray}, "Dropdown 2 (Short List):"),
+			tz.NewDropdown(
 				ctx,
-				tizzy.Style{
+				tz.Style{
 					Color:     tcell.ColorWhite,
 					Border:    true,
 					Focusable: true,
@@ -72,12 +72,12 @@ func main() {
 					setSelectedIndex2(idx)
 				},
 			),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex2)),
+			tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex2)),
 
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGray}, "Dropdown 3 (Limit 10):"),
-			tizzy.NewDropdown(
+			tz.NewText(tz.Style{Color: tcell.ColorGray}, "Dropdown 3 (Limit 10):"),
+			tz.NewDropdown(
 				ctx,
-				tizzy.Style{
+				tz.Style{
 					Color:     tcell.ColorWhite,
 					Border:    true,
 					Focusable: true,
@@ -89,7 +89,7 @@ func main() {
 				},
 				10,
 			),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex3)),
+			tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex3)),
 		)
 	}
 

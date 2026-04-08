@@ -4,72 +4,72 @@ import (
 	"fmt"
 	"os"
 
-	"tizzy/tizzy"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	render := func(ctx *tizzy.RenderContext) tizzy.Node {
-		count, setCount := tizzy.UseState(ctx, 0)
-		countOutside, setCountOutside := tizzy.UseState(ctx, 0)
-		notificationsEnabled, setNotificationsEnabled := tizzy.UseState(ctx, true)
+	render := func(ctx *tz.RenderContext) tz.Node {
+		count, setCount := tz.UseState(ctx, 0)
+		countOutside, setCountOutside := tz.UseState(ctx, 0)
+		notificationsEnabled, setNotificationsEnabled := tz.UseState(ctx, true)
 
-		return tizzy.NewBox(
-			tizzy.Style{
-				Padding: tizzy.Padding{Top: 1, Left: 2},
+		return tz.NewBox(
+			tz.Style{
+				Padding: tz.Padding{Top: 1, Left: 2},
 			},
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorYellow}, "Tabs Sample"),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Click on tabs or use Left/Right arrows to switch when focused."),
+			tz.NewText(tz.Style{Color: tcell.ColorYellow}, "Tabs Sample"),
+			tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Click on tabs or use Left/Right arrows to switch when focused."),
 
-			tizzy.NewTabs(
+			tz.NewTabs(
 				ctx,
-				tizzy.Style{
+				tz.Style{
 					Focusable: true,
-					Margin:    tizzy.Margin{Top: 1},
+					Margin:    tz.Margin{Top: 1},
 					Color:     tcell.ColorWhite,
 				},
-				[]tizzy.Tab{
+				[]tz.Tab{
 					{
 						Label: "Home",
-						Content: tizzy.NewBox(
-							tizzy.Style{Border: true, Padding: tizzy.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
-							tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Welcome to Home Tab!"),
-							tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, fmt.Sprintf("Button clicks: %d", count)),
-							tizzy.NewButton(tizzy.Style{ID: "btn_home", Focusable: true, Margin: tizzy.Margin{Top: 1}}, "Home Action", func() {
+						Content: tz.NewBox(
+							tz.Style{Border: true, Padding: tz.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
+							tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Welcome to Home Tab!"),
+							tz.NewText(tz.Style{Color: tcell.ColorWhite}, fmt.Sprintf("Button clicks: %d", count)),
+							tz.NewButton(tz.Style{ID: "btn_home", Focusable: true, Margin: tz.Margin{Top: 1}}, "Home Action", func() {
 								setCount(count + 1)
 							}),
 						),
 					},
 					{
 						Label: "Settings",
-						Content: tizzy.NewBox(
-							tizzy.Style{Border: true, Padding: tizzy.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
-							tizzy.NewText(tizzy.Style{Color: tcell.ColorBlue}, "Settings Tab"),
-							tizzy.NewCheckbox(ctx, tizzy.Style{Focusable: true}, "Enable Notifications", notificationsEnabled, func(val bool) {
+						Content: tz.NewBox(
+							tz.Style{Border: true, Padding: tz.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
+							tz.NewText(tz.Style{Color: tcell.ColorBlue}, "Settings Tab"),
+							tz.NewCheckbox(ctx, tz.Style{Focusable: true}, "Enable Notifications", notificationsEnabled, func(val bool) {
 								setNotificationsEnabled(val)
 							}),
-							tizzy.NewTextInput(ctx, tizzy.Style{Focusable: true, Width: 20, Margin: tizzy.Margin{Top: 1}}, "Initial Value", func(val string) {}),
+							tz.NewTextInput(ctx, tz.Style{Focusable: true, Width: 20, Margin: tz.Margin{Top: 1}}, "Initial Value", func(val string) {}),
 						),
 					},
 					{
 						Label: "About",
-						Content: tizzy.NewBox(
-							tizzy.Style{Border: true, Padding: tizzy.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
-							tizzy.NewText(tizzy.Style{Color: tcell.ColorDarkMagenta}, "About Tab"),
-							tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite}, "Tizzy TUI Library v0.1.0"),
+						Content: tz.NewBox(
+							tz.Style{Border: true, Padding: tz.Padding{Top: 1, Left: 2, Bottom: 1, Right: 2}},
+							tz.NewText(tz.Style{Color: tcell.ColorDarkMagenta}, "About Tab"),
+							tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Tizzy TUI Library v0.1.0"),
 						),
 					},
 				},
 			),
-			tizzy.NewText(tizzy.Style{Color: tcell.ColorWhite, Margin: tizzy.Margin{Top: 1}}, fmt.Sprintf("Outside clicks: %d", countOutside)),
-			tizzy.NewButton(tizzy.Style{ID: "btn1", Focusable: true}, "Focusable Button", func() {
+			tz.NewText(tz.Style{Color: tcell.ColorWhite, Margin: tz.Margin{Top: 1}}, fmt.Sprintf("Outside clicks: %d", countOutside)),
+			tz.NewButton(tz.Style{ID: "btn1", Focusable: true}, "Focusable Button", func() {
 				setCountOutside(countOutside + 1)
 			}),
 		)

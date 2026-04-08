@@ -22,7 +22,6 @@ func NewTable(style Style, headers []string, rows [][]string) *Table {
 	}
 }
 
-
 // Layout calculates the layout for the Table.
 func (n *Table) Layout(x, y int, c Constraints) LayoutResult {
 	pad := n.Style.Padding

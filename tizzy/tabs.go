@@ -37,7 +37,6 @@ func NewTabs(ctx *RenderContext, style Style, tabs []Tab) *Tabs {
 	}
 }
 
-
 // Layout calculates the layout for the Tabs component.
 func (n *Tabs) Layout(x, y int, c Constraints) LayoutResult {
 	pad := n.Style.Padding

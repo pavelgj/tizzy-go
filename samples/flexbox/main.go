@@ -1,33 +1,33 @@
 package main
 
 import (
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 	"log"
-	"tizzy/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = app.Run(
-		func(ctx *tizzy.RenderContext) tizzy.Node {
-			return tizzy.NewBox(
-				tizzy.Style{FlexDirection: "column", Border: true},
-				tizzy.NewText(tizzy.Style{}, "Flexbox Centering Sample"),
-				tizzy.NewBox(
-					tizzy.Style{
+		func(ctx *tz.RenderContext) tz.Node {
+			return tz.NewBox(
+				tz.Style{FlexDirection: "column", Border: true},
+				tz.NewText(tz.Style{}, "Flexbox Centering Sample"),
+				tz.NewBox(
+					tz.Style{
 						FlexDirection:  "row",
 						JustifyContent: "center",
 						Border:         true,
 						Color:          tcell.ColorYellow,
 					},
-					tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Centered Text"),
+					tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Centered Text"),
 				),
-				tizzy.NewText(tizzy.Style{}, "Press ESC to quit."),
+				tz.NewText(tz.Style{}, "Press ESC to quit."),
 			)
 		},
 		func(ev tcell.Event) {

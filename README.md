@@ -20,29 +20,29 @@ package main
 import (
 	"log"
 	"strconv"
-	"tizzy/tizzy"
+	tz "github.com/pavelgj/tizzy-go/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	app, err := tizzy.NewApp()
+	app, err := tz.NewApp()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	render := func(ctx *tizzy.RenderContext) tizzy.Node {
-		count, setCount := tizzy.UseState(ctx, 0)
+	render := func(ctx *tz.RenderContext) tz.Node {
+		count, setCount := tz.UseState(ctx, 0)
 
-		return tizzy.NewBox(
-			tizzy.Style{
+		return tz.NewBox(
+			tz.Style{
 				Border:        true,
-				Padding:       tizzy.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+				Padding:       tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
 				FlexDirection: "column",
 				FillWidth:     true,
 			},
-			tizzy.NewText(tizzy.Style{}, "Clicks: "+strconv.Itoa(count)),
-			tizzy.NewButton(tizzy.Style{Focusable: true}, "Increment", func() {
+			tz.NewText(tz.Style{}, "Clicks: "+strconv.Itoa(count)),
+			tz.NewButton(tz.Style{Focusable: true}, "Increment", func() {
 				setCount(count + 1)
 			}),
 		)
@@ -105,10 +105,10 @@ Tizzy supports React-like hooks for state management and lifecycle effects withi
 Allows components to have local state that persists across renders. Tizzy provides a generic wrapper for type safety.
 
 ```go
-app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
-    count, setCount := tizzy.UseState(ctx, 0) // T is inferred as int
+app.Run(func(ctx *tz.RenderContext) tz.Node {
+    count, setCount := tz.UseState(ctx, 0) // T is inferred as int
 
-    return tizzy.NewButton(tizzy.Style{}, "Clicks: "+strconv.Itoa(count), func() {
+    return tz.NewButton(tz.Style{}, "Clicks: "+strconv.Itoa(count), func() {
         setCount(count + 1)
     })
 }, func(ev tcell.Event) {})
@@ -119,7 +119,7 @@ app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
 Allows performing side effects (like starting background tasks) when a component mounts, and cleaning up when it unmounts.
 
 ```go
-app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
+app.Run(func(ctx *tz.RenderContext) tz.Node {
     ctx.UseEffect(func() func() {
         // OnInit / OnMount
         // Start a background goroutine or timer...
@@ -130,7 +130,7 @@ app.Run(func(ctx *tizzy.RenderContext) tizzy.Node {
         }
     })
 
-    return tizzy.NewText(tizzy.Style{}, "I keep track of my lifecycle")
+    return tz.NewText(tz.Style{}, "I keep track of my lifecycle")
 }, func(ev tcell.Event) {})
 ```
 
@@ -148,8 +148,8 @@ Here are all the available components in Tizzy:
 The fundamental layout container.
 
 ```go
-tizzy.NewBox(
-    tizzy.Style{FlexDirection: "row"},
+tz.NewBox(
+    tz.Style{FlexDirection: "row"},
     child1,
     child2,
 )
@@ -160,9 +160,9 @@ tizzy.NewBox(
 A container that allows scrolling its content if it exceeds available size.
 
 ```go
-tizzy.NewScrollView(
+tz.NewScrollView(
     ctx,
-    tizzy.Style{Height: 10},
+    tz.Style{Height: 10},
     largeContentNode,
 )
 ```
@@ -172,9 +172,9 @@ tizzy.NewScrollView(
 An overlay that traps focus and blocks interaction with the background. Controlled by `isOpen` boolean.
 
 ```go
-tizzy.NewModal(
+tz.NewModal(
     ctx,
-    tizzy.Style{},
+    tz.Style{},
     modalContentNode,
     isOpen,
 )
@@ -187,7 +187,7 @@ tizzy.NewModal(
 Displays static text.
 
 ```go
-tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Hello World")
+tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Hello World")
 ```
 
 #### Button
@@ -195,7 +195,7 @@ tizzy.NewText(tizzy.Style{Color: tcell.ColorGreen}, "Hello World")
 A clickable button.
 
 ```go
-tizzy.NewButton(tizzy.Style{Focusable: true}, "Click Me", func() {
+tz.NewButton(tz.Style{Focusable: true}, "Click Me", func() {
     // handle click
 })
 ```
@@ -205,7 +205,7 @@ tizzy.NewButton(tizzy.Style{Focusable: true}, "Click Me", func() {
 A single-line text input field.
 
 ```go
-tizzy.NewTextInput(ctx, tizzy.Style{Focusable: true}, "initial value", func(newValue string) {
+tz.NewTextInput(ctx, tz.Style{Focusable: true}, "initial value", func(newValue string) {
     // handle change
 })
 ```
@@ -217,13 +217,13 @@ tizzy.NewTextInput(ctx, tizzy.Style{Focusable: true}, "initial value", func(newV
 Displays a list of selectable items.
 
 ```go
-tizzy.NewList(
+tz.NewList(
     ctx,
-    tizzy.Style{Focusable: true},
+    tz.Style{Focusable: true},
     "state-key", // Key to identify list state across renders
     items,       // []any
-    func(item any, index int, selected bool, cursor bool) tizzy.Node {
-        return tizzy.NewListItem(label, selected, cursor)
+    func(item any, index int, selected bool, cursor bool) tz.Node {
+        return tz.NewListItem(label, selected, cursor)
     },
     func(idx int) {
         // handle selection
@@ -241,7 +241,7 @@ Options on the returned `*List` struct:
 A toggleable checkbox.
 
 ```go
-tizzy.NewCheckbox(ctx, tizzy.Style{Focusable: true}, "Enable Feature", true, func(checked bool) {
+tz.NewCheckbox(ctx, tz.Style{Focusable: true}, "Enable Feature", true, func(checked bool) {
     // handle change
 })
 ```
@@ -251,7 +251,7 @@ tizzy.NewCheckbox(ctx, tizzy.Style{Focusable: true}, "Enable Feature", true, fun
 A mutually exclusive selection button.
 
 ```go
-tizzy.NewRadioButton(ctx, tizzy.Style{Focusable: true}, "Option 1", "value1", isSelected, func(value string) {
+tz.NewRadioButton(ctx, tz.Style{Focusable: true}, "Option 1", "value1", isSelected, func(value string) {
     // handle selection
 })
 ```
@@ -261,9 +261,9 @@ tizzy.NewRadioButton(ctx, tizzy.Style{Focusable: true}, "Option 1", "value1", is
 A dropdown menu for selecting from a list.
 
 ```go
-tizzy.NewDropdown(
+tz.NewDropdown(
     ctx,
-    tizzy.Style{Focusable: true},
+    tz.Style{Focusable: true},
     []string{"Option A", "Option B", "Option C"},
     selectedIndex,
     func(idx int) {
@@ -279,10 +279,10 @@ tizzy.NewDropdown(
 A tabbed interface for switching between views.
 
 ```go
-tizzy.NewTabs(
+tz.NewTabs(
     ctx,
-    tizzy.Style{Focusable: true},
-    []tizzy.Tab{
+    tz.Style{Focusable: true},
+    []tz.Tab{
         {Title: "Home", Content: homeNode},
         {Title: "Settings", Content: settingsNode},
     },
@@ -294,13 +294,13 @@ tizzy.NewTabs(
 A top-level specific menu bar with support for Alt shortcuts and dropdowns. Uses internal hooks for state.
 
 ```go
-tizzy.NewMenuBar(
+tz.NewMenuBar(
     ctx,
-    tizzy.Style{Focusable: true},
-    []tizzy.Menu{
+    tz.Style{Focusable: true},
+    []tz.Menu{
         {
             Title: "File",
-            Items: []tizzy.MenuItem{
+            Items: []tz.MenuItem{
                 {Title: "New", Action: func() {}},
                 {Title: "Exit", Action: func() {}},
             },
@@ -316,7 +316,7 @@ tizzy.NewMenuBar(
 A horizontal progress bar.
 
 ```go
-tizzy.NewProgressBar(tizzy.Style{}, 0.75) // 75%
+tz.NewProgressBar(tz.Style{}, 0.75) // 75%
 ```
 
 #### Spinner
@@ -324,7 +324,7 @@ tizzy.NewProgressBar(tizzy.Style{}, 0.75) // 75%
 An animated loading spinner.
 
 ```go
-tizzy.NewSpinner(ctx, tizzy.Style{Color: tcell.ColorCyan})
+tz.NewSpinner(ctx, tz.Style{Color: tcell.ColorCyan})
 ```
 
 #### Table
@@ -332,8 +332,8 @@ tizzy.NewSpinner(ctx, tizzy.Style{Color: tcell.ColorCyan})
 A grid table for displaying tabular data.
 
 ```go
-tizzy.NewTable(
-    tizzy.Style{},
+tz.NewTable(
+    tz.Style{},
     []string{"Name", "Age", "Role"},
     [][]string{
         {"Alice", "30", "Dev"},

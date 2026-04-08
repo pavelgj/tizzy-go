@@ -55,7 +55,6 @@ func NewSpinner(ctx *RenderContext, style Style) *Spinner {
 	return s
 }
 
-
 // Layout calculates the layout for the Spinner node.
 func (n *Spinner) Layout(x, y int, c Constraints) LayoutResult {
 	pad := n.Style.Padding
