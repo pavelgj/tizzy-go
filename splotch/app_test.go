@@ -11,12 +11,15 @@ func TestFindFocusableIDs(t *testing.T) {
 		NewBox(Style{ID: "b1", Focusable: true},
 			NewText(Style{ID: "t2", Focusable: true}, "Text 2"),
 		),
+		NewScrollView(Style{ID: "s1", Focusable: true},
+			NewText(Style{ID: "t4", Focusable: true}, "Text 4"),
+		),
 		NewText(Style{ID: "t3"}, "Not Focusable"), // Should not be found
 	)
 
 	ids := findFocusableIDs(root, nil)
 
-	expected := []string{"t1", "b1", "t2"}
+	expected := []string{"t1", "b1", "t2", "s1", "t4"}
 	if len(ids) != len(expected) {
 		t.Fatalf("Expected %d IDs, got %d", len(expected), len(ids))
 	}

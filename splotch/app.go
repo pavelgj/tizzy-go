@@ -983,6 +983,11 @@ func findFocusableIDs(node Node, componentStates map[string]any) []string {
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
 		}
+	case *ScrollView:
+		if n.Style.Focusable && n.Style.ID != "" {
+			ids = append(ids, n.Style.ID)
+		}
+		ids = append(ids, findFocusableIDs(n.Child, componentStates)...)
 	case *Box:
 		if n.Style.Focusable && n.Style.ID != "" {
 			ids = append(ids, n.Style.ID)
