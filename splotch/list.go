@@ -17,7 +17,7 @@ type List struct {
 func (l *List) node() {}
 
 // NewList creates a new List component.
-func NewList(ctx *RenderContext, style Style, items []any, renderItem func(item any, index int, selected bool, cursor bool) Node, onSelect func(int)) *List {
+func NewList(ctx *RenderContext, style Style, key string, items []any, renderItem func(item any, index int, selected bool, cursor bool) Node, onSelect func(int)) *List {
 	if style.ID == "" {
 		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex)
 		ctx.hookIndex++
@@ -26,10 +26,16 @@ func NewList(ctx *RenderContext, style Style, items []any, renderItem func(item 
 	stateObj, ok := ctx.app.componentStates[style.ID]
 	var state *ListState
 	if !ok {
-		state = &ListState{SelectedIndex: -1, CursorIndex: 0}
+		state = &ListState{SelectedIndex: -1, CursorIndex: 0, Key: key}
 		ctx.app.componentStates[style.ID] = state
 	} else {
 		state = stateObj.(*ListState)
+		if state.Key != key {
+			state.SelectedIndex = -1
+			state.CursorIndex = 0
+			state.ScrollOffset = 0
+			state.Key = key
+		}
 	}
 
 	return &List{
@@ -40,11 +46,27 @@ func NewList(ctx *RenderContext, style Style, items []any, renderItem func(item 
 	}
 }
 
+// NewListItem creates a standard list item with selection and cursor highlighting.
+func NewListItem(label string, selected bool, cursor bool) Node {
+	style := Style{FillWidth: true}
+	textColor := tcell.ColorWhite
+	if selected {
+		style.Background = tcell.ColorBlue
+		textColor = tcell.ColorWhite
+	}
+	if cursor {
+		style.Background = tcell.ColorGray
+		textColor = tcell.ColorWhite
+	}
+	return NewBox(style, NewText(Style{Color: textColor, Background: style.Background}, label))
+}
+
 // ListState stores the state of a List component.
 type ListState struct {
 	SelectedIndex int
 	CursorIndex   int
 	ScrollOffset  int
+	Key           string
 }
 
 // GetStyle returns the style of the List node.

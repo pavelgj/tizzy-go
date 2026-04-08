@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"splotch/splotch"
@@ -59,12 +58,6 @@ func main() {
 		currentDir = currentDirObj
 		setCurrentDir = func(s string) {
 			setCurrentDirFn(s)
-			if stateObj, ok := realApp.GetComponentState("list-middle"); ok {
-				state := stateObj.(*splotch.ListState)
-				state.CursorIndex = 0
-				state.SelectedIndex = -1
-				state.ScrollOffset = 0
-			}
 			setPreviewContentFn("")
 		}
 
@@ -97,24 +90,14 @@ func main() {
 			fileItems = append(fileItems, f)
 		}
 
-		leftList := splotch.NewList(ctx, splotch.Style{ID: "list-left", Focusable: true}, dirItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		leftList := splotch.NewList(ctx, splotch.Style{ID: "list-left", Focusable: true}, currentDir, dirItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
 			label := ""
 			if s, ok := item.(string); ok {
 				label = s
 			} else if d, ok := item.(os.DirEntry); ok {
 				label = d.Name() + "/"
 			}
-			style := splotch.Style{FillWidth: true}
-			textColor := tcell.ColorWhite
-			if selected {
-				style.Background = tcell.ColorBlue
-				textColor = tcell.ColorWhite
-			}
-			if cursor {
-				style.Background = tcell.ColorGray
-				textColor = tcell.ColorWhite
-			}
-			return splotch.NewBox(style, splotch.NewText(splotch.Style{Color: textColor, Background: style.Background}, label))
+			return splotch.NewListItem(label, selected, cursor)
 		}, func(idx int) {
 			// OnSelect
 			if hasParent && idx == 0 {
@@ -152,22 +135,12 @@ func main() {
 			}
 		})
 
-		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true}, fileItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true}, currentDir, fileItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
 			label := ""
 			if f, ok := item.(os.DirEntry); ok {
 				label = f.Name()
 			}
-			style := splotch.Style{FillWidth: true}
-			textColor := tcell.ColorWhite
-			if selected {
-				style.Background = tcell.ColorBlue
-				textColor = tcell.ColorWhite
-			}
-			if cursor {
-				style.Background = tcell.ColorGray
-				textColor = tcell.ColorWhite
-			}
-			return splotch.NewBox(style, splotch.NewText(splotch.Style{Color: textColor, Background: style.Background}, label))
+			return splotch.NewListItem(label, selected, cursor)
 		}, func(idx int) {
 			updatePreview(currentDir, files, idx, "middle", setPreviewContent)
 		})
@@ -182,11 +155,6 @@ func main() {
 		middleBorder := tcell.ColorGray
 		if focused == "list-middle" {
 			middleBorder = tcell.ColorYellow
-		}
-
-		var previewNodes []splotch.Node
-		for _, line := range strings.Split(previewContent, "\n") {
-			previewNodes = append(previewNodes, splotch.NewText(splotch.Style{}, line))
 		}
 
 		return splotch.NewGridBox(
@@ -210,7 +178,7 @@ func main() {
 			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 2, Border: true, FillHeight: true, FillWidth: true},
 				splotch.NewText(splotch.Style{Color: tcell.ColorYellow}, "Preview"),
 				splotch.NewScrollView(ctx, splotch.Style{ID: "scroll-right", FillHeight: true, FillWidth: true},
-					splotch.NewBox(splotch.Style{FillWidth: true}, previewNodes...),
+					splotch.NewTextView(splotch.Style{FillWidth: true}, previewContent),
 				),
 			),
 		)

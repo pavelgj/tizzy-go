@@ -555,571 +555,10 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 		case *EventTick:
 			// Continuous rendering for animations
 		case *tcell.EventMouse:
-			mx, my := ev.Position()
-			
-			// Handle MenuBar hover-to-switch
-			var openMenuBar *MenuBar
-			var openMenuBarID string
-			for id, stateObj := range a.componentStates {
-				if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
-					node := findNodeByID(root, id)
-					if mb, ok := node.(*MenuBar); ok {
-						openMenuBar = mb
-						openMenuBarID = id
-						break
-					}
-				}
-			}
-			
-			if openMenuBar != nil {
-				res := findLayoutResultByID(layout, openMenuBarID)
-				if res != nil {
-					borderOffset := 0
-					if openMenuBar.Style.Border { borderOffset = 1 }
-					curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
-					curY := res.Y + borderOffset + openMenuBar.Style.Padding.Top
-					
-					if my == curY {
-						for i, menu := range openMenuBar.Menus {
-							titleLen := len(menu.Title) + 2
-							if mx >= curX && mx < curX+titleLen {
-								stateObj := a.componentStates[openMenuBarID]
-								state := stateObj.(*MenuBarState)
-								if state.OpenMenuIndex != i {
-									state.OpenMenuIndex = i
-									state.FocusedItemIndex = -1
-									a.dirty = true
-								}
-								break
-							}
-							curX += titleLen + 2
-						}
-					}
-				}
-			}
+			a.handleMouseEvent(ev, root, layout)
 
-			if ev.Buttons()&tcell.Button1 != 0 {
-				handled := false
-				
-				// Find open modal if any
-				var activeModal *Modal
-				for id, stateObj := range a.componentStates {
-					if state, ok := stateObj.(*ModalState); ok && state.Open {
-						node := findNodeByID(root, id)
-						if n, ok := node.(*Modal); ok {
-							activeModal = n
-							break
-						}
-					}
-				}
-				
-				if activeModal != nil {
-					w, h := a.screen.Size()
-					maxModalW := w - 4
-					maxModalH := h - 4
-					if maxModalW < 0 { maxModalW = 0 }
-					if maxModalH < 0 { maxModalH = 0 }
-					
-					modalConstraints := Constraints{
-						MaxW: maxModalW,
-						MaxH: maxModalH,
-					}
-					
-					modalLayout := Layout(activeModal.Child, 0, 0, modalConstraints)
-					modalW := modalLayout.W + 2
-					modalH := modalLayout.H + 2
-					
-					if modalW > w { modalW = w }
-					if modalH > h { modalH = h }
-					
-					modalX := (w - modalW) / 2
-					modalY := (h - modalH) / 2
-					
-					modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
-					
-					path := findNodePathAt(modalLayout, mx, my, a.componentStates)
-					if len(path) > 0 {
-						clickedNode := path[len(path)-1]
-						
-						var nodeStyle Style
-						var focusableNode Node
-						for i := len(path) - 1; i >= 0; i-- {
-							n := path[i]
-							var s Style
-							switch node := n.(type) {
-							case *Text: s = node.Style
-							case *TextInput: s = node.Style
-							case *Button: s = node.Style
-							case *Checkbox: s = node.Style
-							case *RadioButton: s = node.Style
-							case *Spinner: s = node.Style
-							case *ProgressBar: s = node.Style
-							case *ScrollView: s = node.Style
-							case *Dropdown: s = node.Style
-							case *Box: s = node.Style
-							case *Modal: s = node.Style
-							}
-							if s.Focusable && s.ID != "" {
-								focusableNode = n
-								nodeStyle = s
-								break
-							}
-						}
-						
-						if focusableNode != nil {
-							a.focusedID = nodeStyle.ID
-							a.closeOtherDropdowns(a.focusedID)
-						}
-						
-						if list, ok := clickedNode.(*List); ok {
-							stateObj, ok := a.componentStates[list.Style.ID]
-							var state *ListState
-							if !ok {
-								state = &ListState{}
-								a.componentStates[list.Style.ID] = state
-							} else {
-								state = stateObj.(*ListState)
-							}
 
-							res := findLayoutResultByID(layout, list.Style.ID)
-							if res != nil {
-								borderOffset := 0
-								if list.Style.Border {
-									borderOffset = 1
-								}
-								viewportH := res.H - borderOffset*2
 
-								clickY := my - res.Y - borderOffset
-								if clickY >= 0 && clickY < viewportH {
-									clickedIdx := state.ScrollOffset + clickY
-									if clickedIdx < len(list.Items) {
-										state.CursorIndex = clickedIdx
-										state.SelectedIndex = clickedIdx
-										a.dirty = true
-										if list.OnSelect != nil {
-											list.OnSelect(state.SelectedIndex)
-										}
-									}
-								}
-							}
-							handled = true
-						}
-						if btn, ok := clickedNode.(*Button); ok {
-							if btn.OnClick != nil {
-								btn.OnClick()
-							}
-						}
-						if cb, ok := clickedNode.(*Checkbox); ok {
-							cb.Checked = !cb.Checked
-							if cb.OnChange != nil {
-								cb.OnChange(cb.Checked)
-							}
-						}
-						if rb, ok := clickedNode.(*RadioButton); ok {
-							if rb.OnChange != nil {
-								rb.OnChange(rb.Value)
-							}
-						}
-						
-						handled = true
-					} else {
-						// Trap clicks outside modal
-						handled = true
-					}
-				}
-				
-				if !handled {
-					var openMenuBar *MenuBar
-					var openMenuBarID string
-					for id, stateObj := range a.componentStates {
-						if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
-							node := findNodeByID(root, id)
-							if mb, ok := node.(*MenuBar); ok {
-								openMenuBar = mb
-								openMenuBarID = id
-								break
-							}
-						}
-					}
-					
-					if openMenuBar != nil {
-						stateObj := a.componentStates[openMenuBarID]
-						state := stateObj.(*MenuBarState)
-						if state.OpenMenuIndex >= 0 {
-							res := findLayoutResultByID(layout, openMenuBarID)
-							if res != nil {
-								borderOffset := 0
-								if openMenuBar.Style.Border { borderOffset = 1 }
-								curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
-								
-								menuX := curX
-								for i := 0; i < state.OpenMenuIndex; i++ {
-									menuX += len(openMenuBar.Menus[i].Title) + 4
-								}
-								
-								openMenu := openMenuBar.Menus[state.OpenMenuIndex]
-								listY := res.Y + borderOffset + openMenuBar.Style.Padding.Top + 1
-								listW := 0
-								for _, item := range openMenu.Items {
-									if len(item.Label) > listW { listW = len(item.Label) }
-								}
-								listW += 4 // +2 for padding, +2 for borders
-								listH := len(openMenu.Items) + 2 // +2 for borders
-								
-								if mx >= menuX && mx < menuX+listW && my >= listY && my < listY+listH {
-									clickedIndex := my - listY - 1 // -1 for top border
-									if clickedIndex >= 0 && clickedIndex < len(openMenu.Items) {
-										item := openMenu.Items[clickedIndex]
-										if !item.Disabled && item.Action != nil {
-											item.Action()
-										}
-										state.OpenMenuIndex = -1
-										a.dirty = true
-										handled = true
-									}
-								}
-							}
-						}
-					}
-					
-					if !handled {
-						menuBar := findMenuBar(root)
-						if menuBar != nil && menuBar.Style.ID != "" {
-							res := findLayoutResultByID(layout, menuBar.Style.ID)
-							if res != nil {
-								borderOffset := 0
-								if menuBar.Style.Border { borderOffset = 1 }
-								curX := res.X + borderOffset + menuBar.Style.Padding.Left
-								curY := res.Y + borderOffset + menuBar.Style.Padding.Top
-								
-								if my == curY {
-									for i, menu := range menuBar.Menus {
-										titleLen := len(menu.Title) + 2
-										if mx >= curX && mx < curX+titleLen {
-											stateObj, ok := a.componentStates[menuBar.Style.ID]
-											var state *MenuBarState
-											if !ok {
-												state = &MenuBarState{OpenMenuIndex: -1}
-												a.componentStates[menuBar.Style.ID] = state
-											} else {
-												state = stateObj.(*MenuBarState)
-											}
-											
-											if state.OpenMenuIndex == i {
-												state.OpenMenuIndex = -1
-											} else {
-												state.OpenMenuIndex = i
-												state.FocusedItemIndex = -1
-											}
-											handled = true
-											break
-										}
-										curX += titleLen + 2
-									}
-								}
-							}
-						}
-					}
-				}
-
-				if !handled {
-					for id, stateObj := range a.componentStates {
-						if state, ok := stateObj.(*DropdownState); ok && state.Open {
-							res := findLayoutResultByID(layout, id)
-							dropdownNode := findNodeByID(root, id)
-							if res != nil && dropdownNode != nil {
-								if drp, ok := dropdownNode.(*Dropdown); ok {
-									listY := res.Y + res.H
-									listW := res.W
-									listH := len(drp.Options)
-
-									if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
-										clickedIndex := my - listY
-										drp.SelectedIndex = clickedIndex
-										if drp.OnChange != nil {
-											drp.OnChange(clickedIndex)
-										}
-										state.Open = false
-										handled = true
-										break
-									}
-								}
-							}
-						}
-					}
-				}
-
-				if !handled {
-					path := findNodePathAt(layout, mx, my, a.componentStates)
-					if len(path) > 0 {
-						debugLog(fmt.Sprintf("Mouse click at %d,%d. Path len: %d", mx, my, len(path)))
-						if len(path) > 0 {
-							debugLog(fmt.Sprintf("Leaf node: %T", path[len(path)-1]))
-							for i, n := range path {
-								debugLog(fmt.Sprintf("  Path[%d]: %T", i, n))
-							}
-						}
-
-						// Filter out clicks targeting hidden tab content
-						validPath := true
-						for i := 0; i < len(path)-1; i++ {
-							if tabs, ok := path[i].(*Tabs); ok && tabs.Style.ID != "" {
-								stateObj, ok := a.componentStates[tabs.Style.ID]
-								activeIdx := 0
-								if ok {
-									activeIdx = stateObj.(*TabsState).ActiveTab
-								}
-								activeChild := tabs.Tabs[activeIdx].Content
-								if path[i+1] != activeChild {
-									validPath = false
-									break
-								}
-							}
-						}
-
-						if !validPath {
-							handled = true
-						} else {
-							clickedNode := path[len(path)-1]
-
-							var nodeStyle Style
-							var focusableNode Node
-							for i := len(path) - 1; i >= 0; i-- {
-								n := path[i]
-								switch node := n.(type) {
-								case *Text:
-									nodeStyle = node.Style
-								case *TextInput:
-									nodeStyle = node.Style
-								case *Button:
-									nodeStyle = node.Style
-								case *Checkbox:
-									nodeStyle = node.Style
-								case *RadioButton:
-									nodeStyle = node.Style
-								case *Spinner:
-									nodeStyle = node.Style
-								case *ProgressBar:
-									nodeStyle = node.Style
-								case *ScrollView:
-									nodeStyle = node.Style
-								case *Dropdown:
-									nodeStyle = node.Style
-								case *Tabs:
-									nodeStyle = node.Style
-								case *Box:
-									nodeStyle = node.Style
-								}
-								if nodeStyle.Focusable && nodeStyle.ID != "" {
-									focusableNode = n
-									break
-								}
-							}
-
-							if focusableNode != nil {
-								a.focusedID = nodeStyle.ID
-								a.closeOtherDropdowns(a.focusedID)
-							}
-
-						if btn, ok := clickedNode.(*Button); ok {
-							if btn.OnClick != nil {
-								btn.OnClick()
-							}
-						}
-						if cb, ok := clickedNode.(*Checkbox); ok {
-							cb.Checked = !cb.Checked
-							if cb.OnChange != nil {
-								cb.OnChange(cb.Checked)
-							}
-						}
-						if rb, ok := clickedNode.(*RadioButton); ok {
-							if rb.OnChange != nil {
-								rb.OnChange(rb.Value)
-							}
-						}
-						if tabs, ok := clickedNode.(*Tabs); ok && tabs.Style.ID != "" {
-							res := findLayoutResultByID(layout, tabs.Style.ID)
-							if res != nil {
-								curX := res.X + tabs.Style.Padding.Left
-								curY := res.Y + tabs.Style.Padding.Top
-								
-								if my == curY {
-									for i, tab := range tabs.Tabs {
-										labelLen := len(tab.Label) + 4 // "[ " + label + " ]"
-										if mx >= curX && mx < curX+labelLen {
-											stateObj, ok := a.componentStates[tabs.Style.ID]
-											var state *TabsState
-											if !ok {
-												state = &TabsState{}
-												a.componentStates[tabs.Style.ID] = state
-											} else {
-												state = stateObj.(*TabsState)
-											}
-											state.ActiveTab = i
-											a.dirty = true
-											break
-										}
-										curX += labelLen
-									}
-								}
-							}
-						}
-						if drp, ok := clickedNode.(*Dropdown); ok {
-							stateObj, ok := a.componentStates[drp.Style.ID]
-							var state *DropdownState
-							if !ok {
-								state = &DropdownState{}
-								a.componentStates[drp.Style.ID] = state
-							} else {
-								state = stateObj.(*DropdownState)
-							}
-							state.Open = !state.Open
-						}
-					}
-					}
-				}
-			} else if ev.Buttons()&tcell.Button4 != 0 || ev.Buttons()&tcell.WheelUp != 0 { // Wheel Up
-				dropdownScrolled := false
-				for id, stateObj := range a.componentStates {
-					if state, ok := stateObj.(*DropdownState); ok && state.Open {
-						res := findLayoutResultByID(layout, id)
-						dropdownNode := findNodeByID(root, id)
-						if res != nil && dropdownNode != nil {
-							if drp, ok := dropdownNode.(*Dropdown); ok {
-								listY := res.Y + res.H
-								listW := res.W
-								maxH := drp.MaxListHeight
-								if maxH <= 0 {
-									maxH = 5
-								}
-								if maxH > len(drp.Options) {
-									maxH = len(drp.Options)
-								}
-								listH := maxH
-								
-								if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
-									state.ScrollOffset--
-									if state.ScrollOffset < 0 {
-										state.ScrollOffset = 0
-									}
-									dropdownScrolled = true
-									break
-								}
-							}
-						}
-					}
-				}
-				
-				if !dropdownScrolled {
-					list := findListAt(layout, mx, my, a.componentStates)
-					if list != nil && list.Style.ID != "" {
-						stateObj, ok := a.componentStates[list.Style.ID]
-						var state *ListState
-						if !ok {
-							state = &ListState{}
-							a.componentStates[list.Style.ID] = state
-						} else {
-							state = stateObj.(*ListState)
-						}
-						state.ScrollOffset--
-						if state.ScrollOffset < 0 {
-							state.ScrollOffset = 0
-						}
-						a.dirty = true
-						dropdownScrolled = true
-					}
-				}
-				
-				if !dropdownScrolled {
-					sv := findScrollViewAt(layout, mx, my, a.componentStates)
-					if sv != nil && sv.Style.ID != "" {
-						stateObj, ok := a.componentStates[sv.Style.ID]
-						var state *ScrollViewState
-						if !ok {
-							state = &ScrollViewState{}
-							a.componentStates[sv.Style.ID] = state
-						} else {
-							state = stateObj.(*ScrollViewState)
-						}
-						state.ScrollOffset--
-						if state.ScrollOffset < 0 {
-							state.ScrollOffset = 0
-						}
-					}
-				}
-			} else if ev.Buttons()&tcell.Button5 != 0 || ev.Buttons()&tcell.WheelDown != 0 { // Wheel Down
-				dropdownScrolled := false
-				for id, stateObj := range a.componentStates {
-					if state, ok := stateObj.(*DropdownState); ok && state.Open {
-						res := findLayoutResultByID(layout, id)
-						dropdownNode := findNodeByID(root, id)
-						if res != nil && dropdownNode != nil {
-							if drp, ok := dropdownNode.(*Dropdown); ok {
-								listY := res.Y + res.H
-								listW := res.W
-								maxH := drp.MaxListHeight
-								if maxH <= 0 {
-									maxH = 5
-								}
-								if maxH > len(drp.Options) {
-									maxH = len(drp.Options)
-								}
-								listH := maxH
-								
-								if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
-									state.ScrollOffset++
-									if state.ScrollOffset+maxH > len(drp.Options) {
-										state.ScrollOffset = len(drp.Options) - maxH
-										if state.ScrollOffset < 0 {
-											state.ScrollOffset = 0
-										}
-									}
-									dropdownScrolled = true
-									break
-								}
-							}
-						}
-					}
-				}
-				
-				if !dropdownScrolled {
-					list := findListAt(layout, mx, my, a.componentStates)
-					if list != nil && list.Style.ID != "" {
-						stateObj, ok := a.componentStates[list.Style.ID]
-						var state *ListState
-						if !ok {
-							state = &ListState{}
-							a.componentStates[list.Style.ID] = state
-						} else {
-							state = stateObj.(*ListState)
-						}
-						state.ScrollOffset++
-						if state.ScrollOffset >= len(list.Items) {
-							state.ScrollOffset = len(list.Items) - 1
-						}
-						if state.ScrollOffset < 0 {
-							state.ScrollOffset = 0
-						}
-						a.dirty = true
-						dropdownScrolled = true
-					}
-				}
-				
-				if !dropdownScrolled {
-					sv := findScrollViewAt(layout, mx, my, a.componentStates)
-					if sv != nil && sv.Style.ID != "" {
-						stateObj, ok := a.componentStates[sv.Style.ID]
-						var state *ScrollViewState
-						if !ok {
-							state = &ScrollViewState{}
-							a.componentStates[sv.Style.ID] = state
-						} else {
-							state = stateObj.(*ScrollViewState)
-						}
-						state.ScrollOffset++
-					}
-				}
-			}
 		case *tcell.EventResize:
 			a.screen.Sync()
 		}
@@ -2104,5 +1543,581 @@ func findTabs(node Node) *Tabs {
 	}
 	return nil
 }
+
+// MouseEvent is an interface for tcell.EventMouse to allow mocking in tests.
+type MouseEvent interface {
+	Position() (int, int)
+	Buttons() tcell.ButtonMask
+}
+
+func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bool {
+	mx, my := ev.Position()
+	
+	// Handle MenuBar hover-to-switch
+	var openMenuBar *MenuBar
+	var openMenuBarID string
+	for id, stateObj := range a.componentStates {
+		if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
+			node := findNodeByID(root, id)
+			if mb, ok := node.(*MenuBar); ok {
+				openMenuBar = mb
+				openMenuBarID = id
+				break
+			}
+		}
+	}
+	
+	if openMenuBar != nil {
+		res := findLayoutResultByID(layout, openMenuBarID)
+		if res != nil {
+			borderOffset := 0
+			if openMenuBar.Style.Border { borderOffset = 1 }
+			curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
+			curY := res.Y + borderOffset + openMenuBar.Style.Padding.Top
+			
+			if my == curY {
+				for i, menu := range openMenuBar.Menus {
+					titleLen := len(menu.Title) + 2
+					if mx >= curX && mx < curX+titleLen {
+						stateObj := a.componentStates[openMenuBarID]
+						state := stateObj.(*MenuBarState)
+						if state.OpenMenuIndex != i {
+							state.OpenMenuIndex = i
+							state.FocusedItemIndex = -1
+							a.dirty = true
+						}
+						break
+					}
+					curX += titleLen + 2
+				}
+			}
+		}
+	}
+
+	if ev.Buttons()&tcell.Button1 != 0 {
+		handled := false
+		
+		// Find open modal if any
+		var activeModal *Modal
+		for id, stateObj := range a.componentStates {
+			if state, ok := stateObj.(*ModalState); ok && state.Open {
+				node := findNodeByID(root, id)
+				if n, ok := node.(*Modal); ok {
+					activeModal = n
+					break
+				}
+			}
+		}
+		
+		if activeModal != nil {
+			w, h := a.screen.Size()
+			maxModalW := w - 4
+			maxModalH := h - 4
+			if maxModalW < 0 { maxModalW = 0 }
+			if maxModalH < 0 { maxModalH = 0 }
+			
+			modalConstraints := Constraints{
+				MaxW: maxModalW,
+				MaxH: maxModalH,
+			}
+			
+			modalLayout := Layout(activeModal.Child, 0, 0, modalConstraints)
+			modalW := modalLayout.W + 2
+			modalH := modalLayout.H + 2
+			
+			if modalW > w { modalW = w }
+			if modalH > h { modalH = h }
+			
+			modalX := (w - modalW) / 2
+			modalY := (h - modalH) / 2
+			
+			modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
+			
+			path := findNodePathAt(modalLayout, mx, my, a.componentStates)
+			if len(path) > 0 {
+				clickedNode := path[len(path)-1]
+				
+				var nodeStyle Style
+				var focusableNode Node
+				for i := len(path) - 1; i >= 0; i-- {
+					n := path[i]
+					var s Style
+					switch node := n.(type) {
+					case *Text: s = node.Style
+					case *TextInput: s = node.Style
+					case *Button: s = node.Style
+					case *Checkbox: s = node.Style
+					case *RadioButton: s = node.Style
+					case *Spinner: s = node.Style
+					case *ProgressBar: s = node.Style
+					case *ScrollView: s = node.Style
+					case *Dropdown: s = node.Style
+					case *Box: s = node.Style
+					case *Modal: s = node.Style
+					}
+					if s.Focusable && s.ID != "" {
+						focusableNode = n
+						nodeStyle = s
+						break
+					}
+				}
+				
+				if focusableNode != nil {
+					a.focusedID = nodeStyle.ID
+					a.closeOtherDropdowns(a.focusedID)
+				}
+				
+				if list, ok := clickedNode.(*List); ok {
+					stateObj, ok := a.componentStates[list.Style.ID]
+					var state *ListState
+					if !ok {
+						state = &ListState{}
+						a.componentStates[list.Style.ID] = state
+					} else {
+						state = stateObj.(*ListState)
+					}
+
+					res := findLayoutResultByID(layout, list.Style.ID)
+					if res != nil {
+						borderOffset := 0
+						if list.Style.Border {
+							borderOffset = 1
+						}
+						viewportH := res.H - borderOffset*2
+
+						clickY := my - res.Y - borderOffset
+						if clickY >= 0 && clickY < viewportH {
+							clickedIdx := state.ScrollOffset + clickY
+							if clickedIdx < len(list.Items) {
+								state.CursorIndex = clickedIdx
+								state.SelectedIndex = clickedIdx
+								a.dirty = true
+								if list.OnSelect != nil {
+									list.OnSelect(state.SelectedIndex)
+								}
+							}
+						}
+					}
+					handled = true
+				}
+				if btn, ok := clickedNode.(*Button); ok {
+					if btn.OnClick != nil {
+						btn.OnClick()
+					}
+				}
+				if cb, ok := clickedNode.(*Checkbox); ok {
+					cb.Checked = !cb.Checked
+					if cb.OnChange != nil {
+						cb.OnChange(cb.Checked)
+					}
+				}
+				if rb, ok := clickedNode.(*RadioButton); ok {
+					if rb.OnChange != nil {
+						rb.OnChange(rb.Value)
+					}
+				}
+				
+				handled = true
+			} else {
+				// Trap clicks outside modal
+				handled = true
+			}
+		}
+		
+		if !handled {
+			var openMenuBar *MenuBar
+			var openMenuBarID string
+			for id, stateObj := range a.componentStates {
+				if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
+					node := findNodeByID(root, id)
+					if mb, ok := node.(*MenuBar); ok {
+						openMenuBar = mb
+						openMenuBarID = id
+						break
+					}
+				}
+			}
+			
+			if openMenuBar != nil {
+				stateObj := a.componentStates[openMenuBarID]
+				state := stateObj.(*MenuBarState)
+				if state.OpenMenuIndex >= 0 {
+					res := findLayoutResultByID(layout, openMenuBarID)
+					if res != nil {
+						borderOffset := 0
+						if openMenuBar.Style.Border { borderOffset = 1 }
+						curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
+						
+						menuX := curX
+						for i := 0; i < state.OpenMenuIndex; i++ {
+							menuX += len(openMenuBar.Menus[i].Title) + 4
+						}
+						
+						openMenu := openMenuBar.Menus[state.OpenMenuIndex]
+						listY := res.Y + borderOffset + openMenuBar.Style.Padding.Top + 1
+						listW := 0
+						for _, item := range openMenu.Items {
+							if len(item.Label) > listW { listW = len(item.Label) }
+						}
+						listW += 4 // +2 for padding, +2 for borders
+						listH := len(openMenu.Items) + 2 // +2 for borders
+						
+						if mx >= menuX && mx < menuX+listW && my >= listY && my < listY+listH {
+							clickedIndex := my - listY - 1 // -1 for top border
+							if clickedIndex >= 0 && clickedIndex < len(openMenu.Items) {
+								item := openMenu.Items[clickedIndex]
+								if item.Action != nil {
+									item.Action()
+									state.OpenMenuIndex = -1
+									a.dirty = true
+								}
+							}
+							handled = true
+						} else {
+							// Click outside menu closes it
+							state.OpenMenuIndex = -1
+							a.dirty = true
+						}
+					}
+				}
+			}
+		}
+
+		if !handled {
+			for id, stateObj := range a.componentStates {
+				if state, ok := stateObj.(*DropdownState); ok && state.Open {
+					res := findLayoutResultByID(layout, id)
+					dropdownNode := findNodeByID(root, id)
+					if res != nil && dropdownNode != nil {
+						if drp, ok := dropdownNode.(*Dropdown); ok {
+							listY := res.Y + res.H
+							listW := res.W
+							listH := len(drp.Options)
+
+							if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+								clickedIndex := my - listY
+								drp.SelectedIndex = clickedIndex
+								if drp.OnChange != nil {
+									drp.OnChange(clickedIndex)
+								}
+								state.Open = false
+								handled = true
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if !handled {
+			path := findNodePathAt(layout, mx, my, a.componentStates)
+			if len(path) > 0 {
+				debugLog(fmt.Sprintf("Mouse click at %d,%d. Path len: %d", mx, my, len(path)))
+				if len(path) > 0 {
+					debugLog(fmt.Sprintf("Leaf node: %T", path[len(path)-1]))
+					for i, n := range path {
+						debugLog(fmt.Sprintf("  Path[%d]: %T", i, n))
+					}
+				}
+
+				// Filter out clicks targeting hidden tab content
+				validPath := true
+				for i := 0; i < len(path)-1; i++ {
+					if tabs, ok := path[i].(*Tabs); ok && tabs.Style.ID != "" {
+						stateObj, ok := a.componentStates[tabs.Style.ID]
+						activeIdx := 0
+						if ok {
+							activeIdx = stateObj.(*TabsState).ActiveTab
+						}
+						activeChild := tabs.Tabs[activeIdx].Content
+						if path[i+1] != activeChild {
+							validPath = false
+							break
+						}
+					}
+				}
+
+				if !validPath {
+					handled = true
+				} else {
+					clickedNode := path[len(path)-1]
+
+					var nodeStyle Style
+					var focusableNode Node
+					for i := len(path) - 1; i >= 0; i-- {
+						n := path[i]
+						switch node := n.(type) {
+						case *Text:
+							nodeStyle = node.Style
+						case *TextInput:
+							nodeStyle = node.Style
+						case *Button:
+							nodeStyle = node.Style
+						case *Checkbox:
+							nodeStyle = node.Style
+						case *RadioButton:
+							nodeStyle = node.Style
+						case *Spinner:
+							nodeStyle = node.Style
+						case *ProgressBar:
+							nodeStyle = node.Style
+						case *ScrollView:
+							nodeStyle = node.Style
+						case *Dropdown:
+							nodeStyle = node.Style
+						case *List:
+							nodeStyle = node.Style
+						case *Tabs:
+							nodeStyle = node.Style
+						case *Box:
+							nodeStyle = node.Style
+						}
+						if nodeStyle.Focusable && nodeStyle.ID != "" {
+							focusableNode = n
+							break
+						}
+					}
+
+					if focusableNode != nil {
+						a.focusedID = nodeStyle.ID
+						a.closeOtherDropdowns(a.focusedID)
+					}
+
+				if list, ok := clickedNode.(*List); ok {
+					stateObj, ok := a.componentStates[list.Style.ID]
+					var state *ListState
+					if !ok {
+						state = &ListState{SelectedIndex: -1, CursorIndex: 0}
+						a.componentStates[list.Style.ID] = state
+					} else {
+						state = stateObj.(*ListState)
+					}
+
+					res := findLayoutResultByID(layout, list.Style.ID)
+					if res != nil {
+						borderOffset := 0
+						if list.Style.Border {
+							borderOffset = 1
+						}
+						viewportH := res.H - borderOffset*2
+
+						clickY := my - res.Y - borderOffset
+						if clickY >= 0 && clickY < viewportH {
+							clickedIdx := state.ScrollOffset + clickY
+							if clickedIdx < len(list.Items) {
+								state.CursorIndex = clickedIdx
+								state.SelectedIndex = clickedIdx
+								a.dirty = true
+								if list.OnSelect != nil {
+									list.OnSelect(state.SelectedIndex)
+								}
+							}
+						}
+					}
+				}
+
+				if btn, ok := clickedNode.(*Button); ok {
+					if btn.OnClick != nil {
+						btn.OnClick()
+					}
+				}
+				if cb, ok := clickedNode.(*Checkbox); ok {
+					cb.Checked = !cb.Checked
+					if cb.OnChange != nil {
+						cb.OnChange(cb.Checked)
+					}
+				}
+				if rb, ok := clickedNode.(*RadioButton); ok {
+					if rb.OnChange != nil {
+						rb.OnChange(rb.Value)
+					}
+				}
+				if tabs, ok := clickedNode.(*Tabs); ok && tabs.Style.ID != "" {
+					res := findLayoutResultByID(layout, tabs.Style.ID)
+					if res != nil {
+						curX := res.X + tabs.Style.Padding.Left
+						curY := res.Y + tabs.Style.Padding.Top
+						
+						if my == curY {
+							for i, tab := range tabs.Tabs {
+								labelLen := len(tab.Label) + 4 // "[ " + label + " ]"
+								if mx >= curX && mx < curX+labelLen {
+									stateObj, ok := a.componentStates[tabs.Style.ID]
+									var state *TabsState
+									if !ok {
+										state = &TabsState{}
+										a.componentStates[tabs.Style.ID] = state
+									} else {
+										state = stateObj.(*TabsState)
+									}
+									state.ActiveTab = i
+									a.dirty = true
+									break
+								}
+								curX += labelLen
+							}
+						}
+					}
+				}
+				if drp, ok := clickedNode.(*Dropdown); ok {
+					stateObj, ok := a.componentStates[drp.Style.ID]
+					var state *DropdownState
+					if !ok {
+						state = &DropdownState{}
+						a.componentStates[drp.Style.ID] = state
+					} else {
+						state = stateObj.(*DropdownState)
+					}
+					state.Open = !state.Open
+				}
+			}
+			}
+		}
+	} else if ev.Buttons()&tcell.Button4 != 0 || ev.Buttons()&tcell.WheelUp != 0 { // Wheel Up
+		dropdownScrolled := false
+		for id, stateObj := range a.componentStates {
+			if state, ok := stateObj.(*DropdownState); ok && state.Open {
+				res := findLayoutResultByID(layout, id)
+				dropdownNode := findNodeByID(root, id)
+				if res != nil && dropdownNode != nil {
+					if drp, ok := dropdownNode.(*Dropdown); ok {
+						listY := res.Y + res.H
+						listW := res.W
+						maxH := drp.MaxListHeight
+						if maxH <= 0 {
+							maxH = 5
+						}
+						if maxH > len(drp.Options) {
+							maxH = len(drp.Options)
+						}
+						listH := maxH
+						
+						if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+							state.ScrollOffset--
+							if state.ScrollOffset < 0 {
+								state.ScrollOffset = 0
+							}
+							dropdownScrolled = true
+							break
+						}
+					}
+				}
+			}
+		}
+		
+		if !dropdownScrolled {
+			list := findListAt(layout, mx, my, a.componentStates)
+			if list != nil && list.Style.ID != "" {
+				stateObj, ok := a.componentStates[list.Style.ID]
+				var state *ListState
+				if !ok {
+					state = &ListState{}
+					a.componentStates[list.Style.ID] = state
+				} else {
+					state = stateObj.(*ListState)
+				}
+				state.ScrollOffset--
+				if state.ScrollOffset < 0 {
+					state.ScrollOffset = 0
+				}
+				a.dirty = true
+				dropdownScrolled = true
+			}
+		}
+		
+		if !dropdownScrolled {
+			sv := findScrollViewAt(layout, mx, my, a.componentStates)
+			if sv != nil && sv.Style.ID != "" {
+				stateObj, ok := a.componentStates[sv.Style.ID]
+				var state *ScrollViewState
+				if !ok {
+					state = &ScrollViewState{}
+					a.componentStates[sv.Style.ID] = state
+				} else {
+					state = stateObj.(*ScrollViewState)
+				}
+				state.ScrollOffset--
+				if state.ScrollOffset < 0 {
+					state.ScrollOffset = 0
+				}
+			}
+		}
+	} else if ev.Buttons()&tcell.Button5 != 0 || ev.Buttons()&tcell.WheelDown != 0 { // Wheel Down
+		dropdownScrolled := false
+		for id, stateObj := range a.componentStates {
+			if state, ok := stateObj.(*DropdownState); ok && state.Open {
+				res := findLayoutResultByID(layout, id)
+				dropdownNode := findNodeByID(root, id)
+				if res != nil && dropdownNode != nil {
+					if drp, ok := dropdownNode.(*Dropdown); ok {
+						listY := res.Y + res.H
+						listW := res.W
+						maxH := drp.MaxListHeight
+						if maxH <= 0 {
+							maxH = 5
+						}
+						if maxH > len(drp.Options) {
+							maxH = len(drp.Options)
+						}
+						listH := maxH
+						
+						if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+							state.ScrollOffset++
+							if state.ScrollOffset+maxH > len(drp.Options) {
+								state.ScrollOffset = len(drp.Options) - maxH
+								if state.ScrollOffset < 0 {
+									state.ScrollOffset = 0
+								}
+							}
+							dropdownScrolled = true
+							break
+						}
+					}
+				}
+			}
+		}
+		
+		if !dropdownScrolled {
+			list := findListAt(layout, mx, my, a.componentStates)
+			if list != nil && list.Style.ID != "" {
+				stateObj, ok := a.componentStates[list.Style.ID]
+				var state *ListState
+				if !ok {
+					state = &ListState{}
+					a.componentStates[list.Style.ID] = state
+				} else {
+					state = stateObj.(*ListState)
+				}
+				state.ScrollOffset++
+				if state.ScrollOffset >= len(list.Items) {
+					state.ScrollOffset = len(list.Items) - 1
+				}
+				if state.ScrollOffset < 0 {
+					state.ScrollOffset = 0
+				}
+				a.dirty = true
+				dropdownScrolled = true
+			}
+		}
+		
+		if !dropdownScrolled {
+			sv := findScrollViewAt(layout, mx, my, a.componentStates)
+			if sv != nil && sv.Style.ID != "" {
+				stateObj, ok := a.componentStates[sv.Style.ID]
+				var state *ScrollViewState
+				if !ok {
+					state = &ScrollViewState{}
+					a.componentStates[sv.Style.ID] = state
+				} else {
+					state = stateObj.(*ScrollViewState)
+				}
+				state.ScrollOffset++
+			}
+		}
+	}
+	return true
+}
+
 
 
