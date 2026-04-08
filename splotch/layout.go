@@ -219,13 +219,20 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 			h += 2
 		}
 
+		borderSize := 0
+		if n.Style.Border {
+			borderSize = 2
+		}
+
 		if n.Style.Width > 0 {
 			w = n.Style.Width
 		}
 
-		borderSize := 0
-		if n.Style.Border {
-			borderSize = 2
+		if n.Style.FillWidth {
+			w = c.MaxW - pad.Left - pad.Right - margin.Left - margin.Right - borderSize
+			if w < 0 {
+				w = 0
+			}
 		}
 
 		layoutH := h + pad.Top + pad.Bottom + borderSize
@@ -381,6 +388,17 @@ func Layout(node Node, x, y int, c Constraints) LayoutResult {
 				if c.MaxH > res.H {
 					res.H = c.MaxH
 				}
+			}
+		}
+
+		if n.Style.FillWidth {
+			if c.MaxW > res.W {
+				res.W = c.MaxW
+			}
+		}
+		if n.Style.FillHeight {
+			if c.MaxH > res.H {
+				res.H = c.MaxH
 			}
 		}
 

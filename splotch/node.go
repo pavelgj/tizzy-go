@@ -35,6 +35,8 @@ type Style struct {
 	Margin         Margin
 	Color          tcell.Color
 	Background     tcell.Color
+	FillWidth      bool
+	FillHeight     bool
 }
 
 // Box is a container node that can hold children.

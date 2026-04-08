@@ -238,3 +238,13 @@ func TestLayoutTable(t *testing.T) {
 		t.Errorf("Expected W=8, H=4, got W=%d, H=%d", res.W, res.H)
 	}
 }
+
+func TestLayoutFillWidth(t *testing.T) {
+	text := NewText(Style{}, "Hello")
+	box := NewBox(Style{FillWidth: true}, text)
+	res := Layout(box, 0, 0, Constraints{MaxW: 50, MaxH: 100})
+
+	if res.W != 50 {
+		t.Errorf("Expected W=50, got %d", res.W)
+	}
+}

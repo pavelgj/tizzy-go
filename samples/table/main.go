@@ -35,6 +35,9 @@ func main() {
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, ""),
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Table with Border:"),
 			splotch.NewTable(splotch.Style{Color: tcell.ColorWhite, Border: true}, headers, rows),
+			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, ""),
+			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Table filling width:"),
+			splotch.NewTable(splotch.Style{Color: tcell.ColorWhite, Border: true, FillWidth: true}, headers, rows),
 		)
 	}
 
