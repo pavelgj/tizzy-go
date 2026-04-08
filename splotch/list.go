@@ -12,7 +12,7 @@ type List struct {
 	RenderItem        func(item any, index int, selected bool, cursor bool) Node
 	OnSelect          func(int)
 	OnSelectionChange func(int)
-	OnFocus          func(state *ListState)
+	OnFocus           func(state *ListState)
 }
 
 func (l *List) node() {}
@@ -149,7 +149,7 @@ func (l *List) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 
 		// Layout item with full width and 1 line height
 		itemLayout := Layout(itemNode, curX, curY, Constraints{MaxW: viewportW, MaxH: 1})
-		
+
 		// Ensure background fills the width if selected
 		if selected {
 			// We could modify the layout to fit the full width or let the child fill it

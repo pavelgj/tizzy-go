@@ -1,8 +1,8 @@
 package splotch
 
 import (
-	"testing"
 	"github.com/gdamore/tcell/v2"
+	"testing"
 )
 
 func TestModalLayout(t *testing.T) {

@@ -2,8 +2,8 @@ package splotch
 
 import (
 	"fmt"
-	"time"
 	"github.com/gdamore/tcell/v2"
+	"time"
 )
 
 // Spinner is a node that displays a loading animation.
@@ -93,14 +93,14 @@ func (n *Spinner) Layout(x, y int, c Constraints) LayoutResult {
 // Render draws the Spinner node to the grid.
 func (n *Spinner) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
-	
+
 	borderOffset := 0
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
 	if n.Style.Border {
 		borderOffset = 1
 		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
-	
+
 	frameIdx := 0
 	if stateObj, ok := componentStates[n.Style.ID]; ok {
 		frameIdx = stateObj.(int)
@@ -109,7 +109,7 @@ func (n *Spinner) Render(grid *Grid, layout LayoutResult, focusedID string, comp
 		frameIdx = 0
 	}
 	val := n.Frames[frameIdx]
-	
+
 	drawText(grid, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, val, style)
 }
 

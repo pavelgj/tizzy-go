@@ -61,24 +61,24 @@ func (n *ProgressBar) Layout(x, y int, c Constraints) LayoutResult {
 // Render draws the ProgressBar node to the grid.
 func (n *ProgressBar) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
-	
+
 	borderOffset := 0
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
 	if n.Style.Border {
 		borderOffset = 1
 		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
-	
+
 	w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2
 	if w < 0 {
 		w = 0
 	}
-	
+
 	filledW := int(float64(w) * n.Percent)
 	if filledW > w {
 		filledW = w
 	}
-	
+
 	str := ""
 	for i := 0; i < filledW; i++ {
 		str += n.FilledChar
@@ -86,7 +86,7 @@ func (n *ProgressBar) Render(grid *Grid, layout LayoutResult, focusedID string, 
 	for i := filledW; i < w; i++ {
 		str += n.EmptyChar
 	}
-	
+
 	drawText(grid, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, str, style)
 }
 

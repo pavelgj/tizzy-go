@@ -1,7 +1,5 @@
 package splotch
 
-
-
 // LayoutResult holds the calculated position and size of a node.
 type LayoutResult struct {
 	Node     Node

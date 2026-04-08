@@ -1,8 +1,8 @@
 package splotch
 
 import (
-	"testing"
 	"github.com/gdamore/tcell/v2"
+	"testing"
 )
 
 func TestTabsLayout(t *testing.T) {
@@ -15,7 +15,7 @@ func TestTabsLayout(t *testing.T) {
 	// Headers width: len("Home") + 4 = 8, len("About") + 4 = 9. Total = 17.
 	// Content width: "Home Content" len 12, "About Content" len 13. Max = 13.
 	// So total width should be max(17, 13) = 17!
-	
+
 	res := Layout(tabs, 0, 0, Constraints{MaxW: 80, MaxH: 24})
 
 	if res.W != 17 {

@@ -75,16 +75,16 @@ func TestUseEffect(t *testing.T) {
 		stateObj, set := ctx.UseState(0)
 		setState = set
 		state := stateObj.(int)
-		
+
 		if state == 0 {
-			
+
 			ctx.UseEffect(func() func() {
 				mounted = true
 				return func() {
 					unmounted = true
 				}
 			})
-			
+
 			return NewText(Style{ID: "effect1"}, "I exist")
 		} else {
 			return NewText(Style{ID: "other"}, "I don't exist")
@@ -131,11 +131,11 @@ func TestRenderOptimization(t *testing.T) {
 
 	err := app.Run(func(ctx *RenderContext) Node {
 		ctxRenderCount++
-		
+
 		stateObj, set := ctx.UseState(0)
 		currentState = stateObj
 		setState = set
-		
+
 		return NewText(Style{ID: "t1"}, "Hi")
 	}, func(ev tcell.Event) {
 		if _, ok := ev.(*tcell.EventKey); ok {

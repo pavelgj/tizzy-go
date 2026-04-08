@@ -105,22 +105,22 @@ func (n *Table) Layout(x, y int, c Constraints) LayoutResult {
 // Render draws the Table to the grid.
 func (n *Table) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
-	
+
 	borderOffset := 0
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
 	if n.Style.Border {
 		borderOffset = 1
 		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
-	
+
 	pad := n.Style.Padding
 	curY := layout.Y + pad.Top + borderOffset
-	
+
 	// Draw headers
 	if len(n.Headers) > 0 {
 		curX := layout.X + pad.Left + borderOffset
 		headerStyle := style.Bold(true)
-		
+
 		for i, h := range n.Headers {
 			drawText(grid, curX, curY, h, headerStyle)
 			for j := len(h); j < n.CalculatedColWidths[i]; j++ {
@@ -129,7 +129,7 @@ func (n *Table) Render(grid *Grid, layout LayoutResult, focusedID string, compon
 			curX += n.CalculatedColWidths[i] + 1
 		}
 		curY++
-		
+
 		// Draw separator line
 		curX = layout.X + pad.Left + borderOffset
 		for i, cw := range n.CalculatedColWidths {
@@ -143,7 +143,7 @@ func (n *Table) Render(grid *Grid, layout LayoutResult, focusedID string, compon
 		}
 		curY++
 	}
-	
+
 	// Draw rows
 	for _, row := range n.Rows {
 		curX := layout.X + pad.Left + borderOffset

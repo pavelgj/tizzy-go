@@ -62,7 +62,7 @@ func (n *TextInput) Layout(x, y int, c Constraints) LayoutResult {
 	} else {
 		w = len(n.Value)
 	}
-	
+
 	if n.Style.Width > 0 {
 		w = n.Style.Width
 	}
@@ -102,7 +102,7 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 	if focused {
 		borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
 	}
-	
+
 	borderOffset := 0
 	if n.Style.Border {
 		borderOffset = 1
@@ -126,7 +126,7 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 		lines := strings.Split(n.Value, "\n")
 		w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2
 		visibleHeight := layout.H - n.Style.Padding.Top - n.Style.Padding.Bottom - borderOffset*2
-		
+
 		for i := 0; i < visibleHeight; i++ {
 			lineIdx := i + vScrollOffset
 			if lineIdx >= len(lines) {
@@ -155,7 +155,7 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 				scrollOffset = state.scrollOffset
 			}
 		}
-		
+
 		w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2
 		if scrollOffset < len(val) {
 			val = val[scrollOffset:]
@@ -165,7 +165,7 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 		if len(val) > w && w > 0 {
 			val = val[:w]
 		}
-		
+
 		drawText(grid, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, val, style)
 	}
 }

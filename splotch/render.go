@@ -1,9 +1,6 @@
 package splotch
 
 import (
-
-
-
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -13,7 +10,6 @@ func Render(grid *Grid, layout LayoutResult, focusedID string, componentStates m
 		r.Render(grid, layout, focusedID, componentStates)
 		return
 	}
-
 
 }
 

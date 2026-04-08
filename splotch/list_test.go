@@ -167,10 +167,10 @@ type mockEventMouse struct {
 	buttons tcell.ButtonMask
 }
 
-func (m *mockEventMouse) When() time.Time { return time.Now() }
-func (m *mockEventMouse) Position() (int, int) { return m.x, m.y }
+func (m *mockEventMouse) When() time.Time           { return time.Now() }
+func (m *mockEventMouse) Position() (int, int)      { return m.x, m.y }
 func (m *mockEventMouse) Buttons() tcell.ButtonMask { return m.buttons }
-func (m *mockEventMouse) Modifiers() tcell.ModMask { return tcell.ModNone }
+func (m *mockEventMouse) Modifiers() tcell.ModMask  { return tcell.ModNone }
 
 func TestListMouseClick(t *testing.T) {
 	app := &App{
@@ -199,7 +199,7 @@ func TestListMouseClick(t *testing.T) {
 
 	// Simulate click on item 1 (y=11)
 	ev := &mockEventMouse{x: 15, y: 11, buttons: tcell.Button1}
-	
+
 	handled := app.handleMouseEvent(ev, list, layout)
 
 	if !handled {

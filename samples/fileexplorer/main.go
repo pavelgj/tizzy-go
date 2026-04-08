@@ -29,7 +29,7 @@ func main() {
 		currentDir, setCurrentDirFn := splotch.UseState[string](ctx, ".")
 		pathInput, setPathInput := splotch.UseState[string](ctx, currentDir)
 		selectedFileIdx, setSelectedFileIdx := splotch.UseState[int](ctx, -1)
-		
+
 		setCurrentDir := func(s string) {
 			setCurrentDirFn(s)
 			setPreviewContent("")
@@ -256,8 +256,6 @@ func main() {
 			),
 		)
 	}
-
-
 
 	realApp, err = splotch.NewApp()
 	if err != nil {

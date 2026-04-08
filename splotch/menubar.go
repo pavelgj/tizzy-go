@@ -32,11 +32,11 @@ func (m *MenuBar) node() {}
 // NewMenuBar creates a new MenuBar component.
 func NewMenuBar(ctx *RenderContext, style Style, menus []Menu) *MenuBar {
 	stateObj, _ := ctx.UseState(&MenuBarState{OpenMenuIndex: -1})
-	
+
 	// Derive hook ID and set it on style
 	id := fmt.Sprintf("hook-%d", ctx.hookIndex-1)
 	style.ID = id
-	
+
 	return &MenuBar{
 		Style: style,
 		Menus: menus,

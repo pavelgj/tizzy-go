@@ -17,11 +17,11 @@ func NewPopup(ctx *RenderContext, style Style, child Node, x, y int, isOpen bool
 	stateObj, _ := ctx.UseState(&PopupState{Open: isOpen})
 	state := stateObj.(*PopupState)
 	state.Open = isOpen // Sync with passed prop
-	
+
 	// Derive hook ID and set it on style
 	id := fmt.Sprintf("hook-%d", ctx.hookIndex-1)
 	style.ID = id
-	
+
 	return &Popup{
 		Style: style,
 		Child: child,

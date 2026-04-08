@@ -1,8 +1,8 @@
 package splotch
 
 import (
-	"testing"
 	"github.com/gdamore/tcell/v2"
+	"testing"
 )
 
 func TestFindFocusableIDs(t *testing.T) {
@@ -57,7 +57,7 @@ func TestNextPrevFocus(t *testing.T) {
 
 func TestOffsetToLineCol(t *testing.T) {
 	text := "abc\ndef\nghi"
-	
+
 	tests := []struct {
 		offset int
 		line   int
@@ -74,7 +74,7 @@ func TestOffsetToLineCol(t *testing.T) {
 		{11, 2, 3},
 		{12, 2, 3}, // Beyond end
 	}
-	
+
 	for _, tc := range tests {
 		l, c := offsetToLineCol(text, tc.offset)
 		if l != tc.line || c != tc.col {
@@ -85,7 +85,7 @@ func TestOffsetToLineCol(t *testing.T) {
 
 func TestLineColToOffset(t *testing.T) {
 	text := "abc\ndef\nghi"
-	
+
 	tests := []struct {
 		line   int
 		col    int
@@ -102,7 +102,7 @@ func TestLineColToOffset(t *testing.T) {
 		{2, 3, 11},
 		{3, 0, 11}, // Beyond lines
 	}
-	
+
 	for _, tc := range tests {
 		off := lineColToOffset(text, tc.line, tc.col)
 		if off != tc.offset {
@@ -116,21 +116,21 @@ func TestScrollViewKeyboardScrolling(t *testing.T) {
 		componentStates: make(map[string]any),
 		focusedID:       "sv",
 	}
-	
+
 	ctx := &RenderContext{app: app}
 	sv := NewScrollView(ctx, Style{ID: "sv", Focusable: true}, NewText(Style{}, "Content"))
 	root := NewBox(Style{}, sv)
-	
+
 	layout := Layout(root, 0, 0, Constraints{MaxW: 100, MaxH: 100})
-	
+
 	ev := tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
-	
+
 	exit := app.handleKeyEvent(ev, root, layout, []string{"sv"})
-	
+
 	if exit {
 		t.Errorf("Expected handleKeyEvent to return false, got true")
 	}
-	
+
 	stateObj, ok := app.componentStates["sv"]
 	if !ok {
 		t.Fatalf("Expected state for 'sv' to be created")
@@ -166,22 +166,22 @@ func TestListOnFocus(t *testing.T) {
 		componentStates: make(map[string]any),
 	}
 	ctx := &RenderContext{app: app}
-	
+
 	focusCalled := false
 	list := NewList(ctx, Style{ID: "list-1", Focusable: true}, "key", []any{"item1"}, -1, nil, nil)
 	list.OnFocus = func(state *ListState) {
 		focusCalled = true
 		state.CursorIndex = 99
 	}
-	
+
 	root := NewBox(Style{}, list)
-	
+
 	app.setFocus("list-1", root)
-	
+
 	if !focusCalled {
 		t.Errorf("Expected OnFocus to be called")
 	}
-	
+
 	stateObj, ok := app.componentStates["list-1"]
 	if !ok {
 		t.Fatalf("Expected state for 'list-1' to be created")
@@ -191,5 +191,3 @@ func TestListOnFocus(t *testing.T) {
 		t.Errorf("Expected CursorIndex to be 99, got %d", state.CursorIndex)
 	}
 }
-
-

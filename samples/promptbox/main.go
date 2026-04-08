@@ -77,7 +77,7 @@ func main() {
 			inputValue,
 			func(newValue string) {
 				setInputValue(newValue)
-				
+
 				if strings.HasSuffix(newValue, "@") || strings.HasSuffix(newValue, "/") {
 					setPopupOpen(true)
 					setSelectedSug(0)
@@ -86,7 +86,7 @@ func main() {
 				}
 			},
 		)
-		
+
 		// Apply cursor override
 		inputNode.Cursor = cursorOverride
 
@@ -106,7 +106,7 @@ func main() {
 				}
 				listItems = append(listItems, splotch.NewText(style, sug))
 			}
-			
+
 			popupNode = splotch.NewPopup(
 				ctx,
 				splotch.Style{
@@ -147,7 +147,7 @@ func main() {
 					newVal := inputValue + sug
 					setInputValue(newVal)
 					setPopupOpen(false)
-					
+
 					// Set cursor override to end of new text
 					newOffset := len(newVal)
 					setCursorOverride(&newOffset)
@@ -160,7 +160,7 @@ func main() {
 						newIdx := historyIndex + 1
 						setHistoryIndex(newIdx)
 						setInputValue(history[newIdx])
-						
+
 						// Move cursor to end of history item
 						newOffset := len(history[newIdx])
 						setCursorOverride(&newOffset)

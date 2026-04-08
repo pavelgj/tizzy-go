@@ -123,11 +123,11 @@ func (n *ScrollView) Render(grid *Grid, layout LayoutResult, focusedID string, c
 		borderOffset = 1
 		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, n.Style.Title, borderStyle)
 	}
-	
+
 	pad := n.Style.Padding
 	viewportW := layout.W - pad.Left - pad.Right - borderOffset*2
 	viewportH := layout.H - pad.Top - pad.Bottom - borderOffset*2
-	
+
 	scrollOffset := 0
 	if n.Style.ID != "" && componentStates != nil {
 		if stateObj, ok := componentStates[n.Style.ID]; ok {
@@ -135,16 +135,16 @@ func (n *ScrollView) Render(grid *Grid, layout LayoutResult, focusedID string, c
 			scrollOffset = state.ScrollOffset
 		}
 	}
-	
+
 	if len(layout.Children) > 0 {
 		childLayout := layout.Children[0]
-		
+
 		tempGrid := NewGrid(viewportW, viewportH)
-		
-		shiftedLayout := shiftLayout(childLayout, -childLayout.X, -childLayout.Y - scrollOffset)
-		
+
+		shiftedLayout := shiftLayout(childLayout, -childLayout.X, -childLayout.Y-scrollOffset)
+
 		Render(tempGrid, shiftedLayout, focusedID, componentStates)
-		
+
 		for y := 0; y < viewportH; y++ {
 			for x := 0; x < viewportW; x++ {
 				cell := tempGrid.Cells[y][x]

@@ -31,7 +31,7 @@ func TestRenderScrollView(t *testing.T) {
 	t3 := NewText(Style{}, "Line 3")
 	box := NewBox(Style{FlexDirection: "column"}, t1, t2, t3)
 	sv := NewScrollView(ctx, Style{Width: 10, Height: 2, ID: "sv"}, box)
-	
+
 	componentStates := map[string]any{
 		"sv": &ScrollViewState{ScrollOffset: 1},
 	}
@@ -40,10 +40,10 @@ func TestRenderScrollView(t *testing.T) {
 	s := tcell.NewSimulationScreen("")
 	s.Init()
 	s.SetSize(10, 2)
-	
+
 	grid := NewGrid(10, 2)
 	Render(grid, layout, "", componentStates)
-	
+
 	for y := 0; y < 2; y++ {
 		for x := 0; x < 10; x++ {
 			cell := grid.Cells[y][x]

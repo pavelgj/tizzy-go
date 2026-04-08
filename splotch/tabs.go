@@ -57,8 +57,12 @@ func (n *Tabs) Layout(x, y int, c Constraints) LayoutResult {
 		MaxW: c.MaxW - pad.Left - pad.Right,
 		MaxH: c.MaxH - headerH - pad.Top - pad.Bottom,
 	}
-	if childConstraints.MaxW < 0 { childConstraints.MaxW = 0 }
-	if childConstraints.MaxH < 0 { childConstraints.MaxH = 0 }
+	if childConstraints.MaxW < 0 {
+		childConstraints.MaxW = 0
+	}
+	if childConstraints.MaxH < 0 {
+		childConstraints.MaxH = 0
+	}
 
 	var childrenLayouts []LayoutResult
 	contentW := 0
@@ -70,18 +74,28 @@ func (n *Tabs) Layout(x, y int, c Constraints) LayoutResult {
 	for _, tab := range n.Tabs {
 		res := Layout(tab.Content, contentX, contentY, childConstraints)
 		childrenLayouts = append(childrenLayouts, res)
-		if res.W > contentW { contentW = res.W }
-		if res.H > contentH { contentH = res.H }
+		if res.W > contentW {
+			contentW = res.W
+		}
+		if res.H > contentH {
+			contentH = res.H
+		}
 	}
 
 	w := headersW
-	if contentW > w { w = contentW }
+	if contentW > w {
+		w = contentW
+	}
 	w += pad.Left + pad.Right
 
 	h := headerH + contentH + pad.Top + pad.Bottom
 
-	if n.Style.Width > 0 { w = n.Style.Width }
-	if n.Style.Height > 0 { h = n.Style.Height }
+	if n.Style.Width > 0 {
+		w = n.Style.Width
+	}
+	if n.Style.Height > 0 {
+		h = n.Style.Height
+	}
 
 	return LayoutResult{
 		Node:     n,
@@ -96,7 +110,7 @@ func (n *Tabs) Layout(x, y int, c Constraints) LayoutResult {
 // Render draws the Tabs component to the grid.
 func (n *Tabs) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
-	
+
 	activeTabIndex := 0
 	if n.Style.ID != "" && componentStates != nil {
 		if stateObj, ok := componentStates[n.Style.ID]; ok {

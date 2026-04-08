@@ -23,7 +23,7 @@ func main() {
 		"Item 11", "Item 12", "Item 13", "Item 14", "Item 15",
 		"Item 16", "Item 17", "Item 18", "Item 19", "Item 20",
 	}
-	
+
 	render := func(ctx *splotch.RenderContext) splotch.Node {
 		selectedIndex1, setSelectedIndex1 := splotch.UseState(ctx, 0)
 		selectedIndex2, setSelectedIndex2 := splotch.UseState(ctx, 0)
@@ -40,7 +40,7 @@ func main() {
 			},
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Dropdown Sample"),
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "---------------"),
-			
+
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Dropdown 1 (Default Limit 5):"),
 			splotch.NewDropdown(
 				ctx,
@@ -56,7 +56,7 @@ func main() {
 				},
 			),
 			splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex1)),
-			
+
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Dropdown 2 (Short List):"),
 			splotch.NewDropdown(
 				ctx,
@@ -72,7 +72,7 @@ func main() {
 				},
 			),
 			splotch.NewText(splotch.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex2)),
-			
+
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Dropdown 3 (Limit 10):"),
 			splotch.NewDropdown(
 				ctx,

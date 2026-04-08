@@ -116,7 +116,7 @@ func (n *Dropdown) Render(grid *Grid, layout LayoutResult, focusedID string, com
 	curX += 2
 	drawText(grid, curX, curY, selectedText, style)
 	curX += len(selectedText)
-	
+
 	remaining := layout.W - borderOffset*2 - pad.Left - pad.Right - 2 - len(selectedText) - 4
 	if remaining > 0 {
 		for i := 0; i < remaining; i++ {
@@ -124,7 +124,7 @@ func (n *Dropdown) Render(grid *Grid, layout LayoutResult, focusedID string, com
 		}
 		curX += remaining
 	}
-	
+
 	drawText(grid, curX, curY, " v ]", style)
 }
 

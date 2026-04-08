@@ -371,27 +371,31 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 				if res != nil && menuBarNode != nil {
 					if mb, ok := menuBarNode.(*MenuBar); ok {
 						borderOffset := 0
-						if mb.Style.Border { borderOffset = 1 }
+						if mb.Style.Border {
+							borderOffset = 1
+						}
 						curX := res.X + borderOffset + mb.Style.Padding.Left
-						
+
 						menuX := curX
 						for i := 0; i < state.OpenMenuIndex; i++ {
 							menuX += len(mb.Menus[i].Title) + 4
 						}
-						
+
 						openMenu := mb.Menus[state.OpenMenuIndex]
 						listY := res.Y + borderOffset + mb.Style.Padding.Top + 1
-						
+
 						listW := 0
 						for _, item := range openMenu.Items {
-							if len(item.Label) > listW { listW = len(item.Label) }
+							if len(item.Label) > listW {
+								listW = len(item.Label)
+							}
 						}
 						listW += 4 // +2 for padding, +2 for borders
-						
+
 						listH := len(openMenu.Items) + 2 // +2 for top/bottom borders
-						
+
 						style := tcell.StyleDefault.Foreground(mb.Style.Color).Background(tcell.ColorBlack)
-						
+
 						// Draw Shadow (right and bottom edges only)
 						for i := 1; i <= listH; i++ {
 							if listY+i < h && menuX+listW < w {
@@ -414,10 +418,10 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 								}
 							}
 						}
-						
+
 						// Draw Border
 						drawBorder(grid, menuX, listY, listW, listH, "", style)
-						
+
 						for i, item := range openMenu.Items {
 							itemStyle := style
 							if state.FocusedItemIndex == i {
@@ -426,12 +430,12 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 							if item.Disabled {
 								itemStyle = itemStyle.Foreground(tcell.ColorGray)
 							}
-							
+
 							label := " " + item.Label
 							for len(label) < listW-2 {
 								label += " "
 							}
-							
+
 							curItemX := menuX + 1
 							for _, r := range label {
 								if listY+i+1 < h && curItemX < w {
@@ -459,8 +463,12 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 		for _, popup := range activePopups {
 			maxPopupW := w - popup.X
 			maxPopupH := h - popup.Y
-			if maxPopupW < 0 { maxPopupW = 0 }
-			if maxPopupH < 0 { maxPopupH = 0 }
+			if maxPopupW < 0 {
+				maxPopupW = 0
+			}
+			if maxPopupH < 0 {
+				maxPopupH = 0
+			}
 
 			popupConstraints := Constraints{
 				MaxW: maxPopupW,
@@ -468,7 +476,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 			}
 
 			popupLayout := Layout(popup.Child, popup.X, popup.Y, popupConstraints)
-			
+
 			// Fill background to prevent see-through
 			style := tcell.StyleDefault.Foreground(popup.Style.Color).Background(popup.Style.Background)
 			for y := popup.Y; y < popup.Y+popupLayout.H; y++ {
@@ -557,8 +565,6 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 		case *tcell.EventMouse:
 			a.handleMouseEvent(ev, root, layout)
 
-
-
 		case *tcell.EventResize:
 			a.screen.Sync()
 		}
@@ -569,8 +575,6 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 		}
 	}
 }
-
-
 
 func findFocusableIDs(node Node, componentStates map[string]any) []string {
 	var ids []string
@@ -830,8 +834,6 @@ func (a *App) closeOtherDropdowns(keepID string) {
 	}
 }
 
-
-
 func offsetToLineCol(text string, offset int) (int, int) {
 	lines := strings.Split(text, "\n")
 	currentOffset := 0
@@ -1012,14 +1014,23 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 	isMacAlt := false
 	if ev.Key() == tcell.KeyRune && ev.Modifiers() == 0 {
 		// Map common Mac Option+Letter characters
-		if runeLower == 402 { runeLower = 'f'; isMacAlt = true }
-		if runeLower == 180 { runeLower = 'e'; isMacAlt = true }
-		if runeLower == 729 { runeLower = 'h'; isMacAlt = true }
+		if runeLower == 402 {
+			runeLower = 'f'
+			isMacAlt = true
+		}
+		if runeLower == 180 {
+			runeLower = 'e'
+			isMacAlt = true
+		}
+		if runeLower == 729 {
+			runeLower = 'h'
+			isMacAlt = true
+		}
 	}
 
 	if (ev.Modifiers()&tcell.ModAlt != 0 && ev.Key() == tcell.KeyRune) || isMacAlt {
 		menuBar := findMenuBar(root)
-		
+
 		if menuBar != nil && menuBar.Style.ID != "" {
 			for i, menu := range menuBar.Menus {
 				if unicode.ToLower(menu.AltRune) == runeLower {
@@ -1031,11 +1042,11 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					} else {
 						state = stateObj.(*MenuBarState)
 					}
-					
+
 					if state.OpenMenuIndex == i {
 						state.OpenMenuIndex = -1 // Toggle close
 					} else {
-						state.OpenMenuIndex = i // Open
+						state.OpenMenuIndex = i     // Open
 						state.FocusedItemIndex = -1 // Reset focus
 					}
 					return false // Handled
@@ -1059,7 +1070,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					} else {
 						state = stateObj.(*MenuBarState)
 					}
-					
+
 					state.OpenMenuIndex = i
 					state.FocusedItemIndex = -1
 					return false
@@ -1169,7 +1180,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 		}
 
 		a.closeOtherDropdowns(a.focusedID)
-		
+
 		if a.focusedID != "" {
 			focusedNode := findNodeByID(root, a.focusedID)
 			if _, ok := focusedNode.(*MenuBar); ok {
@@ -1261,8 +1272,6 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 	return false
 }
 
-
-
 func (a *App) Stop() {
 	a.screen.Fini()
 	os.Exit(0)
@@ -1312,7 +1321,7 @@ type MouseEvent interface {
 
 func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bool {
 	mx, my := ev.Position()
-	
+
 	// Handle MenuBar hover-to-switch
 	var openMenuBar *MenuBar
 	var openMenuBarID string
@@ -1326,15 +1335,17 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 			}
 		}
 	}
-	
+
 	if openMenuBar != nil {
 		res := findLayoutResultByID(layout, openMenuBarID)
 		if res != nil {
 			borderOffset := 0
-			if openMenuBar.Style.Border { borderOffset = 1 }
+			if openMenuBar.Style.Border {
+				borderOffset = 1
+			}
 			curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
 			curY := res.Y + borderOffset + openMenuBar.Style.Padding.Top
-			
+
 			if my == curY {
 				for i, menu := range openMenuBar.Menus {
 					titleLen := len(menu.Title) + 2
@@ -1356,7 +1367,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 
 	if ev.Buttons()&tcell.Button1 != 0 {
 		handled := false
-		
+
 		// Find open modal if any
 		var activeModal *Modal
 		for id, stateObj := range a.componentStates {
@@ -1368,52 +1379,71 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				}
 			}
 		}
-		
+
 		if activeModal != nil {
 			w, h := a.screen.Size()
 			maxModalW := w - 4
 			maxModalH := h - 4
-			if maxModalW < 0 { maxModalW = 0 }
-			if maxModalH < 0 { maxModalH = 0 }
-			
+			if maxModalW < 0 {
+				maxModalW = 0
+			}
+			if maxModalH < 0 {
+				maxModalH = 0
+			}
+
 			modalConstraints := Constraints{
 				MaxW: maxModalW,
 				MaxH: maxModalH,
 			}
-			
+
 			modalLayout := Layout(activeModal.Child, 0, 0, modalConstraints)
 			modalW := modalLayout.W + 2
 			modalH := modalLayout.H + 2
-			
-			if modalW > w { modalW = w }
-			if modalH > h { modalH = h }
-			
+
+			if modalW > w {
+				modalW = w
+			}
+			if modalH > h {
+				modalH = h
+			}
+
 			modalX := (w - modalW) / 2
 			modalY := (h - modalH) / 2
-			
+
 			modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
-			
+
 			path := findNodePathAt(modalLayout, mx, my, a.componentStates)
 			if len(path) > 0 {
 				clickedNode := path[len(path)-1]
-				
+
 				var nodeStyle Style
 				var focusableNode Node
 				for i := len(path) - 1; i >= 0; i-- {
 					n := path[i]
 					var s Style
 					switch node := n.(type) {
-					case *Text: s = node.Style
-					case *TextInput: s = node.Style
-					case *Button: s = node.Style
-					case *Checkbox: s = node.Style
-					case *RadioButton: s = node.Style
-					case *Spinner: s = node.Style
-					case *ProgressBar: s = node.Style
-					case *ScrollView: s = node.Style
-					case *Dropdown: s = node.Style
-					case *Box: s = node.Style
-					case *Modal: s = node.Style
+					case *Text:
+						s = node.Style
+					case *TextInput:
+						s = node.Style
+					case *Button:
+						s = node.Style
+					case *Checkbox:
+						s = node.Style
+					case *RadioButton:
+						s = node.Style
+					case *Spinner:
+						s = node.Style
+					case *ProgressBar:
+						s = node.Style
+					case *ScrollView:
+						s = node.Style
+					case *Dropdown:
+						s = node.Style
+					case *Box:
+						s = node.Style
+					case *Modal:
+						s = node.Style
 					}
 					if s.Focusable && s.ID != "" {
 						focusableNode = n
@@ -1421,12 +1451,12 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 						break
 					}
 				}
-				
+
 				if focusableNode != nil {
 					a.focusedID = nodeStyle.ID
 					a.closeOtherDropdowns(a.focusedID)
 				}
-				
+
 				if list, ok := clickedNode.(*List); ok {
 					stateObj, ok := a.componentStates[list.Style.ID]
 					var state *ListState
@@ -1476,14 +1506,14 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 						rb.OnChange(rb.Value)
 					}
 				}
-				
+
 				handled = true
 			} else {
 				// Trap clicks outside modal
 				handled = true
 			}
 		}
-		
+
 		if !handled {
 			var openMenuBar *MenuBar
 			var openMenuBarID string
@@ -1497,7 +1527,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 					}
 				}
 			}
-			
+
 			if openMenuBar != nil {
 				stateObj := a.componentStates[openMenuBarID]
 				state := stateObj.(*MenuBarState)
@@ -1505,23 +1535,27 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 					res := findLayoutResultByID(layout, openMenuBarID)
 					if res != nil {
 						borderOffset := 0
-						if openMenuBar.Style.Border { borderOffset = 1 }
+						if openMenuBar.Style.Border {
+							borderOffset = 1
+						}
 						curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
-						
+
 						menuX := curX
 						for i := 0; i < state.OpenMenuIndex; i++ {
 							menuX += len(openMenuBar.Menus[i].Title) + 4
 						}
-						
+
 						openMenu := openMenuBar.Menus[state.OpenMenuIndex]
 						listY := res.Y + borderOffset + openMenuBar.Style.Padding.Top + 1
 						listW := 0
 						for _, item := range openMenu.Items {
-							if len(item.Label) > listW { listW = len(item.Label) }
+							if len(item.Label) > listW {
+								listW = len(item.Label)
+							}
 						}
-						listW += 4 // +2 for padding, +2 for borders
+						listW += 4                       // +2 for padding, +2 for borders
 						listH := len(openMenu.Items) + 2 // +2 for borders
-						
+
 						if mx >= menuX && mx < menuX+listW && my >= listY && my < listY+listH {
 							clickedIndex := my - listY - 1 // -1 for top border
 							if clickedIndex >= 0 && clickedIndex < len(openMenu.Items) {
@@ -1644,94 +1678,94 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 						a.closeOtherDropdowns(a.focusedID)
 					}
 
-				if list, ok := clickedNode.(*List); ok {
-					stateObj, ok := a.componentStates[list.Style.ID]
-					var state *ListState
-					if !ok {
-						state = &ListState{SelectedIndex: -1, CursorIndex: 0}
-						a.componentStates[list.Style.ID] = state
-					} else {
-						state = stateObj.(*ListState)
-					}
-
-					res := findLayoutResultByID(layout, list.Style.ID)
-					if res != nil {
-						borderOffset := 0
-						if list.Style.Border {
-							borderOffset = 1
+					if list, ok := clickedNode.(*List); ok {
+						stateObj, ok := a.componentStates[list.Style.ID]
+						var state *ListState
+						if !ok {
+							state = &ListState{SelectedIndex: -1, CursorIndex: 0}
+							a.componentStates[list.Style.ID] = state
+						} else {
+							state = stateObj.(*ListState)
 						}
-						viewportH := res.H - borderOffset*2
 
-						clickY := my - res.Y - borderOffset
-						if clickY >= 0 && clickY < viewportH {
-							clickedIdx := state.ScrollOffset + clickY
-							if clickedIdx < len(list.Items) {
-								state.CursorIndex = clickedIdx
-								state.SelectedIndex = clickedIdx
-								a.dirty = true
-								if list.OnSelect != nil {
-									list.OnSelect(state.SelectedIndex)
-								}
+						res := findLayoutResultByID(layout, list.Style.ID)
+						if res != nil {
+							borderOffset := 0
+							if list.Style.Border {
+								borderOffset = 1
 							}
-						}
-					}
-				}
+							viewportH := res.H - borderOffset*2
 
-				if btn, ok := clickedNode.(*Button); ok {
-					if btn.OnClick != nil {
-						btn.OnClick()
-					}
-				}
-				if cb, ok := clickedNode.(*Checkbox); ok {
-					cb.Checked = !cb.Checked
-					if cb.OnChange != nil {
-						cb.OnChange(cb.Checked)
-					}
-				}
-				if rb, ok := clickedNode.(*RadioButton); ok {
-					if rb.OnChange != nil {
-						rb.OnChange(rb.Value)
-					}
-				}
-				if tabs, ok := clickedNode.(*Tabs); ok && tabs.Style.ID != "" {
-					res := findLayoutResultByID(layout, tabs.Style.ID)
-					if res != nil {
-						curX := res.X + tabs.Style.Padding.Left
-						curY := res.Y + tabs.Style.Padding.Top
-						
-						if my == curY {
-							for i, tab := range tabs.Tabs {
-								labelLen := len(tab.Label) + 4 // "[ " + label + " ]"
-								if mx >= curX && mx < curX+labelLen {
-									stateObj, ok := a.componentStates[tabs.Style.ID]
-									var state *TabsState
-									if !ok {
-										state = &TabsState{}
-										a.componentStates[tabs.Style.ID] = state
-									} else {
-										state = stateObj.(*TabsState)
-									}
-									state.ActiveTab = i
+							clickY := my - res.Y - borderOffset
+							if clickY >= 0 && clickY < viewportH {
+								clickedIdx := state.ScrollOffset + clickY
+								if clickedIdx < len(list.Items) {
+									state.CursorIndex = clickedIdx
+									state.SelectedIndex = clickedIdx
 									a.dirty = true
-									break
+									if list.OnSelect != nil {
+										list.OnSelect(state.SelectedIndex)
+									}
 								}
-								curX += labelLen
 							}
 						}
 					}
-				}
-				if drp, ok := clickedNode.(*Dropdown); ok {
-					stateObj, ok := a.componentStates[drp.Style.ID]
-					var state *DropdownState
-					if !ok {
-						state = &DropdownState{}
-						a.componentStates[drp.Style.ID] = state
-					} else {
-						state = stateObj.(*DropdownState)
+
+					if btn, ok := clickedNode.(*Button); ok {
+						if btn.OnClick != nil {
+							btn.OnClick()
+						}
 					}
-					state.Open = !state.Open
+					if cb, ok := clickedNode.(*Checkbox); ok {
+						cb.Checked = !cb.Checked
+						if cb.OnChange != nil {
+							cb.OnChange(cb.Checked)
+						}
+					}
+					if rb, ok := clickedNode.(*RadioButton); ok {
+						if rb.OnChange != nil {
+							rb.OnChange(rb.Value)
+						}
+					}
+					if tabs, ok := clickedNode.(*Tabs); ok && tabs.Style.ID != "" {
+						res := findLayoutResultByID(layout, tabs.Style.ID)
+						if res != nil {
+							curX := res.X + tabs.Style.Padding.Left
+							curY := res.Y + tabs.Style.Padding.Top
+
+							if my == curY {
+								for i, tab := range tabs.Tabs {
+									labelLen := len(tab.Label) + 4 // "[ " + label + " ]"
+									if mx >= curX && mx < curX+labelLen {
+										stateObj, ok := a.componentStates[tabs.Style.ID]
+										var state *TabsState
+										if !ok {
+											state = &TabsState{}
+											a.componentStates[tabs.Style.ID] = state
+										} else {
+											state = stateObj.(*TabsState)
+										}
+										state.ActiveTab = i
+										a.dirty = true
+										break
+									}
+									curX += labelLen
+								}
+							}
+						}
+					}
+					if drp, ok := clickedNode.(*Dropdown); ok {
+						stateObj, ok := a.componentStates[drp.Style.ID]
+						var state *DropdownState
+						if !ok {
+							state = &DropdownState{}
+							a.componentStates[drp.Style.ID] = state
+						} else {
+							state = stateObj.(*DropdownState)
+						}
+						state.Open = !state.Open
+					}
 				}
-			}
 			}
 		}
 	} else if ev.Buttons()&tcell.Button4 != 0 || ev.Buttons()&tcell.WheelUp != 0 { // Wheel Up
@@ -1752,7 +1786,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 							maxH = len(drp.Options)
 						}
 						listH := maxH
-						
+
 						if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
 							state.ScrollOffset--
 							if state.ScrollOffset < 0 {
@@ -1765,7 +1799,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				}
 			}
 		}
-		
+
 		if !dropdownScrolled {
 			list := findListAt(layout, mx, my, a.componentStates)
 			if list != nil && list.Style.ID != "" {
@@ -1785,7 +1819,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				dropdownScrolled = true
 			}
 		}
-		
+
 		if !dropdownScrolled {
 			sv := findScrollViewAt(layout, mx, my, a.componentStates)
 			if sv != nil && sv.Style.ID != "" {
@@ -1821,7 +1855,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 							maxH = len(drp.Options)
 						}
 						listH := maxH
-						
+
 						if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
 							state.ScrollOffset++
 							if state.ScrollOffset+maxH > len(drp.Options) {
@@ -1837,7 +1871,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				}
 			}
 		}
-		
+
 		if !dropdownScrolled {
 			list := findListAt(layout, mx, my, a.componentStates)
 			if list != nil && list.Style.ID != "" {
@@ -1860,7 +1894,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				dropdownScrolled = true
 			}
 		}
-		
+
 		if !dropdownScrolled {
 			sv := findScrollViewAt(layout, mx, my, a.componentStates)
 			if sv != nil && sv.Style.ID != "" {
@@ -1878,6 +1912,3 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 	}
 	return true
 }
-
-
-

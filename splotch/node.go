@@ -44,28 +44,28 @@ type Margin struct {
 
 // Style defines the layout and appearance of a node.
 type Style struct {
-	ID             string
-	Title          string
-	Focusable      bool
-	Multiline      bool
-	Width          int // 0 means auto or stretch? Let's assume absolute or percentage later. For now, absolute cells.
-	Height         int
-	MaxHeight      int
-	FlexDirection  string // "row" or "column"
-	JustifyContent string // "flex-start", "center", "flex-end"
-	Border         bool
-	Padding        Padding
-	Margin         Margin
-	Color          tcell.Color
-	Background     tcell.Color
+	ID              string
+	Title           string
+	Focusable       bool
+	Multiline       bool
+	Width           int // 0 means auto or stretch? Let's assume absolute or percentage later. For now, absolute cells.
+	Height          int
+	MaxHeight       int
+	FlexDirection   string // "row" or "column"
+	JustifyContent  string // "flex-start", "center", "flex-end"
+	Border          bool
+	Padding         Padding
+	Margin          Margin
+	Color           tcell.Color
+	Background      tcell.Color
 	FocusColor      tcell.Color
 	FocusBackground tcell.Color
-	FillWidth      bool
-	FillHeight     bool
-	GridRow        int
-	GridCol        int
-	GridRowSpan    int
-	GridColSpan    int
+	FillWidth       bool
+	FillHeight      bool
+	GridRow         int
+	GridCol         int
+	GridRowSpan     int
+	GridColSpan     int
 }
 
 // Box is a container node that can hold children.

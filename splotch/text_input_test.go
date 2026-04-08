@@ -17,7 +17,7 @@ func TestRenderTextInputScrolling(t *testing.T) {
 	layout := Layout(input, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(10, 2)
-	
+
 	// Set state with scrollOffset = 5
 	states := map[string]any{
 		"input1": &TextInputState{cursorOffset: 5, scrollOffset: 5},
@@ -79,7 +79,7 @@ func TestTextInputHandleEvent(t *testing.T) {
 	// Simulate KeyLeft
 	ev := tcell.NewEventKey(tcell.KeyLeft, ' ', tcell.ModNone)
 	ctx := EventContext{Layout: LayoutResult{H: 1}}
-	
+
 	handled := input.HandleEvent(ev, state, ctx)
 	if !handled {
 		t.Errorf("Expected event to be handled")
