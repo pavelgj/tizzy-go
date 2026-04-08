@@ -1,7 +1,9 @@
 package splotch
 
 import (
+	"fmt"
 	"strings"
+
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -20,7 +22,13 @@ type TextInputState struct {
 }
 
 // NewTextInput creates a new TextInput node.
-func NewTextInput(style Style, value string, onChange func(string)) *TextInput {
+func NewTextInput(ctx *RenderContext, style Style, value string, onChange func(string)) *TextInput {
+	_, _ = UseState[*TextInputState](ctx, &TextInputState{cursorOffset: len(value)})
+
+	if style.ID == "" {
+		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex-1)
+	}
+
 	return &TextInput{
 		Style:    style,
 		Value:    value,

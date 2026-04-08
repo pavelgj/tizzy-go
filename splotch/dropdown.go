@@ -1,6 +1,8 @@
 package splotch
 
 import (
+	"fmt"
+
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -16,7 +18,13 @@ type Dropdown struct {
 func (d *Dropdown) node() {}
 
 // NewDropdown creates a new Dropdown component.
-func NewDropdown(style Style, options []string, selectedIndex int, onChange func(int), maxListHeight ...int) *Dropdown {
+func NewDropdown(ctx *RenderContext, style Style, options []string, selectedIndex int, onChange func(int), maxListHeight ...int) *Dropdown {
+	_, _ = UseState[*DropdownState](ctx, &DropdownState{Open: false, FocusedIndex: selectedIndex})
+
+	if style.ID == "" {
+		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex-1)
+	}
+
 	mlh := 0
 	if len(maxListHeight) > 0 {
 		mlh = maxListHeight[0]

@@ -12,7 +12,8 @@ func TestRenderTextInputScrolling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	input := NewTextInput(Style{Width: 5, ID: "input1"}, "1234567890", nil)
+	ctx := makeTestContext()
+	input := NewTextInput(ctx, Style{Width: 5, ID: "input1"}, "1234567890", nil)
 	layout := Layout(input, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(10, 2)
@@ -41,7 +42,8 @@ func TestRenderTextInputMultiline(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	input := NewTextInput(Style{Multiline: true}, "abc\ndef", nil)
+	ctx := makeTestContext()
+	input := NewTextInput(ctx, Style{Multiline: true}, "abc\ndef", nil)
 	layout := Layout(input, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	s.SetSize(10, 5)

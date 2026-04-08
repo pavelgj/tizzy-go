@@ -6,12 +6,13 @@ import (
 )
 
 func TestFindFocusableIDs(t *testing.T) {
+	ctx := makeTestContext()
 	root := NewBox(Style{},
 		NewText(Style{ID: "t1", Focusable: true}, "Text 1"),
 		NewBox(Style{ID: "b1", Focusable: true},
 			NewText(Style{ID: "t2", Focusable: true}, "Text 2"),
 		),
-		NewScrollView(Style{ID: "s1", Focusable: true},
+		NewScrollView(ctx, Style{ID: "s1", Focusable: true},
 			NewText(Style{ID: "t4", Focusable: true}, "Text 4"),
 		),
 		NewText(Style{ID: "t3"}, "Not Focusable"), // Should not be found
@@ -116,7 +117,8 @@ func TestScrollViewKeyboardScrolling(t *testing.T) {
 		focusedID:       "sv",
 	}
 	
-	sv := NewScrollView(Style{ID: "sv", Focusable: true}, NewText(Style{}, "Content"))
+	ctx := &RenderContext{app: app}
+	sv := NewScrollView(ctx, Style{ID: "sv", Focusable: true}, NewText(Style{}, "Content"))
 	root := NewBox(Style{}, sv)
 	
 	layout := Layout(root, 0, 0, Constraints{MaxW: 100, MaxH: 100})

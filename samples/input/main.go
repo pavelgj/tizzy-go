@@ -22,8 +22,8 @@ func main() {
 				splotch.NewText(splotch.Style{}, "Text Input Sample"),
 				splotch.NewText(splotch.Style{}, "Press Tab to focus input, ESC to quit."),
 				splotch.NewTextInput(
+					ctx,
 					splotch.Style{
-						ID:        "input1",
 						Focusable: true,
 						Border:    true,
 						Padding:   splotch.Padding{Left: 1, Right: 1},

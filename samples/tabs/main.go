@@ -29,8 +29,8 @@ func main() {
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "Click on tabs or use Left/Right arrows to switch when focused."),
 
 			splotch.NewTabs(
+				ctx,
 				splotch.Style{
-					ID:        "tabs1",
 					Focusable: true,
 					Margin:    splotch.Margin{Top: 1},
 					Color:     tcell.ColorWhite,
@@ -55,7 +55,7 @@ func main() {
 							splotch.NewCheckbox(splotch.Style{ID: "cb1", Focusable: true}, "Enable Notifications", notificationsEnabled, func(val bool) {
 								setNotificationsEnabled(val)
 							}),
-							splotch.NewTextInput(splotch.Style{ID: "input1", Focusable: true, Width: 20, Margin: splotch.Margin{Top: 1}}, "Initial Value", func(val string) {}),
+							splotch.NewTextInput(ctx, splotch.Style{Focusable: true, Width: 20, Margin: splotch.Margin{Top: 1}}, "Initial Value", func(val string) {}),
 						),
 					},
 					{

@@ -6,7 +6,8 @@ import (
 )
 
 func TestTabsLayout(t *testing.T) {
-	tabs := NewTabs(Style{ID: "tabs"}, []Tab{
+	ctx := makeTestContext()
+	tabs := NewTabs(ctx, Style{ID: "tabs"}, []Tab{
 		{Label: "Home", Content: NewText(Style{}, "Home Content")},
 		{Label: "About", Content: NewText(Style{}, "About Content")},
 	})
@@ -34,16 +35,17 @@ func TestTabsInteraction(t *testing.T) {
 	}
 	defer s.Fini()
 
-	tabs := NewTabs(Style{ID: "tabs", Focusable: true}, []Tab{
-		{Label: "Home", Content: NewText(Style{}, "Home Content")},
-		{Label: "About", Content: NewText(Style{}, "About Content")},
-	})
-
 	app := &App{
 		screen:          s,
 		componentStates: make(map[string]any),
 		focusedID:       "tabs",
 	}
+
+	ctx := &RenderContext{app: app}
+	tabs := NewTabs(ctx, Style{ID: "tabs", Focusable: true}, []Tab{
+		{Label: "Home", Content: NewText(Style{}, "Home Content")},
+		{Label: "About", Content: NewText(Style{}, "About Content")},
+	})
 	app.componentStates["tabs"] = &TabsState{ActiveTab: 0}
 
 	root := tabs

@@ -1,6 +1,8 @@
 package splotch
 
 import (
+	"fmt"
+
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -16,7 +18,13 @@ type ScrollViewState struct {
 }
 
 // NewScrollView creates a new ScrollView node.
-func NewScrollView(style Style, child Node) *ScrollView {
+func NewScrollView(ctx *RenderContext, style Style, child Node) *ScrollView {
+	_, _ = UseState[*ScrollViewState](ctx, &ScrollViewState{ScrollOffset: 0})
+
+	if style.ID == "" {
+		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex-1)
+	}
+
 	return &ScrollView{
 		Style: style,
 		Child: child,

@@ -23,8 +23,8 @@ func main() {
 				splotch.NewText(splotch.Style{}, "Multiline Text Input Sample"),
 				splotch.NewText(splotch.Style{}, "Press Tab to focus, Use Arrows to navigate, Enter for new line."),
 				splotch.NewTextInput(
+					ctx,
 					splotch.Style{
-						ID:        "multiline1",
 						Focusable: true,
 						Border:    true,
 						Padding:   splotch.Padding{Left: 1, Right: 1},

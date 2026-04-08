@@ -7,8 +7,9 @@ import (
 )
 
 func TestLayoutScrollView(t *testing.T) {
+	ctx := makeTestContext()
 	text := NewText(Style{}, "Hello")
-	sv := NewScrollView(Style{Width: 10, Height: 5}, text)
+	sv := NewScrollView(ctx, Style{Width: 10, Height: 5}, text)
 	res := Layout(sv, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 
 	if res.W != 10 || res.H != 5 {
@@ -24,11 +25,12 @@ func TestLayoutScrollView(t *testing.T) {
 }
 
 func TestRenderScrollView(t *testing.T) {
+	ctx := makeTestContext()
 	t1 := NewText(Style{}, "Line 1")
 	t2 := NewText(Style{}, "Line 2")
 	t3 := NewText(Style{}, "Line 3")
 	box := NewBox(Style{FlexDirection: "column"}, t1, t2, t3)
-	sv := NewScrollView(Style{Width: 10, Height: 2, ID: "sv"}, box)
+	sv := NewScrollView(ctx, Style{Width: 10, Height: 2, ID: "sv"}, box)
 	
 	componentStates := map[string]any{
 		"sv": &ScrollViewState{ScrollOffset: 1},

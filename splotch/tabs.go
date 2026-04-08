@@ -1,6 +1,8 @@
 package splotch
 
 import (
+	"fmt"
+
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -22,7 +24,13 @@ type TabsState struct {
 }
 
 // NewTabs creates a new Tabs component.
-func NewTabs(style Style, tabs []Tab) *Tabs {
+func NewTabs(ctx *RenderContext, style Style, tabs []Tab) *Tabs {
+	_, _ = UseState[*TabsState](ctx, &TabsState{ActiveTab: 0})
+
+	if style.ID == "" {
+		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex-1)
+	}
+
 	return &Tabs{
 		Style: style,
 		Tabs:  tabs,

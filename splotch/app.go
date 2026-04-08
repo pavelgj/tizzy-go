@@ -816,6 +816,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 												state = stateObj.(*TabsState)
 											}
 											state.ActiveTab = i
+											a.dirty = true
 											break
 										}
 										curX += labelLen
@@ -1414,12 +1415,14 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 			if state.ActiveTab >= len(tabs.Tabs) {
 				state.ActiveTab = 0
 			}
+			a.dirty = true
 			return false
 		} else if ev.Key() == tcell.KeyLeft {
 			state.ActiveTab--
 			if state.ActiveTab < 0 {
 				state.ActiveTab = len(tabs.Tabs) - 1
 			}
+			a.dirty = true
 			return false
 		}
 	}
@@ -1556,6 +1559,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					}
 				}
 			}
+			a.dirty = true
 		} else if drp, ok := focusedNode.(*Dropdown); ok {
 			stateObj, ok := a.componentStates[a.focusedID]
 			var state *DropdownState

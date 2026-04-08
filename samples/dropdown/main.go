@@ -43,8 +43,8 @@ func main() {
 			
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Dropdown 1 (Default Limit 5):"),
 			splotch.NewDropdown(
+				ctx,
 				splotch.Style{
-					ID:        "dropdown1",
 					Color:     tcell.ColorWhite,
 					Border:    true,
 					Focusable: true,
@@ -59,8 +59,8 @@ func main() {
 			
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Dropdown 2 (Short List):"),
 			splotch.NewDropdown(
+				ctx,
 				splotch.Style{
-					ID:        "dropdown2",
 					Color:     tcell.ColorWhite,
 					Border:    true,
 					Focusable: true,
@@ -75,8 +75,8 @@ func main() {
 			
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "Dropdown 3 (Limit 10):"),
 			splotch.NewDropdown(
+				ctx,
 				splotch.Style{
-					ID:        "dropdown3",
 					Color:     tcell.ColorWhite,
 					Border:    true,
 					Focusable: true,

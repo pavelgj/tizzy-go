@@ -7,7 +7,8 @@ import (
 )
 
 func TestLayoutDropdown(t *testing.T) {
-	drp := NewDropdown(Style{ID: "drp"}, []string{"Option 1", "Option Longest"}, 0, nil)
+	ctx := makeTestContext()
+	drp := NewDropdown(ctx, Style{ID: "drp"}, []string{"Option 1", "Option Longest"}, 0, nil)
 	
 	res := Layout(drp, 0, 0, Constraints{MaxW: 100, MaxH: 100})
 	
@@ -22,7 +23,8 @@ func TestLayoutDropdown(t *testing.T) {
 }
 
 func TestFindNodeByID_Dropdown(t *testing.T) {
-	drp := NewDropdown(Style{ID: "drp"}, []string{"Option 1"}, 0, nil)
+	ctx := makeTestContext()
+	drp := NewDropdown(ctx, Style{ID: "drp"}, []string{"Option 1"}, 0, nil)
 	root := NewBox(Style{ID: "box"}, drp)
 	
 	found := findNodeByID(root, "drp")
@@ -37,7 +39,8 @@ func TestDropdownScrolling(t *testing.T) {
 		focusedID:       "mydropdown",
 	}
 
-	drp := NewDropdown(Style{ID: "mydropdown"}, []string{"1", "2", "3", "4", "5", "6"}, 0, nil)
+	ctx := makeTestContext()
+	drp := NewDropdown(ctx, Style{ID: "mydropdown"}, []string{"1", "2", "3", "4", "5", "6"}, 0, nil)
 	state := &DropdownState{Open: true}
 	app.componentStates["mydropdown"] = state
 
@@ -76,7 +79,8 @@ func TestDropdownPageUpDown(t *testing.T) {
 		focusedID:       "mydropdown",
 	}
 
-	drp := NewDropdown(Style{ID: "mydropdown"}, []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}, 0, nil)
+	ctx := makeTestContext()
+	drp := NewDropdown(ctx, Style{ID: "mydropdown"}, []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}, 0, nil)
 	state := &DropdownState{Open: true}
 	app.componentStates["mydropdown"] = state
 

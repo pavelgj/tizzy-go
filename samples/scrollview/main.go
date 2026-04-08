@@ -38,8 +38,8 @@ func main() {
 			splotch.NewText(splotch.Style{Color: tcell.ColorWhite}, "ScrollView Sample (Scroll with Mouse Wheel)"),
 			splotch.NewText(splotch.Style{Color: tcell.ColorGray}, "------------------------------------------"),
 			splotch.NewScrollView(
+				ctx,
 				splotch.Style{
-					ID:         "myscroll",
 					Color:      tcell.ColorWhite,
 					Border:     true,
 					FillWidth:  true,
