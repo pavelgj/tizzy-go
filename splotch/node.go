@@ -57,7 +57,13 @@ type Box struct {
 
 // NewBox creates a new Box node.
 func NewBox(style Style, children ...Node) *Box {
-	return &Box{Style: style, Children: children}
+	var validChildren []Node
+	for _, c := range children {
+		if c != nil {
+			validChildren = append(validChildren, c)
+		}
+	}
+	return &Box{Style: style, Children: validChildren}
 }
 
 // GetStyle returns the style of the Box node.

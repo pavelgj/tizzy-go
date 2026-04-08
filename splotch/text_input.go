@@ -12,6 +12,7 @@ type TextInput struct {
 	Style    Style
 	Value    string
 	OnChange func(string)
+	Cursor   *int // Optional controlled cursor position
 }
 
 // TextInputState tracks the state for TextInput.
@@ -154,4 +155,21 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 // GetStyle returns the style of the TextInput node.
 func (n *TextInput) GetStyle() Style {
 	return n.Style
+}
+
+// GetCursorCoords returns the cursor coordinates relative to the input content area.
+func (n *TextInput) GetCursorCoords(ctx *RenderContext) (int, int) {
+	stateObj, ok := ctx.app.componentStates[n.Style.ID]
+	if !ok {
+		return 0, 0
+	}
+	state := stateObj.(*TextInputState)
+
+	if n.Style.Multiline {
+		line, col := offsetToLineCol(n.Value, state.cursorOffset)
+		return col, line
+	}
+
+	visualOffset := state.cursorOffset - state.scrollOffset
+	return visualOffset, 0
 }

@@ -378,6 +378,43 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 			}
 		}
 
+		// Render Popup overlays
+		var activePopups []*Popup
+		for id, stateObj := range a.componentStates {
+			if state, ok := stateObj.(*PopupState); ok && state.Open {
+				node := findNodeByID(root, id)
+				if n, ok := node.(*Popup); ok {
+					activePopups = append(activePopups, n)
+				}
+			}
+		}
+
+		for _, popup := range activePopups {
+			maxPopupW := w - popup.X
+			maxPopupH := h - popup.Y
+			if maxPopupW < 0 { maxPopupW = 0 }
+			if maxPopupH < 0 { maxPopupH = 0 }
+
+			popupConstraints := Constraints{
+				MaxW: maxPopupW,
+				MaxH: maxPopupH,
+			}
+
+			popupLayout := Layout(popup.Child, popup.X, popup.Y, popupConstraints)
+			
+			// Fill background to prevent see-through
+			style := tcell.StyleDefault.Foreground(popup.Style.Color).Background(popup.Style.Background)
+			for y := popup.Y; y < popup.Y+popupLayout.H; y++ {
+				for x := popup.X; x < popup.X+popupLayout.W; x++ {
+					if x < w && y < h {
+						grid.SetContent(x, y, ' ', style)
+					}
+				}
+			}
+
+			Render(grid, popupLayout, a.focusedID, a.componentStates)
+		}
+
 		// 4. Diff and update screen
 		if a.previousGrid == nil || a.previousGrid.W != w || a.previousGrid.H != h {
 			a.screen.Clear()
@@ -410,6 +447,9 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 					stateObj, ok := a.componentStates[a.focusedID]
 					if ok {
 						state := stateObj.(*TextInputState)
+						if input.Cursor != nil {
+							state.cursorOffset = *input.Cursor
+						}
 						borderOffset := 0
 						if input.Style.Border {
 							borderOffset = 1
@@ -1098,6 +1138,11 @@ func findNodeByID(node Node, id string) Node {
 			return n
 		}
 		return findNodeByID(n.Child, id)
+	case *Popup:
+		if n.Style.ID == id {
+			return n
+		}
+		return findNodeByID(n.Child, id)
 	}
 	return nil
 }
@@ -1276,7 +1321,21 @@ func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) 
 
 func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult, focusableIDs []string) bool {
 	debugLog(fmt.Sprintf("Key Event: Key=%v, Rune=%v, Mod=%v", ev.Key(), ev.Rune(), ev.Modifiers()))
+
+	// Check if any popup is open
+	popupOpen := false
+	for _, stateObj := range a.componentStates {
+		if state, ok := stateObj.(*PopupState); ok && state.Open {
+			popupOpen = true
+			break
+		}
+	}
+
 	if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
+		if popupOpen && ev.Key() == tcell.KeyEscape {
+			// Let falling through to updateFn handle closing the popup
+			return false
+		}
 		return true // Request exit
 	}
 
@@ -1462,6 +1521,12 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 	if a.focusedID != "" {
 		focusedNode := findNodeByID(root, a.focusedID)
 		if input, ok := focusedNode.(*TextInput); ok {
+			if popupOpen {
+				if ev.Key() == tcell.KeyEnter || ev.Key() == tcell.KeyUp || ev.Key() == tcell.KeyDown {
+					return false // Fall through to updateFn
+				}
+			}
+
 			stateObj, ok := a.componentStates[a.focusedID]
 			var state *TextInputState
 			if !ok {
