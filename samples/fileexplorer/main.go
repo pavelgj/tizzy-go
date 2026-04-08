@@ -90,7 +90,7 @@ func main() {
 			fileItems = append(fileItems, f)
 		}
 
-		leftList := splotch.NewList(ctx, splotch.Style{ID: "list-left", Focusable: true, Border: true, Title: "Folders", FillWidth: true, FillHeight: true}, currentDir, dirItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		leftList := splotch.NewList(ctx, splotch.Style{ID: "list-left", Focusable: true, Border: true, Title: "Folders", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, currentDir, dirItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
 			label := ""
 			if s, ok := item.(string); ok {
 				label = s
@@ -139,7 +139,7 @@ func main() {
 			state.CursorIndex = 0
 		}
 
-		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true, Border: true, Title: "Files", FillWidth: true, FillHeight: true}, currentDir, fileItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
+		middleList := splotch.NewList(ctx, splotch.Style{ID: "list-middle", Focusable: true, Border: true, Title: "Files", FillWidth: true, FillHeight: true, Color: tcell.ColorGray, FocusColor: tcell.ColorYellow}, currentDir, fileItems, func(item any, index int, selected bool, cursor bool) splotch.Node {
 			label := ""
 			if f, ok := item.(os.DirEntry); ok {
 				label = f.Name()
@@ -150,28 +150,18 @@ func main() {
 		})
 		// Preview updates on selection (Enter or click) now
 
-		focused := ctx.GetFocusedID()
-		leftBorder := tcell.ColorGray
-		if focused == "list-left" {
-			leftBorder = tcell.ColorYellow
-		}
-		middleBorder := tcell.ColorGray
-		if focused == "list-middle" {
-			middleBorder = tcell.ColorYellow
-		}
-
 		return splotch.NewGridBox(
 			splotch.Style{Border: true, FillWidth: true, FillHeight: true},
 			[]splotch.GridTrack{splotch.Fixed(25), splotch.Flex(1), splotch.Flex(1)},
 			[]splotch.GridTrack{splotch.Flex(1)},
 
 			// Left Panel
-			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 0, FillHeight: true, FillWidth: true, Color: leftBorder},
+			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 0, FillHeight: true, FillWidth: true},
 				leftList,
 			),
 
 			// Middle Panel
-			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 1, FillHeight: true, FillWidth: true, Color: middleBorder},
+			splotch.NewBox(splotch.Style{GridRow: 0, GridCol: 1, FillHeight: true, FillWidth: true},
 				middleList,
 			),
 
