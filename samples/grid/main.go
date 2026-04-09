@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	tz "github.com/pavelgj/tizzy-go/tizzy"
 	"os"
+
+	"github.com/pavelgj/tizzy-go/tz"
 
 	"github.com/gdamore/tcell/v2"
 )

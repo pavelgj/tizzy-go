@@ -1,9 +1,10 @@
 package main
 
 import (
-	tz "github.com/pavelgj/tizzy-go/tizzy"
 	"log"
 	"time"
+
+	"github.com/pavelgj/tizzy-go/tz"
 
 	"github.com/gdamore/tcell/v2"
 )

@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	tz "github.com/pavelgj/tizzy-go/tizzy"
+	"github.com/pavelgj/tizzy-go/tz"
 
 	"github.com/gdamore/tcell/v2"
 )

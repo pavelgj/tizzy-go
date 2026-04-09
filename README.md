@@ -20,7 +20,7 @@ package main
 import (
 	"log"
 	"strconv"
-	tz "github.com/pavelgj/tizzy-go/tizzy"
+	"github.com/pavelgj/tizzy-go/tz"
 
 	"github.com/gdamore/tcell/v2"
 )
