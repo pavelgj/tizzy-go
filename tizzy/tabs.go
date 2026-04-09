@@ -144,6 +144,14 @@ func (n *Tabs) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 }
 
 // GetStyle returns the style of the Tabs component.
+func (n *Tabs) GetChildren() []Node {
+	var children []Node
+	for _, tab := range n.Tabs {
+		children = append(children, tab.Content)
+	}
+	return children
+}
+
 func (n *Tabs) GetStyle() Style {
 	return n.Style
 }

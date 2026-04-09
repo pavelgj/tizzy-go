@@ -43,6 +43,10 @@ func NewGridBox(style Style, columns []GridTrack, rows []GridTrack, children ...
 }
 
 // GetStyle returns the style of the GridBox node.
+func (g *GridBox) GetChildren() []Node {
+	return g.Children
+}
+
 func (g *GridBox) GetStyle() Style {
 	return g.Style
 }

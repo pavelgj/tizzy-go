@@ -591,16 +591,6 @@ func findFocusableIDs(node Node, componentStates map[string]any) []string {
 	}
 
 	switch n := node.(type) {
-	case *ScrollView:
-		ids = append(ids, findFocusableIDs(n.Child, componentStates)...)
-	case *Box:
-		for _, child := range n.Children {
-			ids = append(ids, findFocusableIDs(child, componentStates)...)
-		}
-	case *GridBox:
-		for _, child := range n.Children {
-			ids = append(ids, findFocusableIDs(child, componentStates)...)
-		}
 	case *Tabs:
 		activeIdx := 0
 		if n.Style.ID != "" && componentStates != nil {
@@ -610,6 +600,12 @@ func findFocusableIDs(node Node, componentStates map[string]any) []string {
 		}
 		if activeIdx >= 0 && activeIdx < len(n.Tabs) {
 			ids = append(ids, findFocusableIDs(n.Tabs[activeIdx].Content, componentStates)...)
+		}
+	default:
+		if p, ok := node.(ParentNode); ok {
+			for _, child := range p.GetChildren() {
+				ids = append(ids, findFocusableIDs(child, componentStates)...)
+			}
 		}
 	}
 	return ids
@@ -646,81 +642,18 @@ func prevFocus(current string, ids []string) string {
 }
 
 func findNodeByID(node Node, id string) Node {
-	switch n := node.(type) {
-	case *Text:
-		if n.Style.ID == id {
-			return n
-		}
-	case *Checkbox:
-		if n.Style.ID == id {
-			return n
-		}
-	case *RadioButton:
-		if n.Style.ID == id {
-			return n
-		}
-	case *Box:
-		if n.Style.ID == id {
-			return n
-		}
-		for _, child := range n.Children {
+	if node == nil {
+		return nil
+	}
+	if node.GetStyle().ID == id {
+		return node
+	}
+	if p, ok := node.(ParentNode); ok {
+		for _, child := range p.GetChildren() {
 			if found := findNodeByID(child, id); found != nil {
 				return found
 			}
 		}
-	case *List:
-		if n.Style.ID == id {
-			return n
-		}
-	case *GridBox:
-		if n.Style.ID == id {
-			return n
-		}
-		for _, child := range n.Children {
-			if found := findNodeByID(child, id); found != nil {
-				return found
-			}
-		}
-	case *ScrollView:
-		if n.Style.ID == id {
-			return n
-		}
-		return findNodeByID(n.Child, id)
-	case *Tabs:
-		if n.Style.ID == id {
-			return n
-		}
-		for _, tab := range n.Tabs {
-			if found := findNodeByID(tab.Content, id); found != nil {
-				return found
-			}
-		}
-	case *TextInput:
-		if n.Style.ID == id {
-			return n
-		}
-	case *Button:
-		if n.Style.ID == id {
-			return n
-		}
-	case *Dropdown:
-		if n.Style.ID == id {
-			return n
-		}
-	case *MenuBar:
-		if n.Style.ID == id {
-			return n
-		}
-	case *Modal:
-		if n.Style.ID == id {
-			return n
-		}
-		return findNodeByID(n.Child, id)
-	case *Popup:
-		if n.Style.ID == id {
-			return n
-		}
-		return findNodeByID(n.Child, id)
 	}
 	return nil
 }
@@ -746,96 +679,23 @@ func walkTree(node Node, fn func(Node) error) error {
 	if err := fn(node); err != nil {
 		return err
 	}
-	switch n := node.(type) {
-	case *Box:
-		for _, child := range n.Children {
+	if p, ok := node.(ParentNode); ok {
+		for _, child := range p.GetChildren() {
 			if err := walkTree(child, fn); err != nil {
 				return err
 			}
 		}
-	case *GridBox:
-		for _, child := range n.Children {
-			if err := walkTree(child, fn); err != nil {
-				return err
-			}
-		}
-	case *ScrollView:
-		return walkTree(n.Child, fn)
-	case *Tabs:
-		for _, tab := range n.Tabs {
-			if err := walkTree(tab.Content, fn); err != nil {
-				return err
-			}
-		}
-	case *Modal:
-		return walkTree(n.Child, fn)
-	case *Popup:
-		return walkTree(n.Child, fn)
 	}
 	return nil
 }
 
 func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
-	switch n := res.Node.(type) {
-	case *Text:
-		if n.Style.ID == id {
-			return &res
-		}
-	case *Box:
-		if n.Style.ID == id {
-			return &res
-		}
-		for _, child := range res.Children {
-			if found := findLayoutResultByID(child, id); found != nil {
-				return found
-			}
-		}
-	case *Tabs:
-		if n.Style.ID == id {
-			return &res
-		}
-		for _, child := range res.Children {
-			if found := findLayoutResultByID(child, id); found != nil {
-				return found
-			}
-		}
-	case *TextInput:
-		if n.Style.ID == id {
-			return &res
-		}
-	case *Button:
-		if n.Style.ID == id {
-			return &res
-		}
-	case *Dropdown:
-		if n.Style.ID == id {
-			return &res
-		}
-	case *MenuBar:
-		if n.Style.ID == id {
-			return &res
-		}
-	case *List:
-		if n.Style.ID == id {
-			return &res
-		}
-	case *GridBox:
-		if n.Style.ID == id {
-			return &res
-		}
-		for _, child := range res.Children {
-			if found := findLayoutResultByID(child, id); found != nil {
-				return found
-			}
-		}
-	case *ScrollView:
-		if n.Style.ID == id {
-			return &res
-		}
-		for _, child := range res.Children {
-			if found := findLayoutResultByID(child, id); found != nil {
-				return found
-			}
+	if res.Node.GetStyle().ID == id {
+		return &res
+	}
+	for _, child := range res.Children {
+		if found := findLayoutResultByID(child, id); found != nil {
+			return found
 		}
 	}
 	return nil
@@ -1238,50 +1098,6 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 
 			if handler.HandleEvent(ev, state, eventCtx) {
 				a.dirty = true
-			}
-		} else if _, ok := focusedNode.(*ScrollView); ok {
-			stateObj, ok := a.componentStates[a.focusedID]
-			var state *ScrollViewState
-			if !ok {
-				state = &ScrollViewState{}
-				a.componentStates[a.focusedID] = state
-			} else {
-				state = stateObj.(*ScrollViewState)
-			}
-
-			if ev.Key() == tcell.KeyUp {
-				state.ScrollOffset--
-				if state.ScrollOffset < 0 {
-					state.ScrollOffset = 0
-				}
-			} else if ev.Key() == tcell.KeyDown {
-				state.ScrollOffset++
-			} else if ev.Key() == tcell.KeyPgUp {
-				state.ScrollOffset -= 10
-				if state.ScrollOffset < 0 {
-					state.ScrollOffset = 0
-				}
-			} else if ev.Key() == tcell.KeyPgDn {
-				state.ScrollOffset += 10
-			}
-		} else if btn, ok := focusedNode.(*Button); ok {
-			if ev.Key() == tcell.KeyEnter {
-				if btn.OnClick != nil {
-					btn.OnClick()
-				}
-			}
-		} else if cb, ok := focusedNode.(*Checkbox); ok {
-			if ev.Key() == tcell.KeyEnter || (ev.Key() == tcell.KeyRune && ev.Rune() == ' ') {
-				cb.Checked = !cb.Checked
-				if cb.OnChange != nil {
-					cb.OnChange(cb.Checked)
-				}
-			}
-		} else if rb, ok := focusedNode.(*RadioButton); ok {
-			if ev.Key() == tcell.KeyEnter || (ev.Key() == tcell.KeyRune && ev.Rune() == ' ') {
-				if rb.OnChange != nil {
-					rb.OnChange(rb.Value)
-				}
 			}
 		}
 	}

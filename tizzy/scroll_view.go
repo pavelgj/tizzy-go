@@ -36,6 +36,13 @@ func NewScrollView(ctx *RenderContext, style Style, child Node) *ScrollView {
 }
 
 // GetStyle returns the style of the ScrollView node.
+func (s *ScrollView) GetChildren() []Node {
+	if s.Child != nil {
+		return []Node{s.Child}
+	}
+	return nil
+}
+
 func (s *ScrollView) GetStyle() Style {
 	return s.Style
 }

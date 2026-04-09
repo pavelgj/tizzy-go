@@ -10,6 +10,12 @@ type Node interface {
 	GetStyle() Style
 }
 
+// ParentNode indicates that a node has children.
+type ParentNode interface {
+	Node
+	GetChildren() []Node
+}
+
 // Layoutable indicates that a node can calculate its own layout.
 type Layoutable interface {
 	Layout(x, y int, c Constraints) LayoutResult
@@ -91,6 +97,10 @@ func NewBox(style Style, children ...Node) *Box {
 }
 
 // GetStyle returns the style of the Box node.
+func (b *Box) GetChildren() []Node {
+	return b.Children
+}
+
 func (b *Box) GetStyle() Style {
 	return b.Style
 }
