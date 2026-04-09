@@ -41,6 +41,7 @@ type DropdownState struct {
 	Open         bool
 	FocusedIndex int
 	ScrollOffset int
+	OpenAbove    bool
 }
 
 func (s *DropdownState) IsOpen() bool {
@@ -293,6 +294,9 @@ func (d *Dropdown) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContex
 		maxH = len(d.Options)
 	}
 	listH := maxH
+	if s.OpenAbove {
+		listY = res.Y - (listH + 2)
+	}
 
 	if mouse.Buttons()&tcell.Button1 != 0 {
 		if mx >= res.X && mx < res.X+listW && my >= listY+1 && my < listY+1+listH {

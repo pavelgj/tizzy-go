@@ -321,6 +321,17 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 						style := tcell.StyleDefault.Foreground(drp.Style.Color).Background(tcell.ColorBlack)
 						popupH := listH + 2
 
+						spaceBelow := h - (res.Y + res.H)
+						if spaceBelow < popupH && res.Y >= popupH {
+							state.OpenAbove = true
+						} else {
+							state.OpenAbove = false
+						}
+
+						if state.OpenAbove {
+							listY = res.Y - popupH
+						}
+
 						// Draw Shadow (right and bottom edges only)
 						for i := 1; i <= popupH; i++ {
 							if listY+i < h && res.X+listW < w {
