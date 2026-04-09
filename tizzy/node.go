@@ -32,6 +32,11 @@ type EventHandler interface {
 	DefaultState() any
 }
 
+// Focusable indicates that a node can receive focus.
+type Focusable interface {
+	IsFocusable() bool
+}
+
 // Padding defines the spacing inside a node.
 type Padding struct {
 	Top, Bottom, Left, Right int
@@ -88,6 +93,11 @@ func NewBox(style Style, children ...Node) *Box {
 // GetStyle returns the style of the Box node.
 func (b *Box) GetStyle() Style {
 	return b.Style
+}
+
+// IsFocusable indicates that a node can receive focus.
+func (b *Box) IsFocusable() bool {
+	return b.Style.Focusable
 }
 
 // Layout calculates the layout for the Box node.

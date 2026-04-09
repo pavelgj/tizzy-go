@@ -192,6 +192,11 @@ func (n *TextInput) DefaultState() any {
 	return &TextInputState{cursorOffset: len(n.Value)}
 }
 
+// IsFocusable indicates that a node can receive focus.
+func (n *TextInput) IsFocusable() bool {
+	return n.Style.Focusable
+}
+
 func (n *TextInput) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 	s, ok := state.(*TextInputState)
 	if !ok {

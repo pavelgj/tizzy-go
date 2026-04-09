@@ -581,27 +581,27 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 
 func findFocusableIDs(node Node, componentStates map[string]any) []string {
 	var ids []string
+	
+	if node == nil {
+		return ids
+	}
+
+	if f, ok := node.(Focusable); ok && f.IsFocusable() && node.GetStyle().ID != "" {
+		ids = append(ids, node.GetStyle().ID)
+	}
+
 	switch n := node.(type) {
-	case *Text:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
+	case *ScrollView:
+		ids = append(ids, findFocusableIDs(n.Child, componentStates)...)
+	case *Box:
+		for _, child := range n.Children {
+			ids = append(ids, findFocusableIDs(child, componentStates)...)
 		}
-	case *TextInput:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
-	case *Button:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
-	case *MenuBar:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
+	case *GridBox:
+		for _, child := range n.Children {
+			ids = append(ids, findFocusableIDs(child, componentStates)...)
 		}
 	case *Tabs:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
 		activeIdx := 0
 		if n.Style.ID != "" && componentStates != nil {
 			if stateObj, ok := componentStates[n.Style.ID]; ok {
@@ -610,41 +610,6 @@ func findFocusableIDs(node Node, componentStates map[string]any) []string {
 		}
 		if activeIdx >= 0 && activeIdx < len(n.Tabs) {
 			ids = append(ids, findFocusableIDs(n.Tabs[activeIdx].Content, componentStates)...)
-		}
-	case *Checkbox:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
-	case *RadioButton:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
-	case *Dropdown:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
-	case *List:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
-	case *ScrollView:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
-		ids = append(ids, findFocusableIDs(n.Child, componentStates)...)
-	case *Box:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
-		for _, child := range n.Children {
-			ids = append(ids, findFocusableIDs(child, componentStates)...)
-		}
-	case *GridBox:
-		if n.Style.Focusable && n.Style.ID != "" {
-			ids = append(ids, n.Style.ID)
-		}
-		for _, child := range n.Children {
-			ids = append(ids, findFocusableIDs(child, componentStates)...)
 		}
 	}
 	return ids
@@ -1508,52 +1473,20 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 					a.closeOtherDropdowns(a.focusedID)
 				}
 
-				if list, ok := clickedNode.(*List); ok {
-					stateObj, ok := a.componentStates[list.Style.ID]
-					var state *ListState
-					if !ok {
-						state = &ListState{}
-						a.componentStates[list.Style.ID] = state
-					} else {
-						state = stateObj.(*ListState)
-					}
-
-					res := findLayoutResultByID(layout, list.Style.ID)
+				if handler, ok := clickedNode.(EventHandler); ok {
+					state := a.componentStates[clickedNode.GetStyle().ID]
+					res := findLayoutResultByID(layout, clickedNode.GetStyle().ID)
+					var clickedLayout LayoutResult
 					if res != nil {
-						borderOffset := 0
-						if list.Style.Border {
-							borderOffset = 1
+						clickedLayout = *res
+					}
+					eventCtx := EventContext{
+						Layout: clickedLayout,
+					}
+					if tcellEv, ok := ev.(tcell.Event); ok {
+						if handler.HandleEvent(tcellEv, state, eventCtx) {
+							a.dirty = true
 						}
-						viewportH := res.H - borderOffset*2
-
-						clickY := my - res.Y - borderOffset
-						if clickY >= 0 && clickY < viewportH {
-							clickedIdx := state.ScrollOffset + clickY
-							if clickedIdx < len(list.Items) {
-								state.CursorIndex = clickedIdx
-								state.SelectedIndex = clickedIdx
-								a.dirty = true
-								if list.OnSelect != nil {
-									list.OnSelect(state.SelectedIndex)
-								}
-							}
-						}
-					}
-				}
-				if btn, ok := clickedNode.(*Button); ok {
-					if btn.OnClick != nil {
-						btn.OnClick()
-					}
-				}
-				if cb, ok := clickedNode.(*Checkbox); ok {
-					cb.Checked = !cb.Checked
-					if cb.OnChange != nil {
-						cb.OnChange(cb.Checked)
-					}
-				}
-				if rb, ok := clickedNode.(*RadioButton); ok {
-					if rb.OnChange != nil {
-						rb.OnChange(rb.Value)
 					}
 				}
 
@@ -1728,92 +1661,23 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 						a.closeOtherDropdowns(a.focusedID)
 					}
 
-					if list, ok := clickedNode.(*List); ok {
-						stateObj, ok := a.componentStates[list.Style.ID]
-						var state *ListState
-						if !ok {
-							state = &ListState{SelectedIndex: -1, CursorIndex: 0}
-							a.componentStates[list.Style.ID] = state
-						} else {
-							state = stateObj.(*ListState)
-						}
 
-						res := findLayoutResultByID(layout, list.Style.ID)
+					if handler, ok := clickedNode.(EventHandler); ok {
+						state := a.componentStates[clickedNode.GetStyle().ID]
+						res := findLayoutResultByID(layout, clickedNode.GetStyle().ID)
+						var clickedLayout LayoutResult
 						if res != nil {
-							borderOffset := 0
-							if list.Style.Border {
-								borderOffset = 1
-							}
-							viewportH := res.H - borderOffset*2
-
-							clickY := my - res.Y - borderOffset
-							if clickY >= 0 && clickY < viewportH {
-								clickedIdx := state.ScrollOffset + clickY
-								if clickedIdx < len(list.Items) {
-									state.CursorIndex = clickedIdx
-									state.SelectedIndex = clickedIdx
-									a.dirty = true
-									if list.OnSelect != nil {
-										list.OnSelect(state.SelectedIndex)
-									}
-								}
+							clickedLayout = *res
+						}
+						eventCtx := EventContext{
+							Layout: clickedLayout,
+						}
+						if tcellEv, ok := ev.(tcell.Event); ok {
+							if handler.HandleEvent(tcellEv, state, eventCtx) {
+								a.dirty = true
 							}
 						}
-					}
-
-					if btn, ok := clickedNode.(*Button); ok {
-						if btn.OnClick != nil {
-							btn.OnClick()
-						}
-					}
-					if cb, ok := clickedNode.(*Checkbox); ok {
-						cb.Checked = !cb.Checked
-						if cb.OnChange != nil {
-							cb.OnChange(cb.Checked)
-						}
-					}
-					if rb, ok := clickedNode.(*RadioButton); ok {
-						if rb.OnChange != nil {
-							rb.OnChange(rb.Value)
-						}
-					}
-					if tabs, ok := clickedNode.(*Tabs); ok && tabs.Style.ID != "" {
-						res := findLayoutResultByID(layout, tabs.Style.ID)
-						if res != nil {
-							curX := res.X + tabs.Style.Padding.Left
-							curY := res.Y + tabs.Style.Padding.Top
-
-							if my == curY {
-								for i, tab := range tabs.Tabs {
-									labelLen := len(tab.Label) + 4 // "[ " + label + " ]"
-									if mx >= curX && mx < curX+labelLen {
-										stateObj, ok := a.componentStates[tabs.Style.ID]
-										var state *TabsState
-										if !ok {
-											state = &TabsState{}
-											a.componentStates[tabs.Style.ID] = state
-										} else {
-											state = stateObj.(*TabsState)
-										}
-										state.ActiveTab = i
-										a.dirty = true
-										break
-									}
-									curX += labelLen
-								}
-							}
-						}
-					}
-					if drp, ok := clickedNode.(*Dropdown); ok {
-						stateObj, ok := a.componentStates[drp.Style.ID]
-						var state *DropdownState
-						if !ok {
-							state = &DropdownState{}
-							a.componentStates[drp.Style.ID] = state
-						} else {
-							state = stateObj.(*DropdownState)
-						}
-						state.Open = !state.Open
+						handled = true
 					}
 				}
 			}

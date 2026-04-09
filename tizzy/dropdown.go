@@ -130,10 +130,20 @@ func (d *Dropdown) DefaultState() any {
 	return &DropdownState{}
 }
 
+// IsFocusable indicates that a node can receive focus.
+func (d *Dropdown) IsFocusable() bool {
+	return d.Style.Focusable
+}
+
 func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 	s, ok := state.(*DropdownState)
 	if !ok {
 		return false
+	}
+
+	if _, ok := ev.(*tcell.EventMouse); ok {
+		s.Open = !s.Open
+		return true
 	}
 
 	key, ok := ev.(*tcell.EventKey)

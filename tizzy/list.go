@@ -166,9 +166,40 @@ func (l *List) DefaultState() any {
 	return &ListState{SelectedIndex: -1, CursorIndex: 0}
 }
 
+// IsFocusable indicates that a node can receive focus.
+func (l *List) IsFocusable() bool {
+	return l.Style.Focusable
+}
+
 func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 	s, ok := state.(*ListState)
 	if !ok {
+		return false
+	}
+
+	if mouse, ok := ev.(MouseEvent); ok {
+		_, my := mouse.Position()
+		viewportH := 20
+		borderOffset := 0
+		if l.Style.Border {
+			borderOffset = 1
+		}
+		if ctx.Layout.H > 0 {
+			viewportH = ctx.Layout.H - borderOffset*2
+		}
+
+		clickY := my - ctx.Layout.Y - borderOffset
+		if clickY >= 0 && clickY < viewportH {
+			clickedIdx := s.ScrollOffset + clickY
+			if clickedIdx < len(l.Items) {
+				s.CursorIndex = clickedIdx
+				s.SelectedIndex = clickedIdx
+				if l.OnSelect != nil {
+					l.OnSelect(s.SelectedIndex)
+				}
+				return true
+			}
+		}
 		return false
 	}
 

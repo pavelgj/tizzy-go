@@ -99,3 +99,34 @@ func (n *Checkbox) Render(grid *Grid, layout LayoutResult, focusedID string, com
 func (n *Checkbox) GetStyle() Style {
 	return n.Style
 }
+
+// IsFocusable indicates that a node can receive focus.
+func (n *Checkbox) IsFocusable() bool {
+	return n.Style.Focusable
+}
+
+// HandleEvent handles mouse and key events for the checkbox.
+func (n *Checkbox) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	if _, ok := ev.(MouseEvent); ok {
+		n.Checked = !n.Checked
+		if n.OnChange != nil {
+			n.OnChange(n.Checked)
+		}
+		return true
+	}
+	if key, ok := ev.(*tcell.EventKey); ok {
+		if key.Key() == tcell.KeyEnter || key.Rune() == ' ' {
+			n.Checked = !n.Checked
+			if n.OnChange != nil {
+				n.OnChange(n.Checked)
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// DefaultState returns the default state for the checkbox.
+func (n *Checkbox) DefaultState() any {
+	return nil
+}

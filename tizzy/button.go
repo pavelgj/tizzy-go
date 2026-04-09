@@ -77,3 +77,32 @@ func (n *Button) Render(grid *Grid, layout LayoutResult, focusedID string, compo
 func (n *Button) GetStyle() Style {
 	return n.Style
 }
+
+// IsFocusable indicates that a node can receive focus.
+func (n *Button) IsFocusable() bool {
+	return n.Style.Focusable
+}
+
+// HandleEvent handles mouse and key events for the button.
+func (n *Button) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	if _, ok := ev.(MouseEvent); ok {
+		if n.OnClick != nil {
+			n.OnClick()
+			return true
+		}
+	}
+	if key, ok := ev.(*tcell.EventKey); ok {
+		if key.Key() == tcell.KeyEnter || key.Rune() == ' ' {
+			if n.OnClick != nil {
+				n.OnClick()
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// DefaultState returns the default state for the button.
+func (n *Button) DefaultState() any {
+	return nil
+}

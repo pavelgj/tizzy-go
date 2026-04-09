@@ -127,3 +127,8 @@ func (n *MenuBar) Render(grid *Grid, layout LayoutResult, focusedID string, comp
 		grid.SetContent(x, curY, ' ', style)
 	}
 }
+
+// IsFocusable indicates that a node can receive focus.
+func (n *MenuBar) IsFocusable() bool {
+	return n.Style.Focusable
+}

@@ -150,3 +150,41 @@ func (n *ScrollView) Render(grid *Grid, layout LayoutResult, focusedID string, c
 		}
 	}
 }
+
+// IsFocusable indicates that a node can receive focus.
+func (n *ScrollView) IsFocusable() bool {
+	return n.Style.Focusable
+}
+
+// DefaultState returns the default state for the scroll view.
+func (n *ScrollView) DefaultState() any {
+	return &ScrollViewState{ScrollOffset: 0}
+}
+
+// HandleEvent handles key events for scrolling.
+func (n *ScrollView) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	s, ok := state.(*ScrollViewState)
+	if !ok {
+		return false
+	}
+
+	key, ok := ev.(*tcell.EventKey)
+	if !ok {
+		return false
+	}
+
+	dirty := false
+
+	if key.Key() == tcell.KeyUp {
+		s.ScrollOffset--
+		if s.ScrollOffset < 0 {
+			s.ScrollOffset = 0
+		}
+		dirty = true
+	} else if key.Key() == tcell.KeyDown {
+		s.ScrollOffset++
+		dirty = true
+	}
+
+	return dirty
+}

@@ -47,3 +47,8 @@ func (n *Text) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 func (n *Text) GetStyle() Style {
 	return n.Style
 }
+
+// IsFocusable indicates that a node can receive focus.
+func (n *Text) IsFocusable() bool {
+	return n.Style.Focusable
+}

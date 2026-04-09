@@ -101,3 +101,32 @@ func (n *RadioButton) Render(grid *Grid, layout LayoutResult, focusedID string, 
 func (n *RadioButton) GetStyle() Style {
 	return n.Style
 }
+
+// IsFocusable indicates that a node can receive focus.
+func (n *RadioButton) IsFocusable() bool {
+	return n.Style.Focusable
+}
+
+// HandleEvent handles mouse and key events for the radio button.
+func (n *RadioButton) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	if _, ok := ev.(MouseEvent); ok {
+		if n.OnChange != nil {
+			n.OnChange(n.Value)
+		}
+		return true
+	}
+	if key, ok := ev.(*tcell.EventKey); ok {
+		if key.Key() == tcell.KeyEnter || key.Rune() == ' ' {
+			if n.OnChange != nil {
+				n.OnChange(n.Value)
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// DefaultState returns the default state for the radio button.
+func (n *RadioButton) DefaultState() any {
+	return nil
+}

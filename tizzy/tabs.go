@@ -147,3 +147,38 @@ func (n *Tabs) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 func (n *Tabs) GetStyle() Style {
 	return n.Style
 }
+
+// IsFocusable indicates that a node can receive focus.
+func (n *Tabs) IsFocusable() bool {
+	return n.Style.Focusable
+}
+
+// HandleEvent handles mouse events for the tabs (switching tabs).
+func (n *Tabs) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	if mouse, ok := ev.(*tcell.EventMouse); ok {
+		mx, my := mouse.Position()
+		curX := ctx.Layout.X + n.Style.Padding.Left
+		curY := ctx.Layout.Y + n.Style.Padding.Top
+
+		if my == curY {
+			tabsState := state.(*TabsState)
+			for i, tab := range n.Tabs {
+				labelLen := len(tab.Label) + 4 // "[ " + label + " ]"
+				if mx >= curX && mx < curX+labelLen {
+					if tabsState.ActiveTab != i {
+						tabsState.ActiveTab = i
+						return true
+					}
+					break
+				}
+				curX += labelLen
+			}
+		}
+	}
+	return false
+}
+
+// DefaultState returns the default state for the tabs.
+func (n *Tabs) DefaultState() any {
+	return &TabsState{ActiveTab: 0}
+}

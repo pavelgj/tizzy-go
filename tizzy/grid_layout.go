@@ -256,3 +256,8 @@ func (g *GridBox) Render(grid *Grid, layout LayoutResult, focusedID string, comp
 		Render(grid, child, focusedID, componentStates)
 	}
 }
+
+// IsFocusable indicates that a node can receive focus.
+func (g *GridBox) IsFocusable() bool {
+	return g.Style.Focusable
+}
