@@ -995,6 +995,11 @@ func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) 
 	return nil
 }
 
+// MarkDirty forces a re-render on the next frame.
+func (a *App) MarkDirty() {
+	a.dirty = true
+}
+
 func (a *App) setFocus(id string, root Node) {
 	if a.focusedID == id {
 		return

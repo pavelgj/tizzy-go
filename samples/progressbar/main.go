@@ -59,6 +59,7 @@ func main() {
 				if percent > 1.0 {
 					percent = 0.0
 				}
+				app.MarkDirty()
 			}
 		},
 	)
