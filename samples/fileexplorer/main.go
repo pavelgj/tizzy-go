@@ -5,11 +5,42 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	tz "github.com/pavelgj/tizzy-go/tizzy"
 
 	"github.com/gdamore/tcell/v2"
 )
+func getCompletions(path string) []string {
+	var dir string
+	var base string
+	
+	if strings.HasSuffix(path, "/") || path == "/" {
+		dir = path
+		base = ""
+	} else {
+		dir = filepath.Dir(path)
+		base = filepath.Base(path)
+		if dir == path {
+			dir = "."
+			base = path
+		}
+	}
+	
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	
+	var sugs []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, base) {
+			sugs = append(sugs, name)
+		}
+	}
+	return sugs
+}
 
 func main() {
 	var currentUpdate func(tcell.Event)
@@ -30,6 +61,10 @@ func main() {
 		currentDir, setCurrentDirFn := tz.UseState[string](ctx, ".")
 		pathInput, setPathInput := tz.UseState[string](ctx, currentDir)
 		selectedFileIdx, setSelectedFileIdx := tz.UseState[int](ctx, -1)
+		popupOpen, setPopupOpen := tz.UseState[bool](ctx, false)
+		filteredSuggestions, setFilteredSuggestions := tz.UseState[[]string](ctx, nil)
+		selectedSug, setSelectedSug := tz.UseState[int](ctx, 0)
+		cursorOverride, setCursorOverride := tz.UseState[*int](ctx, nil)
 
 		setCurrentDir := func(s string) {
 			setCurrentDirFn(s)
@@ -144,12 +179,41 @@ func main() {
 			return tz.NewListItem(label, selected, cursor)
 		}, func(idx int) {
 			updatePreview(idx)
+			if idx >= 0 && idx < len(files) {
+				setPathInput(filepath.Join(currentDir, files[idx].Name()))
+			}
 		})
 		// Preview updates on selection (Enter or click) now
 
 		currentUpdate = func(ev tcell.Event) {
 			if key, ok := ev.(*tcell.EventKey); ok {
+				if popupOpen {
+					if key.Key() == tcell.KeyDown {
+						setSelectedSug((selectedSug + 1) % len(filteredSuggestions))
+						return
+					} else if key.Key() == tcell.KeyUp {
+						setSelectedSug((selectedSug - 1 + len(filteredSuggestions)) % len(filteredSuggestions))
+						return
+					} else if key.Key() == tcell.KeyEnter {
+						if selectedSug >= 0 && selectedSug < len(filteredSuggestions) {
+							sug := filteredSuggestions[selectedSug]
+							lastSlash := strings.LastIndex(pathInput, "/")
+							newVal := pathInput[:lastSlash+1] + sug
+							setPathInput(newVal)
+							setPopupOpen(false)
+							newOffset := len(newVal)
+							setCursorOverride(&newOffset)
+						}
+						return
+					} else if key.Key() == tcell.KeyEscape {
+						setPopupOpen(false)
+						return
+					}
+				}
 				if key.Key() == tcell.KeyBackspace || key.Key() == tcell.KeyBackspace2 {
+					if ctx.GetFocusedID() == "path-input" {
+						return
+					}
 					parent := filepath.Dir(currentDir)
 					if parent != currentDir {
 						setCurrentDir(parent)
@@ -170,7 +234,29 @@ func main() {
 
 		pathInputNode := tz.NewTextInput(ctx, tz.Style{ID: "path-input", Focusable: true, Border: true, Title: "Path", FillWidth: true, GridRow: 0, GridCol: 0}, pathInput, func(val string) {
 			setPathInput(val)
+			
+			if strings.HasSuffix(val, "/") || val == "/" {
+				sugs := getCompletions(val)
+				if len(sugs) > 0 {
+					setFilteredSuggestions(sugs)
+					setPopupOpen(true)
+					setSelectedSug(0)
+				} else {
+					setPopupOpen(false)
+				}
+			} else if popupOpen {
+				sugs := getCompletions(val)
+				if len(sugs) > 0 {
+					setFilteredSuggestions(sugs)
+				} else {
+					setPopupOpen(false)
+				}
+			}
 		})
+		pathInputNode.Cursor = cursorOverride
+		if cursorOverride != nil {
+			setCursorOverride(nil)
+		}
 		pathInputNode.OnSubmit = func(val string) {
 			info, err := os.Stat(val)
 			if err == nil {
@@ -226,12 +312,38 @@ func main() {
 			}
 		}
 
+		listItems := []tz.Node{}
+		for i, sug := range filteredSuggestions {
+			style := tz.Style{Padding: tz.Padding{Left: 1, Right: 1}}
+			if i == selectedSug {
+				style.Background = tcell.ColorYellow
+				style.Color = tcell.ColorBlack
+			}
+			listItems = append(listItems, tz.NewText(style, sug))
+		}
+
+		popupNode := tz.NewPopup(
+			ctx,
+			tz.Style{
+				Border:     true,
+				Background: tcell.ColorGray,
+				Width:      30,
+			},
+			tz.NewBox(
+				tz.Style{FlexDirection: "column"},
+				listItems...,
+			),
+			10, // X
+			3,  // Y (below path input)
+			popupOpen && len(filteredSuggestions) > 0,
+		)
+
 		return tz.NewGridBox(
 			tz.Style{Border: true, FillWidth: true, FillHeight: true},
 			[]tz.GridTrack{tz.Flex(1)},
 			[]tz.GridTrack{tz.Fixed(3), tz.Flex(1)},
-
 			pathInputNode,
+			popupNode,
 
 			tz.NewGridBox(
 				tz.Style{GridRow: 1, GridCol: 0, FillWidth: true, FillHeight: true},

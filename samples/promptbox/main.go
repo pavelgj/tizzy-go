@@ -96,33 +96,31 @@ func main() {
 		}
 
 		var popupNode tz.Node
-		if popupOpen && len(filteredSuggestions) > 0 {
-			listItems := []tz.Node{}
-			for i, sug := range filteredSuggestions {
-				style := tz.Style{Padding: tz.Padding{Left: 1, Right: 1}}
-				if i == selectedSug {
-					style.Background = tcell.ColorYellow
-					style.Color = tcell.ColorBlack
-				}
-				listItems = append(listItems, tz.NewText(style, sug))
+		listItems := []tz.Node{}
+		for i, sug := range filteredSuggestions {
+			style := tz.Style{Padding: tz.Padding{Left: 1, Right: 1}}
+			if i == selectedSug {
+				style.Background = tcell.ColorYellow
+				style.Color = tcell.ColorBlack
 			}
-
-			popupNode = tz.NewPopup(
-				ctx,
-				tz.Style{
-					Border:     true,
-					Background: tcell.ColorGray,
-					Width:      20,
-				},
-				tz.NewBox(
-					tz.Style{FlexDirection: "column"},
-					listItems...,
-				),
-				10, // X
-				5,  // Y
-				popupOpen,
-			)
+			listItems = append(listItems, tz.NewText(style, sug))
 		}
+
+		popupNode = tz.NewPopup(
+			ctx,
+			tz.Style{
+				Border:     true,
+				Background: tcell.ColorGray,
+				Width:      20,
+			},
+			tz.NewBox(
+				tz.Style{FlexDirection: "column"},
+				listItems...,
+			),
+			10, // X
+			5,  // Y
+			popupOpen && len(filteredSuggestions) > 0,
+		)
 
 		return tz.NewBox(
 			tz.Style{FlexDirection: "column", Padding: tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
