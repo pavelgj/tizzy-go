@@ -330,3 +330,145 @@ func TestGenerateGalleryVisual(t *testing.T) {
 
 	verifyVisual(t, grid, "gallery")
 }
+
+func TestGenerateTitledBoxVisual(t *testing.T) {
+	// 1. Box with title
+	box1 := NewBox(Style{Width: 20, Height: 5, Border: true, Title: "Box 1", Color: tcell.ColorWhite},
+		NewText(Style{Color: tcell.ColorWhite}, "Content 1"),
+	)
+
+	// 2. Box with title that is too long (should not show)
+	box2 := NewBox(Style{Width: 10, Height: 5, Border: true, Title: "Too Long Title", Color: tcell.ColorWhite},
+		NewText(Style{Color: tcell.ColorWhite}, "Content 2"),
+	)
+
+	// 3. Box with title that fits exactly
+	box3 := NewBox(Style{Width: 15, Height: 5, Border: true, Title: "Exact Fit", Color: tcell.ColorWhite},
+		NewText(Style{Color: tcell.ColorWhite}, "Content 3"),
+	)
+
+	root := NewBox(
+		Style{Width: 60, Height: 20, FlexDirection: "column", JustifyContent: "space-around"},
+		box1,
+		box2,
+		box3,
+	)
+
+	layout := Layout(root, 0, 0, Constraints{MaxW: 60, MaxH: 20})
+	grid := NewGrid(60, 20)
+
+	Render(grid, layout, "", nil)
+
+	verifyVisual(t, grid, "titled_boxes")
+}
+
+func TestGenerateFocusVisual(t *testing.T) {
+	ctx := makeTestContext()
+
+	btn := NewButton(Style{ID: "btn", Width: 15, Color: tcell.ColorWhite}, "Button", nil)
+	ti := NewTextInput(ctx, Style{ID: "ti", Width: 20, Color: tcell.ColorWhite}, "Text Input", nil)
+
+	root := NewBox(
+		Style{Width: 50, Height: 10, FlexDirection: "column", JustifyContent: "space-around"},
+		btn,
+		ti,
+	)
+
+	layout := Layout(root, 0, 0, Constraints{MaxW: 50, MaxH: 10})
+	grid := NewGrid(50, 10)
+
+	// Focus the button
+	Render(grid, layout, "btn", nil)
+
+	verifyVisual(t, grid, "focus_state")
+}
+
+func TestGenerateScrollViewVisual(t *testing.T) {
+	ctx := makeTestContext()
+
+	// Child is larger than ScrollView
+	child := NewBox(
+		Style{Width: 40, Height: 20, Color: tcell.ColorWhite, FlexDirection: "column"},
+		NewText(Style{Color: tcell.ColorWhite}, "Line 1"),
+		NewText(Style{Color: tcell.ColorWhite}, "Line 2"),
+		NewText(Style{Color: tcell.ColorWhite}, "Line 3"),
+		NewText(Style{Color: tcell.ColorWhite}, "Line 4"),
+		NewText(Style{Color: tcell.ColorWhite}, "Line 5"),
+		NewText(Style{Color: tcell.ColorWhite}, "Line 6"),
+		NewText(Style{Color: tcell.ColorWhite}, "Line 7"),
+		NewText(Style{Color: tcell.ColorWhite}, "Line 8"),
+		NewText(Style{Color: tcell.ColorWhite}, "Line 9"),
+		NewText(Style{Color: tcell.ColorWhite}, "Line 10"),
+	)
+
+	sv := NewScrollView(ctx, Style{Width: 20, Height: 10, Border: true, Title: "Scroll", Color: tcell.ColorWhite}, child)
+
+	root := NewBox(
+		Style{Width: 30, Height: 15, JustifyContent: "center"},
+		sv,
+	)
+
+	layout := Layout(root, 0, 0, Constraints{MaxW: 30, MaxH: 15})
+	grid := NewGrid(30, 15)
+
+	Render(grid, layout, "", nil)
+
+	verifyVisual(t, grid, "scroll_view")
+}
+
+func TestGenerateMenuBarVisual(t *testing.T) {
+	ctx := makeTestContext()
+
+	menus := []Menu{
+		{Title: "File", Items: []MenuItem{{Label: "New"}, {Label: "Open"}}},
+		{Title: "Edit", Items: []MenuItem{{Label: "Cut"}, {Label: "Copy"}}},
+	}
+
+	mb := NewMenuBar(ctx, Style{ID: "menubar", Width: 50, Color: tcell.ColorWhite, Background: tcell.ColorBlue}, menus)
+
+	root := NewBox(
+		Style{Width: 50, Height: 5, FlexDirection: "column"},
+		mb,
+		NewText(Style{Color: tcell.ColorWhite}, "Content below menu"),
+	)
+
+	layout := Layout(root, 0, 0, Constraints{MaxW: 50, MaxH: 5})
+	grid := NewGrid(50, 5)
+
+	compStates := map[string]any{"menubar": &MenuBarState{OpenMenuIndex: 0}}
+
+	Render(grid, layout, "", compStates)
+
+	verifyVisual(t, grid, "menu_bar")
+}
+
+func TestGenerateModalVisual(t *testing.T) {
+	screen := tcell.NewSimulationScreen("UTF-8")
+	err := screen.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+	screen.SetSize(50, 20)
+
+	app := NewAppWithScreen(screen)
+
+	renderFn := func(ctx *RenderContext) Node {
+		modal := NewModal(ctx, Style{Width: 30, Height: 10, Color: tcell.ColorWhite, Background: tcell.ColorDarkBlue}, 
+			NewText(Style{Color: tcell.ColorWhite}, "Modal Content"),
+			true, // isOpen
+		)
+
+		return NewBox(
+			Style{Width: 50, Height: 20, JustifyContent: "center"},
+			NewText(Style{Color: tcell.ColorWhite}, "Background Content"),
+			modal,
+		)
+	}
+
+	grid, _, _, _, err := app.RenderFrame(renderFn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	verifyVisual(t, grid, "modal_overlay")
+}
