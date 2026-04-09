@@ -687,6 +687,17 @@ func findFocusableIDs(node Node, componentStates map[string]any) []string {
 		if activeIdx >= 0 && activeIdx < len(n.Tabs) {
 			ids = append(ids, findFocusableIDs(n.Tabs[activeIdx].Content, componentStates)...)
 		}
+	case *Modal:
+		if n.Style.ID != "" && componentStates != nil {
+			if stateObj, ok := componentStates[n.Style.ID]; ok {
+				if state, ok := stateObj.(*ModalState); ok && !state.Open {
+					return ids
+				}
+			}
+		}
+		if n.Child != nil {
+			ids = append(ids, findFocusableIDs(n.Child, componentStates)...)
+		}
 	default:
 		if p, ok := node.(ParentNode); ok {
 			for _, child := range p.GetChildren() {
