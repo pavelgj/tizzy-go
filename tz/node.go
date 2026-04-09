@@ -198,6 +198,13 @@ func (n *Box) Layout(x, y int, c Constraints) LayoutResult {
 	res.W = contentW + (borderSize * 2) + pad.Left + pad.Right
 	res.H = contentH + (borderSize * 2) + pad.Top + pad.Bottom
 
+	if n.Style.Width > 0 {
+		res.W = n.Style.Width
+	}
+	if n.Style.Height > 0 {
+		res.H = n.Style.Height
+	}
+
 	// If we are centering, we take up all available space!
 	if n.Style.JustifyContent == "center" {
 		if n.Style.FlexDirection == "row" {

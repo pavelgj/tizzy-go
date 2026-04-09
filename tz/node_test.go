@@ -181,12 +181,12 @@ func TestLayoutFillWidthRow(t *testing.T) {
 	sidebarRes := res.Children[0]
 	contentRes := res.Children[1]
 
-	if sidebarRes.W != 7 {
-		t.Errorf("Expected sidebar W=7, got %d", sidebarRes.W)
+	if sidebarRes.W != 20 {
+		t.Errorf("Expected sidebar W=20, got %d", sidebarRes.W)
 	}
 
-	if contentRes.W != 93 {
-		t.Errorf("Expected content W=93, got %d", contentRes.W)
+	if contentRes.W != 80 {
+		t.Errorf("Expected content W=80, got %d", contentRes.W)
 	}
 }
 

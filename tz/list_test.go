@@ -191,3 +191,46 @@ func TestListMouseClick(t *testing.T) {
 		t.Errorf("Expected OnSelect to be called with 1, got %d", selectedIdx)
 	}
 }
+
+func TestListRenderItemHeight(t *testing.T) {
+	ctx := makeTestContext()
+	items := []any{"Item 1", "Item 2"}
+	
+	list := NewList(
+		ctx,
+		Style{ID: "mylist", Width: 40, Height: 10},
+		"key",
+		items,
+		-1,
+		func(item any, index int, selected bool, cursor bool) Node {
+			return NewBox(
+				Style{FlexDirection: "column"},
+				NewText(Style{}, item.(string)),
+				NewText(Style{}, "Sub "+item.(string)),
+			)
+		},
+		nil,
+	)
+	list.ItemHeight = 2
+
+	layout := Layout(list, 0, 0, Constraints{MaxW: 40, MaxH: 10})
+	grid := NewGrid(40, 10)
+	
+	state := &ListState{SelectedIndex: -1, CursorIndex: 0}
+	compStates := map[string]any{"mylist": state}
+	
+	list.Render(grid, layout, "", compStates)
+
+	if grid.Cells[0][0].Rune != 'I' {
+		t.Errorf("Expected 'I' at (0,0), got '%c'", grid.Cells[0][0].Rune)
+	}
+	if grid.Cells[1][0].Rune != 'S' {
+		t.Errorf("Expected 'S' at (0,1), got '%c'", grid.Cells[1][0].Rune)
+	}
+	if grid.Cells[2][0].Rune != 'I' {
+		t.Errorf("Expected 'I' at (0,2), got '%c'", grid.Cells[2][0].Rune)
+	}
+	if grid.Cells[3][0].Rune != 'S' {
+		t.Errorf("Expected 'S' at (0,3), got '%c'", grid.Cells[3][0].Rune)
+	}
+}
