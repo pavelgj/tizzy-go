@@ -11,10 +11,11 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 )
+
 func getCompletions(path string) []string {
 	var dir string
 	var base string
-	
+
 	if strings.HasSuffix(path, "/") || path == "/" {
 		dir = path
 		base = ""
@@ -26,12 +27,12 @@ func getCompletions(path string) []string {
 			base = path
 		}
 	}
-	
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
 	}
-	
+
 	var sugs []string
 	for _, entry := range entries {
 		name := entry.Name()
@@ -234,7 +235,7 @@ func main() {
 
 		pathInputNode := tz.NewTextInput(ctx, tz.Style{ID: "path-input", Focusable: true, Border: true, Title: "Path", FillWidth: true, GridRow: 0, GridCol: 0}, pathInput, func(val string) {
 			setPathInput(val)
-			
+
 			if strings.HasSuffix(val, "/") || val == "/" {
 				sugs := getCompletions(val)
 				if len(sugs) > 0 {

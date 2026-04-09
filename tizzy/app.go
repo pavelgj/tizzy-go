@@ -755,33 +755,6 @@ func (e *EventTick) When() time.Time {
 	return e.t
 }
 
-func findScrollViewAt(res LayoutResult, x, y int, componentStates map[string]any) *ScrollView {
-	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
-		scrollOffset := 0
-		if sv, ok := res.Node.(*ScrollView); ok {
-			if sv.Style.ID != "" && componentStates != nil {
-				if stateObj, ok := componentStates[sv.Style.ID]; ok {
-					state := stateObj.(*ScrollViewState)
-					scrollOffset = state.ScrollOffset
-				}
-			}
-			for _, child := range res.Children {
-				if svChild := findScrollViewAt(child, x, y+scrollOffset, componentStates); svChild != nil {
-					return svChild
-				}
-			}
-			return sv
-		}
-
-		for _, child := range res.Children {
-			if svChild := findScrollViewAt(child, x, y, componentStates); svChild != nil {
-				return svChild
-			}
-		}
-	}
-	return nil
-}
-
 func findListAt(res LayoutResult, x, y int, componentStates map[string]any) *List {
 	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
 		if l, ok := res.Node.(*List); ok {
@@ -937,8 +910,6 @@ type MouseEvent interface {
 
 func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bool {
 	mx, my := ev.Position()
-
-
 
 	if ev.Buttons()&tcell.Button1 != 0 {
 		handled := false

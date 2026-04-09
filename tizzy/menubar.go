@@ -3,7 +3,6 @@ package tizzy
 import (
 	"fmt"
 
-
 	"github.com/gdamore/tcell/v2"
 )
 
