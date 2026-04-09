@@ -12,6 +12,10 @@ A declarative Terminal User Interface (TUI) library for Go, inspired by React's 
 - **Rich Interactions**: Focus management, keyboard navigation, and mouse support.
 - **Extensible**: Easy to create custom components.
 
+## How it Compares to Alternatives
+
+Tizzy takes a different approach compared to other popular Go TUI libraries. While [Bubbletea](https://github.com/charmbracelet/bubbletea) relies on the Elm Architecture (Model-Update-View) and [tview](https://github.com/rivo/tview) uses a more traditional widget hierarchy, Tizzy brings a **declarative, React-like component model** to Go TUIs. It features React-inspired hooks (like `UseState` and `UseEffect`) for local state management and a layout system heavily inspired by CSS Flexbox. This makes it highly intuitive for developers coming from modern web frameworks.
+
 ## Screenshots
 
 ### Kitchen Sink
