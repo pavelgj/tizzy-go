@@ -581,7 +581,7 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 
 func findFocusableIDs(node Node, componentStates map[string]any) []string {
 	var ids []string
-	
+
 	if node == nil {
 		return ids
 	}
@@ -809,7 +809,7 @@ func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) 
 				}
 			}
 		}
-		
+
 		if tabs, ok := res.Node.(*Tabs); ok {
 			activeIdx := 0
 			if tabs.Style.ID != "" && componentStates != nil {
@@ -931,30 +931,6 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 		}
 	}
 
-	// Handle MenuBar direct letter shortcuts when focused
-	if ev.Modifiers()&tcell.ModAlt == 0 && ev.Key() == tcell.KeyRune {
-		menuBar := findMenuBar(root)
-		if menuBar != nil && menuBar.Style.ID != "" && a.focusedID == menuBar.Style.ID {
-			runeLower := unicode.ToLower(ev.Rune())
-			for i, menu := range menuBar.Menus {
-				if unicode.ToLower(menu.AltRune) == runeLower {
-					stateObj, ok := a.componentStates[menuBar.Style.ID]
-					var state *MenuBarState
-					if !ok {
-						state = &MenuBarState{OpenMenuIndex: -1}
-						a.componentStates[menuBar.Style.ID] = state
-					} else {
-						state = stateObj.(*MenuBarState)
-					}
-
-					state.OpenMenuIndex = i
-					state.FocusedItemIndex = -1
-					return false
-				}
-			}
-		}
-	}
-
 	// Handle MenuBar arrow navigation when open
 	menuBar := findMenuBar(root)
 	if menuBar != nil && menuBar.Style.ID != "" {
@@ -1009,35 +985,6 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 					return false
 				}
 			}
-		}
-	}
-
-	// Handle Tabs keyboard navigation when focused
-	tabs := findTabs(root)
-	if tabs != nil && tabs.Style.ID != "" && a.focusedID == tabs.Style.ID {
-		stateObj, ok := a.componentStates[tabs.Style.ID]
-		var state *TabsState
-		if !ok {
-			state = &TabsState{}
-			a.componentStates[tabs.Style.ID] = state
-		} else {
-			state = stateObj.(*TabsState)
-		}
-
-		if ev.Key() == tcell.KeyRight {
-			state.ActiveTab++
-			if state.ActiveTab >= len(tabs.Tabs) {
-				state.ActiveTab = 0
-			}
-			a.dirty = true
-			return false
-		} else if ev.Key() == tcell.KeyLeft {
-			state.ActiveTab--
-			if state.ActiveTab < 0 {
-				state.ActiveTab = len(tabs.Tabs) - 1
-			}
-			a.dirty = true
-			return false
 		}
 	}
 
@@ -1110,37 +1057,15 @@ func (a *App) Stop() {
 }
 
 func findMenuBar(node Node) *MenuBar {
-	switch tn := node.(type) {
-	case *MenuBar:
-		return tn
-	case *Box:
-		for _, child := range tn.Children {
+	if mb, ok := node.(*MenuBar); ok {
+		return mb
+	}
+	if p, ok := node.(ParentNode); ok {
+		for _, child := range p.GetChildren() {
 			if mb := findMenuBar(child); mb != nil {
 				return mb
 			}
 		}
-	case *ScrollView:
-		return findMenuBar(tn.Child)
-	case *Modal:
-		return findMenuBar(tn.Child)
-	}
-	return nil
-}
-
-func findTabs(node Node) *Tabs {
-	switch tn := node.(type) {
-	case *Tabs:
-		return tn
-	case *Box:
-		for _, child := range tn.Children {
-			if t := findTabs(child); t != nil {
-				return t
-			}
-		}
-	case *ScrollView:
-		return findTabs(tn.Child)
-	case *Modal:
-		return findTabs(tn.Child)
 	}
 	return nil
 }
@@ -1327,6 +1252,8 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				}
 			}
 
+			debugLog(fmt.Sprintf("handleMouseEvent: openMenuBar=%v", openMenuBar))
+
 			if openMenuBar != nil {
 				stateObj := a.componentStates[openMenuBarID]
 				state := stateObj.(*MenuBarState)
@@ -1355,6 +1282,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 						listW += 4                       // +2 for padding, +2 for borders
 						listH := len(openMenu.Items) + 2 // +2 for borders
 
+						debugLog(fmt.Sprintf("handleMouseEvent: mx=%d, my=%d, menuX=%d, listY=%d, listW=%d, listH=%d", mx, my, menuX, listY, listW, listH))
 						if mx >= menuX && mx < menuX+listW && my >= listY && my < listY+listH {
 							clickedIndex := my - listY - 1 // -1 for top border
 							if clickedIndex >= 0 && clickedIndex < len(openMenu.Items) {
@@ -1440,32 +1368,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 					var focusableNode Node
 					for i := len(path) - 1; i >= 0; i-- {
 						n := path[i]
-						switch node := n.(type) {
-						case *Text:
-							nodeStyle = node.Style
-						case *TextInput:
-							nodeStyle = node.Style
-						case *Button:
-							nodeStyle = node.Style
-						case *Checkbox:
-							nodeStyle = node.Style
-						case *RadioButton:
-							nodeStyle = node.Style
-						case *Spinner:
-							nodeStyle = node.Style
-						case *ProgressBar:
-							nodeStyle = node.Style
-						case *ScrollView:
-							nodeStyle = node.Style
-						case *Dropdown:
-							nodeStyle = node.Style
-						case *List:
-							nodeStyle = node.Style
-						case *Tabs:
-							nodeStyle = node.Style
-						case *Box:
-							nodeStyle = node.Style
-						}
+						nodeStyle = n.GetStyle()
 						if nodeStyle.Focusable && nodeStyle.ID != "" {
 							focusableNode = n
 							break
@@ -1476,7 +1379,6 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 						a.setFocus(nodeStyle.ID, root)
 						a.closeOtherDropdowns(a.focusedID)
 					}
-
 
 					if handler, ok := clickedNode.(EventHandler); ok {
 						state := a.componentStates[clickedNode.GetStyle().ID]

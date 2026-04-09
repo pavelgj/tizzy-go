@@ -152,29 +152,37 @@ func (n *Tabs) GetChildren() []Node {
 	return children
 }
 
-func (n *Tabs) GetStyle() Style {
-	return n.Style
+func (n *Tabs) DefaultState() any {
+	return &TabsState{ActiveTab: 0}
 }
 
-// IsFocusable indicates that a node can receive focus.
-func (n *Tabs) IsFocusable() bool {
-	return n.Style.Focusable
-}
-
-// HandleEvent handles mouse events for the tabs (switching tabs).
 func (n *Tabs) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
-	if mouse, ok := ev.(*tcell.EventMouse); ok {
+	s := state.(*TabsState)
+	if key, ok := ev.(*tcell.EventKey); ok {
+		if key.Key() == tcell.KeyRight {
+			s.ActiveTab++
+			if s.ActiveTab >= len(n.Tabs) {
+				s.ActiveTab = 0
+			}
+			return true
+		} else if key.Key() == tcell.KeyLeft {
+			s.ActiveTab--
+			if s.ActiveTab < 0 {
+				s.ActiveTab = len(n.Tabs) - 1
+			}
+			return true
+		}
+	} else if mouse, ok := ev.(*tcell.EventMouse); ok {
 		mx, my := mouse.Position()
 		curX := ctx.Layout.X + n.Style.Padding.Left
 		curY := ctx.Layout.Y + n.Style.Padding.Top
 
 		if my == curY {
-			tabsState := state.(*TabsState)
 			for i, tab := range n.Tabs {
 				labelLen := len(tab.Label) + 4 // "[ " + label + " ]"
 				if mx >= curX && mx < curX+labelLen {
-					if tabsState.ActiveTab != i {
-						tabsState.ActiveTab = i
+					if s.ActiveTab != i {
+						s.ActiveTab = i
 						return true
 					}
 					break
@@ -186,7 +194,11 @@ func (n *Tabs) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 	return false
 }
 
-// DefaultState returns the default state for the tabs.
-func (n *Tabs) DefaultState() any {
-	return &TabsState{ActiveTab: 0}
+func (n *Tabs) GetStyle() Style {
+	return n.Style
+}
+
+// IsFocusable indicates that a node can receive focus.
+func (n *Tabs) IsFocusable() bool {
+	return n.Style.Focusable
 }

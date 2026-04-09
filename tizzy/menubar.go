@@ -2,6 +2,7 @@ package tizzy
 
 import (
 	"fmt"
+	"unicode"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -51,6 +52,47 @@ type MenuBarState struct {
 }
 
 // GetStyle returns the style of the MenuBar node.
+func (m *MenuBar) DefaultState() any {
+	return &MenuBarState{OpenMenuIndex: -1, FocusedItemIndex: -1}
+}
+
+func (m *MenuBar) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	s := state.(*MenuBarState)
+	if key, ok := ev.(*tcell.EventKey); ok {
+		if key.Modifiers()&tcell.ModAlt == 0 && key.Key() == tcell.KeyRune {
+			runeLower := unicode.ToLower(key.Rune())
+			for i, menu := range m.Menus {
+				if unicode.ToLower(menu.AltRune) == runeLower {
+					s.OpenMenuIndex = i
+					s.FocusedItemIndex = -1
+					return true
+				}
+			}
+		}
+	} else if mouse, ok := ev.(*tcell.EventMouse); ok {
+		mx, my := mouse.Position()
+		borderOffset := 0
+		if m.Style.Border {
+			borderOffset = 1
+		}
+		curX := ctx.Layout.X + borderOffset + m.Style.Padding.Left
+		curY := ctx.Layout.Y + borderOffset + m.Style.Padding.Top
+
+		if my == curY {
+			for i, menu := range m.Menus {
+				titleLen := len(menu.Title) + 2 // " " + title + " "
+				if mx >= curX && mx < curX+titleLen {
+					s.OpenMenuIndex = i
+					s.FocusedItemIndex = -1
+					return true
+				}
+				curX += titleLen + 2 // +2 for spacing
+			}
+		}
+	}
+	return false
+}
+
 func (m *MenuBar) GetStyle() Style {
 	return m.Style
 }
