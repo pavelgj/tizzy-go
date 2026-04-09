@@ -2,6 +2,8 @@
 
 A declarative Terminal User Interface (TUI) library for Go, inspired by React's component model and CSS Flexbox layout.
 
+![File Explorer](docs/images/fileexplorer.png)
+
 ## Features
 
 - **Declarative UI**: Build UIs by composing components that return a virtual tree of nodes.
@@ -9,6 +11,20 @@ A declarative Terminal User Interface (TUI) library for Go, inspired by React's 
 - **Isolated State**: Support for struct-based components with isolated mutable state.
 - **Rich Interactions**: Focus management, keyboard navigation, and mouse support.
 - **Extensible**: Easy to create custom components.
+
+## Screenshots
+
+### Kitchen Sink
+Showing various form controls and state management.
+
+![Kitchen Sink Forms](docs/images/kitchensink-forms.png)
+![Kitchen Sink Buttons](docs/images/kitchensink-buttons-state.png)
+
+### Overlays & Dialogs
+Showing modals and dropdowns.
+
+![Modal Dialog](docs/images/modal-dialog.png)
+![Dropdown](docs/images/dropdown.png)
 
 ## Quick Start
 
