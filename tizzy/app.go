@@ -877,6 +877,36 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 		}
 	}
 
+	if a.focusedID != "" {
+		focusedNode := findNodeByID(root, a.focusedID)
+		if handler, ok := focusedNode.(EventHandler); ok {
+			stateObj, ok := a.componentStates[a.focusedID]
+			var state any
+			if !ok {
+				state = handler.DefaultState()
+				a.componentStates[a.focusedID] = state
+			} else {
+				state = stateObj
+			}
+
+			res := findLayoutResultByID(layout, a.focusedID)
+			var layoutRes LayoutResult
+			if res != nil {
+				layoutRes = *res
+			}
+
+			eventCtx := EventContext{
+				Layout:    layoutRes,
+				PopupOpen: popupOpen,
+			}
+
+			if handler.HandleEvent(ev, state, eventCtx) {
+				a.dirty = true
+				return false
+			}
+		}
+	}
+
 	if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
 		if popupOpen && ev.Key() == tcell.KeyEscape {
 			// Let falling through to updateFn handle closing the popup
@@ -950,60 +980,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 	if ev.Key() == tcell.KeyBacktab {
 		a.setFocus(prevFocus(a.focusedID, focusableIDs), root)
 	}
-	if ev.Key() == tcell.KeyTab || ev.Key() == tcell.KeyBacktab {
-		// Close all MenuBar menus on focus change
-		for _, stateObj := range a.componentStates {
-			if state, ok := stateObj.(*MenuBarState); ok {
-				state.OpenMenuIndex = -1
-			}
-		}
 
-		a.closeOtherDropdowns(a.focusedID)
-
-		if a.focusedID != "" {
-			focusedNode := findNodeByID(root, a.focusedID)
-			if _, ok := focusedNode.(*MenuBar); ok {
-				stateObj, ok := a.componentStates[a.focusedID]
-				var state *MenuBarState
-				if !ok {
-					state = &MenuBarState{OpenMenuIndex: 0}
-					a.componentStates[a.focusedID] = state
-				} else {
-					state = stateObj.(*MenuBarState)
-					state.OpenMenuIndex = 0
-					state.FocusedItemIndex = -1
-				}
-			}
-		}
-	}
-	if a.focusedID != "" {
-		focusedNode := findNodeByID(root, a.focusedID)
-		if handler, ok := focusedNode.(EventHandler); ok {
-			stateObj, ok := a.componentStates[a.focusedID]
-			var state any
-			if !ok {
-				state = handler.DefaultState()
-				a.componentStates[a.focusedID] = state
-			} else {
-				state = stateObj
-			}
-
-			res := findLayoutResultByID(layout, a.focusedID)
-			var layoutRes LayoutResult
-			if res != nil {
-				layoutRes = *res
-			}
-
-			eventCtx := EventContext{
-				Layout:    layoutRes,
-				PopupOpen: popupOpen,
-			}
-
-			if handler.HandleEvent(ev, state, eventCtx) {
-				a.dirty = true
-			}
-		}
-	}
 	return false
 }
 
