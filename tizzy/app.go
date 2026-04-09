@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -915,7 +914,6 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 		return true // Request exit
 	}
 
-
 	if ev.Key() == tcell.KeyTab {
 		a.setFocus(nextFocus(a.focusedID, focusableIDs), root)
 	}
@@ -929,20 +927,6 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 func (a *App) Stop() {
 	a.screen.Fini()
 	os.Exit(0)
-}
-
-func findMenuBar(node Node) *MenuBar {
-	if mb, ok := node.(*MenuBar); ok {
-		return mb
-	}
-	if p, ok := node.(ParentNode); ok {
-		for _, child := range p.GetChildren() {
-			if mb := findMenuBar(child); mb != nil {
-				return mb
-			}
-		}
-	}
-	return nil
 }
 
 // MouseEvent is an interface for tcell.EventMouse to allow mocking in tests.
