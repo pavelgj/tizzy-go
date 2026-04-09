@@ -175,6 +175,19 @@ func (n *ScrollView) HandleEvent(ev tcell.Event, state any, ctx EventContext) bo
 		return false
 	}
 
+	if mouse, ok := ev.(*tcell.EventMouse); ok {
+		if mouse.Buttons()&tcell.WheelUp != 0 {
+			s.ScrollOffset--
+			if s.ScrollOffset < 0 {
+				s.ScrollOffset = 0
+			}
+			return true
+		} else if mouse.Buttons()&tcell.WheelDown != 0 {
+			s.ScrollOffset++
+			return true
+		}
+	}
+
 	key, ok := ev.(*tcell.EventKey)
 	if !ok {
 		return false

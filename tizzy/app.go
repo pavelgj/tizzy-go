@@ -1251,39 +1251,24 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 		}
 
 		if !dropdownScrolled {
-			list := findListAt(layout, mx, my, a.componentStates)
-			if list != nil && list.Style.ID != "" {
-				stateObj, ok := a.componentStates[list.Style.ID]
-				var state *ListState
-				if !ok {
-					state = &ListState{}
-					a.componentStates[list.Style.ID] = state
-				} else {
-					state = stateObj.(*ListState)
-				}
-				state.ScrollOffset--
-				if state.ScrollOffset < 0 {
-					state.ScrollOffset = 0
-				}
-				a.dirty = true
-				dropdownScrolled = true
-			}
-		}
-
-		if !dropdownScrolled {
-			sv := findScrollViewAt(layout, mx, my, a.componentStates)
-			if sv != nil && sv.Style.ID != "" {
-				stateObj, ok := a.componentStates[sv.Style.ID]
-				var state *ScrollViewState
-				if !ok {
-					state = &ScrollViewState{}
-					a.componentStates[sv.Style.ID] = state
-				} else {
-					state = stateObj.(*ScrollViewState)
-				}
-				state.ScrollOffset--
-				if state.ScrollOffset < 0 {
-					state.ScrollOffset = 0
+			path := findNodePathAt(layout, mx, my, a.componentStates)
+			if len(path) > 0 {
+				targetNode := path[len(path)-1]
+				if handler, ok := targetNode.(EventHandler); ok {
+					state := a.componentStates[targetNode.GetStyle().ID]
+					res := findLayoutResultByID(layout, targetNode.GetStyle().ID)
+					var targetLayout LayoutResult
+					if res != nil {
+						targetLayout = *res
+					}
+					eventCtx := EventContext{
+						Layout: targetLayout,
+					}
+					if tcellEv, ok := ev.(tcell.Event); ok {
+						if handler.HandleEvent(tcellEv, state, eventCtx) {
+							a.dirty = true
+						}
+					}
 				}
 			}
 		}
@@ -1323,40 +1308,25 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 		}
 
 		if !dropdownScrolled {
-			list := findListAt(layout, mx, my, a.componentStates)
-			if list != nil && list.Style.ID != "" {
-				stateObj, ok := a.componentStates[list.Style.ID]
-				var state *ListState
-				if !ok {
-					state = &ListState{}
-					a.componentStates[list.Style.ID] = state
-				} else {
-					state = stateObj.(*ListState)
+			path := findNodePathAt(layout, mx, my, a.componentStates)
+			if len(path) > 0 {
+				targetNode := path[len(path)-1]
+				if handler, ok := targetNode.(EventHandler); ok {
+					state := a.componentStates[targetNode.GetStyle().ID]
+					res := findLayoutResultByID(layout, targetNode.GetStyle().ID)
+					var targetLayout LayoutResult
+					if res != nil {
+						targetLayout = *res
+					}
+					eventCtx := EventContext{
+						Layout: targetLayout,
+					}
+					if tcellEv, ok := ev.(tcell.Event); ok {
+						if handler.HandleEvent(tcellEv, state, eventCtx) {
+							a.dirty = true
+						}
+					}
 				}
-				state.ScrollOffset++
-				if state.ScrollOffset >= len(list.Items) {
-					state.ScrollOffset = len(list.Items) - 1
-				}
-				if state.ScrollOffset < 0 {
-					state.ScrollOffset = 0
-				}
-				a.dirty = true
-				dropdownScrolled = true
-			}
-		}
-
-		if !dropdownScrolled {
-			sv := findScrollViewAt(layout, mx, my, a.componentStates)
-			if sv != nil && sv.Style.ID != "" {
-				stateObj, ok := a.componentStates[sv.Style.ID]
-				var state *ScrollViewState
-				if !ok {
-					state = &ScrollViewState{}
-					a.componentStates[sv.Style.ID] = state
-				} else {
-					state = stateObj.(*ScrollViewState)
-				}
-				state.ScrollOffset++
 			}
 		}
 	}

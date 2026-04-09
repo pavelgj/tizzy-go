@@ -178,6 +178,22 @@ func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 	}
 
 	if mouse, ok := ev.(MouseEvent); ok {
+		if mouse.Buttons()&tcell.WheelUp != 0 {
+			s.ScrollOffset--
+			if s.ScrollOffset < 0 {
+				s.ScrollOffset = 0
+			}
+			return true
+		} else if mouse.Buttons()&tcell.WheelDown != 0 {
+			s.ScrollOffset++
+			if s.ScrollOffset >= len(l.Items) {
+				s.ScrollOffset = len(l.Items) - 1
+			}
+			if s.ScrollOffset < 0 {
+				s.ScrollOffset = 0
+			}
+			return true
+		}
 		_, my := mouse.Position()
 		viewportH := 20
 		borderOffset := 0
