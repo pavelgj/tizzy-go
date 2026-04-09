@@ -899,7 +899,43 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 				state = stateObj
 			}
 
-			res := findLayoutResultByID(layout, a.focusedID)
+			var res *LayoutResult
+			for id, stateObj := range a.componentStates {
+				if state, ok := stateObj.(*ModalState); ok && state.Open {
+					node := findNodeByID(root, id)
+					if modal, ok := node.(*Modal); ok {
+						w, h := a.screen.Size()
+						maxModalW := w - 4
+						maxModalH := h - 4
+						if maxModalW < 0 { maxModalW = 0 }
+						if maxModalH < 0 { maxModalH = 0 }
+						
+						modalConstraints := Constraints{
+							MaxW: maxModalW,
+							MaxH: maxModalH,
+						}
+						
+						modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
+						modalW := modalLayout.W + 2
+						modalH := modalLayout.H + 2
+						
+						if modalW > w { modalW = w }
+						if modalH > h { modalH = h }
+						
+						modalX := (w - modalW) / 2
+						modalY := (h - modalH) / 2
+						
+						ml := Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
+						res = findLayoutResultByID(ml, a.focusedID)
+						if res != nil {
+							break
+						}
+					}
+				}
+			}
+			if res == nil {
+				res = findLayoutResultByID(layout, a.focusedID)
+			}
 			var layoutRes LayoutResult
 			if res != nil {
 				layoutRes = *res
