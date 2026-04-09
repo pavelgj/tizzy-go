@@ -938,48 +938,7 @@ type MouseEvent interface {
 func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bool {
 	mx, my := ev.Position()
 
-	// Handle MenuBar hover-to-switch
-	var openMenuBar *MenuBar
-	var openMenuBarID string
-	for id, stateObj := range a.componentStates {
-		if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
-			node := findNodeByID(root, id)
-			if mb, ok := node.(*MenuBar); ok {
-				openMenuBar = mb
-				openMenuBarID = id
-				break
-			}
-		}
-	}
 
-	if openMenuBar != nil {
-		res := findLayoutResultByID(layout, openMenuBarID)
-		if res != nil {
-			borderOffset := 0
-			if openMenuBar.Style.Border {
-				borderOffset = 1
-			}
-			curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
-			curY := res.Y + borderOffset + openMenuBar.Style.Padding.Top
-
-			if my == curY {
-				for i, menu := range openMenuBar.Menus {
-					titleLen := len(menu.Title) + 2
-					if mx >= curX && mx < curX+titleLen {
-						stateObj := a.componentStates[openMenuBarID]
-						state := stateObj.(*MenuBarState)
-						if state.OpenMenuIndex != i {
-							state.OpenMenuIndex = i
-							state.FocusedItemIndex = -1
-							a.dirty = true
-						}
-						break
-					}
-					curX += titleLen + 2
-				}
-			}
-		}
-	}
 
 	if ev.Buttons()&tcell.Button1 != 0 {
 		handled := false
