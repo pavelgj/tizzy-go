@@ -221,159 +221,112 @@ func TestGenerateGroceryListVisual(t *testing.T) {
 }
 
 func TestGenerateDropdownVisual(t *testing.T) {
-	ctx := makeTestContext()
 	opts := []string{"Option 1", "Option 2", "Option 3"}
 
-	dropdown := NewDropdown(ctx, Style{ID: "dropdown", Width: 20, Color: tcell.ColorWhite, Background: tcell.ColorBlack, Border: true}, opts, 0, nil)
+	screen := tcell.NewSimulationScreen("UTF-8")
+	err := screen.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer screen.Fini()
+	screen.SetSize(40, 15)
 
-	root := NewBox(
-		Style{Width: 40, Height: 15, JustifyContent: "center"},
-		dropdown,
-	)
+	app := NewAppWithScreen(screen)
+	app.componentStates["dropdown"] = &DropdownState{Open: true, FocusedIndex: 1}
 
-	layout := Layout(root, 0, 0, Constraints{MaxW: 40, MaxH: 15})
-	grid := NewGrid(40, 15)
+	renderFn := func(ctx *RenderContext) Node {
+		dropdown := NewDropdown(ctx, Style{ID: "dropdown", Width: 20, Color: tcell.ColorWhite, Background: tcell.ColorBlack, Border: true}, opts, 0, nil)
+		return NewBox(
+			Style{Width: 40, Height: 15, JustifyContent: "center"},
+			dropdown,
+		)
+	}
 
-	state := &DropdownState{Open: true, FocusedIndex: 1}
-	compStates := map[string]any{"dropdown": state}
-
-	Render(grid, layout, "dropdown", compStates)
-
-	// Replicate overlay rendering from app.go
-	res := findLayoutResultByID(layout, "dropdown")
-	if res != nil {
-		listY := res.Y + res.H
-		listW := res.W
-		maxH := 3
-		listH := maxH
-
-		style := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlack)
-		popupH := listH + 2
-
-		// Draw Shadow (right and bottom edges only)
-		for i := 1; i <= popupH; i++ {
-			if listY+i < 15 && res.X+listW < 40 {
-				currentCell := grid.Cells[listY+i][res.X+listW]
-				grid.SetContent(res.X+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-			}
-		}
-		for j := 1; j <= listW; j++ {
-			if listY+popupH < 15 && res.X+j < 40 {
-				currentCell := grid.Cells[listY+popupH][res.X+j]
-				grid.SetContent(res.X+j, listY+popupH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-			}
-		}
-
-		// Fill background
-		for y := 0; y < popupH; y++ {
-			for x := 0; x < listW; x++ {
-				grid.SetContent(res.X+x, listY+y, ' ', style)
-			}
-		}
-
-		// Draw Border
-		drawBorder(grid, res.X, listY, listW, popupH, "", style)
-
-		// Draw Options
-		for i := 0; i < listH; i++ {
-			opt := opts[i]
-			optStyle := style
-			if i == state.FocusedIndex {
-				optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
-			}
-			curX := res.X + 1
-			for _, r := range opt {
-				grid.SetContent(curX, listY+1+i, r, optStyle)
-				curX++
-			}
-		}
+	grid, _, _, _, err := app.RenderFrame(renderFn)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	verifyVisual(t, grid, "dropdown_layout")
 }
 
 func TestGenerateDropdownOpenAboveVisual(t *testing.T) {
-	ctx := makeTestContext()
 	opts := []string{"Option 1", "Option 2", "Option 3"}
 
-	dropdown := NewDropdown(ctx, Style{ID: "dropdown", Width: 20, Color: tcell.ColorWhite, Background: tcell.ColorBlack, Border: true}, opts, 0, nil)
+	screen := tcell.NewSimulationScreen("UTF-8")
+	err := screen.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer screen.Fini()
+	screen.SetSize(40, 15)
 
-	// Place dropdown at bottom by putting a spacer box above it
-	root := NewBox(
-		Style{Width: 40, Height: 15, FlexDirection: "column"},
-		NewBox(Style{Height: 10}), // Spacer
-		dropdown,
-	)
+	app := NewAppWithScreen(screen)
+	app.componentStates["dropdown"] = &DropdownState{Open: true, FocusedIndex: 1}
 
-	layout := Layout(root, 0, 0, Constraints{MaxW: 40, MaxH: 15})
-	grid := NewGrid(40, 15)
+	renderFn := func(ctx *RenderContext) Node {
+		dropdown := NewDropdown(ctx, Style{ID: "dropdown", Width: 20, Color: tcell.ColorWhite, Background: tcell.ColorBlack, Border: true}, opts, 0, nil)
+		// Place dropdown at bottom by putting a spacer box above it
+		return NewBox(
+			Style{Width: 40, Height: 15, FlexDirection: "column"},
+			NewBox(Style{Height: 10}), // Spacer
+			dropdown,
+		)
+	}
 
-	state := &DropdownState{Open: true, FocusedIndex: 1}
-	compStates := map[string]any{"dropdown": state}
-
-	Render(grid, layout, "dropdown", compStates)
-
-	// Replicate overlay rendering from app.go with OpenAbove logic
-	res := findLayoutResultByID(layout, "dropdown")
-	if res != nil {
-		listY := res.Y + res.H
-		listW := res.W
-		maxH := 3
-		listH := maxH
-
-		style := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlack)
-		popupH := listH + 2
-
-		h := 15 // Total grid height
-		spaceBelow := h - (res.Y + res.H)
-		if spaceBelow < popupH && res.Y >= popupH {
-			state.OpenAbove = true
-		} else {
-			state.OpenAbove = false
-		}
-
-		if state.OpenAbove {
-			listY = res.Y - popupH
-		}
-
-		// Draw Shadow (right and bottom edges only)
-		for i := 1; i <= popupH; i++ {
-			if listY+i < 15 && res.X+listW < 40 {
-				currentCell := grid.Cells[listY+i][res.X+listW]
-				grid.SetContent(res.X+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-			}
-		}
-		for j := 1; j <= listW; j++ {
-			if listY+popupH < 15 && res.X+j < 40 {
-				currentCell := grid.Cells[listY+popupH][res.X+j]
-				grid.SetContent(res.X+j, listY+popupH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-			}
-		}
-
-		// Fill background
-		for y := 0; y < popupH; y++ {
-			for x := 0; x < listW; x++ {
-				grid.SetContent(res.X+x, listY+y, ' ', style)
-			}
-		}
-
-		// Draw Border
-		drawBorder(grid, res.X, listY, listW, popupH, "", style)
-
-		// Draw Options
-		for i := 0; i < listH; i++ {
-			opt := opts[i]
-			optStyle := style
-			if i == state.FocusedIndex {
-				optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
-			}
-			curX := res.X + 1
-			for _, r := range opt {
-				grid.SetContent(curX, listY+1+i, r, optStyle)
-				curX++
-			}
-		}
+	grid, _, _, _, err := app.RenderFrame(renderFn)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	verifyVisual(t, grid, "dropdown_above_layout")
+}
+
+func TestGenerateGalleryVisual(t *testing.T) {
+	ctx := makeTestContext()
+
+	// Components
+	btn := NewButton(Style{Color: tcell.ColorWhite}, "Click Me", nil)
+	cb := NewCheckbox(ctx, Style{Color: tcell.ColorWhite}, "Check Me", true, nil)
+	rb := NewRadioButton(ctx, Style{Color: tcell.ColorWhite}, "Radio Option", "val", true, nil)
+	pb := NewProgressBar(Style{Color: tcell.ColorWhite, Width: 20}, 0.5)
+	sp := NewSpinner(ctx, Style{Color: tcell.ColorWhite})
+	ti := NewTextInput(ctx, Style{Color: tcell.ColorWhite, Width: 20}, "Initial Text", nil)
+
+	// Table
+	headers := []string{"ID", "Name", "Status"}
+	rows := [][]string{
+		{"1", "Alice", "Active"},
+		{"2", "Bob", "Pending"},
+	}
+	tbl := NewTable(Style{Color: tcell.ColorWhite}, headers, rows)
+
+	// Tabs
+	tabs := []Tab{
+		{Label: "Tab 1", Content: NewText(Style{Color: tcell.ColorWhite}, "Content 1")},
+		{Label: "Tab 2", Content: NewText(Style{Color: tcell.ColorWhite}, "Content 2")},
+	}
+	tbs := NewTabs(ctx, Style{Color: tcell.ColorWhite, ID: "tabs"}, tabs)
+
+	root := NewBox(
+		Style{Width: 80, Height: 40, FlexDirection: "column", Padding: Padding{Top: 1, Bottom: 1, Left: 2, Right: 2}},
+		NewText(Style{Color: tcell.ColorGreen}, "--- Form Controls ---"),
+		btn,
+		cb,
+		rb,
+		ti,
+		NewText(Style{Color: tcell.ColorGreen}, "--- Feedback Controls ---"),
+		pb,
+		sp,
+		NewText(Style{Color: tcell.ColorGreen}, "--- Complex Controls ---"),
+		tbl,
+		tbs,
+	)
+
+	layout := Layout(root, 0, 0, Constraints{MaxW: 80, MaxH: 40})
+	grid := NewGrid(80, 40)
+
+	Render(grid, layout, "", nil)
+
+	verifyVisual(t, grid, "gallery")
 }

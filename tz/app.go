@@ -26,11 +26,528 @@ func NewApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	return NewAppWithScreen(s), nil
+}
+
+func NewAppWithScreen(s tcell.Screen) *App {
 	return &App{
 		screen:          s,
 		componentStates: make(map[string]any),
 		activeCleanups:  make(map[string]func()),
-	}, nil
+		dirty:           true,
+	}
+}
+
+func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, LayoutResult, []string, error) {
+	// 1. Get the current UI tree or reuse previous
+	var root Node
+	if a.dirty || a.previousRoot == nil {
+		ctx := &RenderContext{app: a}
+		root = renderFn(ctx)
+		if err := validateUniqueIDs(root); err != nil {
+			return nil, nil, LayoutResult{}, nil, err
+		}
+		a.previousRoot = root
+		a.dirty = false
+
+		// Collect all effect IDs requested in this frame
+		requestedEffects := make(map[string]bool)
+		for _, eff := range ctx.effects {
+			requestedEffects[eff.ID] = true
+		}
+
+		// Detect Unmounts and run cleanups (not called implies unmounted)
+		for id, cleanup := range a.activeCleanups {
+			if !requestedEffects[id] {
+				if cleanup != nil {
+					cleanup()
+				}
+				delete(a.activeCleanups, id)
+			}
+		}
+
+		// Detect Mounts and run effects
+		for _, effectRec := range ctx.effects {
+			id := effectRec.ID
+			if _, active := a.activeCleanups[id]; !active {
+				cleanup := effectRec.Effect()
+				if cleanup != nil {
+					a.activeCleanups[id] = cleanup
+				}
+			}
+		}
+	} else {
+		root = a.previousRoot
+	}
+
+	// Find open modal if any
+	var activeModal *Modal
+	for id, stateObj := range a.componentStates {
+		if state, ok := stateObj.(*ModalState); ok && state.Open {
+			node := findNodeByID(root, id)
+			if n, ok := node.(*Modal); ok {
+				activeModal = n
+				break
+			}
+		}
+	}
+
+	var focusableIDs []string
+	if activeModal != nil {
+		focusableIDs = findFocusableIDs(activeModal.Child, a.componentStates)
+		// Ensure focus is inside modal
+		found := false
+		for _, id := range focusableIDs {
+			if id == a.focusedID {
+				found = true
+				break
+			}
+		}
+		if !found && len(focusableIDs) > 0 {
+			a.focusedID = focusableIDs[0]
+		}
+	} else {
+		focusableIDs = findFocusableIDs(root, a.componentStates)
+		if a.focusedID == "" && len(focusableIDs) > 0 {
+			a.focusedID = focusableIDs[0]
+		}
+	}
+
+	// 2. Compute layout
+	w, h := a.screen.Size()
+	layout := Layout(root, 0, 0, Constraints{MaxW: w, MaxH: h})
+
+	// Update scroll offset for focused TextInput based on up-to-date layout
+	if a.focusedID != "" {
+		focusedNode := findNodeByID(root, a.focusedID)
+		if input, ok := focusedNode.(*TextInput); ok {
+			res := findLayoutResultByID(layout, a.focusedID)
+			if res != nil {
+				stateObj, ok := a.componentStates[a.focusedID]
+				if ok {
+					state := stateObj.(*TextInputState)
+					borderOffset := 0
+					if input.Style.Border {
+						borderOffset = 1
+					}
+
+					w := res.W - input.Style.Padding.Left - input.Style.Padding.Right - borderOffset*2
+					if w > 0 && !input.Style.Multiline {
+						if state.cursorOffset < state.scrollOffset {
+							state.scrollOffset = state.cursorOffset
+						}
+						if state.cursorOffset > state.scrollOffset+w {
+							state.scrollOffset = state.cursorOffset - w
+						}
+					}
+
+					if input.Style.Multiline {
+						line, col := offsetToLineCol(input.Value, state.cursorOffset)
+						h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
+						if h > 0 {
+							if line < state.vScrollOffset {
+								state.vScrollOffset = line
+							}
+							if line >= state.vScrollOffset+h {
+								state.vScrollOffset = line - h + 1
+							}
+						}
+
+						// Horizontal scroll for multiline
+						if w > 0 {
+							if col < state.scrollOffset {
+								state.scrollOffset = col
+							}
+							if col >= state.scrollOffset+w {
+								state.scrollOffset = col - w + 1
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 3. Render to grid
+	grid := NewGrid(w, h)
+	Render(grid, layout, a.focusedID, a.componentStates)
+
+	// Render Modal overlay if active
+	if activeModal != nil {
+		maxModalW := w - 4
+		maxModalH := h - 4
+		if maxModalW < 0 {
+			maxModalW = 0
+		}
+		if maxModalH < 0 {
+			maxModalH = 0
+		}
+
+		modalConstraints := Constraints{
+			MaxW: maxModalW,
+			MaxH: maxModalH,
+		}
+
+		// Layout at 0,0 to find size
+		modalLayout := Layout(activeModal.Child, 0, 0, modalConstraints)
+
+		modalW := modalLayout.W + 2
+		modalH := modalLayout.H + 2
+
+		if modalW > w {
+			modalW = w
+		}
+		if modalH > h {
+			modalH = h
+		}
+
+		modalX := (w - modalW) / 2
+		modalY := (h - modalH) / 2
+
+		// Layout at correct position
+		modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
+
+		style := tcell.StyleDefault.Foreground(activeModal.Style.Color).Background(activeModal.Style.Background)
+		drawBorder(grid, modalX, modalY, modalW, modalH, "", style)
+
+		for y := modalY + 1; y < modalY+modalH-1; y++ {
+			for x := modalX + 1; x < modalX+modalW-1; x++ {
+				grid.SetContent(x, y, ' ', style)
+			}
+		}
+
+		Render(grid, modalLayout, a.focusedID, a.componentStates)
+	}
+
+	// Render dropdown overlays
+	for id, stateObj := range a.componentStates {
+		if state, ok := stateObj.(*DropdownState); ok && state.Open {
+			res := findLayoutResultByID(layout, id)
+			dropdownNode := findNodeByID(root, id)
+			if res != nil && dropdownNode != nil {
+				if drp, ok := dropdownNode.(*Dropdown); ok {
+					listY := res.Y + res.H
+					listW := res.W
+					maxH := drp.MaxListHeight
+					if maxH <= 0 {
+						maxH = 5 // Default limit
+					}
+					if maxH > len(drp.Options) {
+						maxH = len(drp.Options)
+					}
+					listH := maxH
+
+					style := tcell.StyleDefault.Foreground(drp.Style.Color).Background(tcell.ColorBlack)
+					popupH := listH + 2
+
+					spaceBelow := h - (res.Y + res.H)
+					if spaceBelow < popupH && res.Y >= popupH {
+						state.OpenAbove = true
+					} else {
+						state.OpenAbove = false
+					}
+
+					if state.OpenAbove {
+						listY = res.Y - popupH
+					}
+
+					// Draw Shadow (right and bottom edges only)
+					for i := 1; i <= popupH; i++ {
+						if listY+i < h && res.X+listW < w {
+							currentCell := grid.Cells[listY+i][res.X+listW]
+							grid.SetContent(res.X+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+						}
+					}
+					for j := 1; j <= listW; j++ {
+						if listY+popupH < h && res.X+j < w {
+							currentCell := grid.Cells[listY+popupH][res.X+j]
+							grid.SetContent(res.X+j, listY+popupH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+						}
+					}
+
+					// Fill background
+					for y := 0; y < popupH; y++ {
+						for x := 0; x < listW; x++ {
+							if listY+y < h && res.X+x < w {
+								grid.SetContent(res.X+x, listY+y, ' ', style)
+							}
+						}
+					}
+
+					// Draw Border
+					drawBorder(grid, res.X, listY, listW, popupH, "", style)
+
+					for i := 0; i < listH; i++ {
+						optIdx := i + state.ScrollOffset
+						if optIdx >= len(drp.Options) {
+							break
+						}
+						opt := drp.Options[optIdx]
+						optStyle := style
+						if optIdx == state.FocusedIndex {
+							optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+						}
+
+						label := " " + opt
+						for len(label) < listW-2 {
+							label += " "
+						}
+
+						curX := res.X + 1
+						for _, r := range label {
+							if listY+1+i < h && curX < w && curX < res.X+listW-1 {
+								grid.SetContent(curX, listY+1+i, r, optStyle)
+								curX++
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Render MenuBar overlays
+	for id, stateObj := range a.componentStates {
+		if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
+			debugLog(fmt.Sprintf("Found open MenuBar state for ID: %s, open index: %d", id, state.OpenMenuIndex))
+			res := findLayoutResultByID(layout, id)
+			if res == nil {
+				debugLog(fmt.Sprintf("  Layout result not found for ID: %s", id))
+			}
+			menuBarNode := findNodeByID(root, id)
+			if menuBarNode == nil {
+				debugLog(fmt.Sprintf("  Node not found for ID: %s", id))
+			}
+			if res != nil && menuBarNode != nil {
+				if mb, ok := menuBarNode.(*MenuBar); ok {
+					borderOffset := 0
+					if mb.Style.Border {
+						borderOffset = 1
+					}
+					curX := res.X + borderOffset + mb.Style.Padding.Left
+
+					menuX := curX
+					for i := 0; i < state.OpenMenuIndex; i++ {
+						menuX += len(mb.Menus[i].Title) + 4
+					}
+
+					openMenu := mb.Menus[state.OpenMenuIndex]
+					listY := res.Y + borderOffset + mb.Style.Padding.Top + 1
+
+					listW := 0
+					for _, item := range openMenu.Items {
+						if len(item.Label) > listW {
+							listW = len(item.Label)
+						}
+					}
+					listW += 4 // +2 for padding, +2 for borders
+
+					listH := len(openMenu.Items) + 2 // +2 for top/bottom borders
+
+					style := tcell.StyleDefault.Foreground(mb.Style.Color).Background(tcell.ColorBlack)
+
+					// Draw Shadow (right and bottom edges only)
+					for i := 1; i <= listH; i++ {
+						if listY+i < h && menuX+listW < w {
+							currentCell := grid.Cells[listY+i][menuX+listW]
+							grid.SetContent(menuX+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+						}
+					}
+					for j := 1; j <= listW; j++ {
+						if listY+listH < h && menuX+j < w {
+							currentCell := grid.Cells[listY+listH][menuX+j]
+							grid.SetContent(menuX+j, listY+listH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+						}
+					}
+
+					// Fill background
+					for i := 0; i < listH; i++ {
+						for j := 0; j < listW; j++ {
+							if listY+i < h && menuX+j < w {
+								grid.SetContent(menuX+j, listY+i, ' ', style)
+							}
+						}
+					}
+
+					// Draw Border
+					drawBorder(grid, menuX, listY, listW, listH, "", style)
+
+					for i, item := range openMenu.Items {
+						itemStyle := style
+						if state.FocusedItemIndex == i {
+							itemStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+						}
+						if item.Disabled {
+							itemStyle = itemStyle.Foreground(tcell.ColorGray)
+						}
+
+						label := " " + item.Label
+						for len(label) < listW-2 {
+							label += " "
+						}
+
+						curItemX := menuX + 1
+						for _, r := range label {
+							if listY+i+1 < h && curItemX < w {
+								grid.SetContent(curItemX, listY+i+1, r, itemStyle)
+								curItemX++
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Render Popup overlays
+	var activePopups []*Popup
+	for id, stateObj := range a.componentStates {
+		if state, ok := stateObj.(*PopupState); ok && state.Open {
+			node := findNodeByID(root, id)
+			if n, ok := node.(*Popup); ok {
+				activePopups = append(activePopups, n)
+			}
+		}
+	}
+
+	for _, popup := range activePopups {
+		maxPopupW := w - popup.X
+		maxPopupH := h - popup.Y
+		if maxPopupW < 0 {
+			maxPopupW = 0
+		}
+		if maxPopupH < 0 {
+			maxPopupH = 0
+		}
+
+		popupConstraints := Constraints{
+			MaxW: maxPopupW,
+			MaxH: maxPopupH,
+		}
+
+		popupLayout := Layout(popup.Child, popup.X, popup.Y, popupConstraints)
+
+		// Fill background to prevent see-through
+		style := tcell.StyleDefault.Foreground(popup.Style.Color).Background(popup.Style.Background)
+		for y := popup.Y; y < popup.Y+popupLayout.H; y++ {
+			for x := popup.X; x < popup.X+popupLayout.W; x++ {
+				if x < w && y < h {
+					grid.SetContent(x, y, ' ', style)
+				}
+			}
+		}
+
+		Render(grid, popupLayout, a.focusedID, a.componentStates)
+	}
+
+	// 4. Diff and update screen
+	if a.previousGrid == nil || a.previousGrid.W != w || a.previousGrid.H != h {
+		a.screen.Clear()
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				cell := grid.Cells[y][x]
+				a.screen.SetContent(x, y, cell.Rune, nil, cell.Style)
+			}
+		}
+	} else {
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				newCell := grid.Cells[y][x]
+				oldCell := a.previousGrid.Cells[y][x]
+				if newCell.Rune != oldCell.Rune || newCell.Style != oldCell.Style {
+					a.screen.SetContent(x, y, newCell.Rune, nil, newCell.Style)
+				}
+			}
+		}
+	}
+
+	a.previousGrid = grid
+
+	// Handle cursor for focused TextInput
+	if a.focusedID != "" {
+		focusedNode := findNodeByID(root, a.focusedID)
+		if input, ok := focusedNode.(*TextInput); ok {
+			var res *LayoutResult
+			for id, stateObj := range a.componentStates {
+				if state, ok := stateObj.(*ModalState); ok && state.Open {
+					node := findNodeByID(root, id)
+					if modal, ok := node.(*Modal); ok {
+						w, h := a.screen.Size()
+						maxModalW := w - 4
+						maxModalH := h - 4
+						if maxModalW < 0 {
+							maxModalW = 0
+						}
+						if maxModalH < 0 {
+							maxModalH = 0
+						}
+
+						modalConstraints := Constraints{
+							MaxW: maxModalW,
+							MaxH: maxModalH,
+						}
+
+						modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
+						modalW := modalLayout.W + 2
+						modalH := modalLayout.H + 2
+
+						if modalW > w {
+							modalW = w
+						}
+						if modalH > h {
+							modalH = h
+						}
+
+						modalX := (w - modalW) / 2
+						modalY := (h - modalH) / 2
+
+						ml := Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
+						res = findLayoutResultByID(ml, a.focusedID)
+						if res != nil {
+							break
+						}
+					}
+				}
+			}
+			if res == nil {
+				res = findLayoutResultByID(layout, a.focusedID)
+			}
+			if res != nil {
+				stateObj, ok := a.componentStates[a.focusedID]
+				if ok {
+					state := stateObj.(*TextInputState)
+					if input.Cursor != nil {
+						state.cursorOffset = *input.Cursor
+					}
+					borderOffset := 0
+					if input.Style.Border {
+						borderOffset = 1
+					}
+					if input.Style.Multiline {
+						line, col := offsetToLineCol(input.Value, state.cursorOffset)
+						a.screen.ShowCursor(res.X+input.Style.Padding.Left+col-state.scrollOffset+borderOffset, res.Y+input.Style.Padding.Top+line+borderOffset-state.vScrollOffset)
+					} else {
+						visualOffset := state.cursorOffset - state.scrollOffset
+						a.screen.ShowCursor(res.X+input.Style.Padding.Left+visualOffset+borderOffset, res.Y+input.Style.Padding.Top+borderOffset)
+					}
+				} else {
+					borderOffset := 0
+					if input.Style.Border {
+						borderOffset = 1
+					}
+					a.screen.ShowCursor(res.X+len(input.Value)+borderOffset, res.Y+borderOffset)
+				}
+			}
+		} else {
+			a.screen.HideCursor()
+		}
+	} else {
+		a.screen.HideCursor()
+	}
+
+	a.screen.Show()
+
+	return grid, root, layout, focusableIDs, nil
 }
 
 // GetComponentState retrieves state for a component by ID.
@@ -120,513 +637,10 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 	}()
 
 	for {
-		// 1. Get the current UI tree or reuse previous
-		var root Node
-		if a.dirty || a.previousRoot == nil {
-			ctx := &RenderContext{app: a}
-			root = renderFn(ctx)
-			if err := validateUniqueIDs(root); err != nil {
-				return err
-			}
-			a.previousRoot = root
-			a.dirty = false
-
-			// Collect all effect IDs requested in this frame
-			requestedEffects := make(map[string]bool)
-			for _, eff := range ctx.effects {
-				requestedEffects[eff.ID] = true
-			}
-
-			// Detect Unmounts and run cleanups (not called implies unmounted)
-			for id, cleanup := range a.activeCleanups {
-				if !requestedEffects[id] {
-					if cleanup != nil {
-						cleanup()
-					}
-					delete(a.activeCleanups, id)
-				}
-			}
-
-			// Detect Mounts and run effects
-			for _, effectRec := range ctx.effects {
-				id := effectRec.ID
-				if _, active := a.activeCleanups[id]; !active {
-					cleanup := effectRec.Effect()
-					if cleanup != nil {
-						a.activeCleanups[id] = cleanup
-					}
-				}
-			}
-		} else {
-			root = a.previousRoot
+		_, root, layout, focusableIDs, err := a.RenderFrame(renderFn)
+		if err != nil {
+			return err
 		}
-
-		// Find open modal if any
-		var activeModal *Modal
-		for id, stateObj := range a.componentStates {
-			if state, ok := stateObj.(*ModalState); ok && state.Open {
-				node := findNodeByID(root, id)
-				if n, ok := node.(*Modal); ok {
-					activeModal = n
-					break
-				}
-			}
-		}
-
-		var focusableIDs []string
-		if activeModal != nil {
-			focusableIDs = findFocusableIDs(activeModal.Child, a.componentStates)
-			// Ensure focus is inside modal
-			found := false
-			for _, id := range focusableIDs {
-				if id == a.focusedID {
-					found = true
-					break
-				}
-			}
-			if !found && len(focusableIDs) > 0 {
-				a.focusedID = focusableIDs[0]
-			}
-		} else {
-			focusableIDs = findFocusableIDs(root, a.componentStates)
-			if a.focusedID == "" && len(focusableIDs) > 0 {
-				a.focusedID = focusableIDs[0]
-			}
-		}
-
-		// 2. Compute layout
-		w, h := a.screen.Size()
-		layout := Layout(root, 0, 0, Constraints{MaxW: w, MaxH: h})
-
-		// Update scroll offset for focused TextInput based on up-to-date layout
-		if a.focusedID != "" {
-			focusedNode := findNodeByID(root, a.focusedID)
-			if input, ok := focusedNode.(*TextInput); ok {
-				res := findLayoutResultByID(layout, a.focusedID)
-				if res != nil {
-					stateObj, ok := a.componentStates[a.focusedID]
-					if ok {
-						state := stateObj.(*TextInputState)
-						borderOffset := 0
-						if input.Style.Border {
-							borderOffset = 1
-						}
-
-						w := res.W - input.Style.Padding.Left - input.Style.Padding.Right - borderOffset*2
-						if w > 0 && !input.Style.Multiline {
-							if state.cursorOffset < state.scrollOffset {
-								state.scrollOffset = state.cursorOffset
-							}
-							if state.cursorOffset > state.scrollOffset+w {
-								state.scrollOffset = state.cursorOffset - w
-							}
-						}
-
-						if input.Style.Multiline {
-							line, col := offsetToLineCol(input.Value, state.cursorOffset)
-							h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
-							if h > 0 {
-								if line < state.vScrollOffset {
-									state.vScrollOffset = line
-								}
-								if line >= state.vScrollOffset+h {
-									state.vScrollOffset = line - h + 1
-								}
-							}
-
-							// Horizontal scroll for multiline
-							if w > 0 {
-								if col < state.scrollOffset {
-									state.scrollOffset = col
-								}
-								if col >= state.scrollOffset+w {
-									state.scrollOffset = col - w + 1
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// 3. Render to grid
-		grid := NewGrid(w, h)
-		Render(grid, layout, a.focusedID, a.componentStates)
-
-		// Render Modal overlay if active
-		if activeModal != nil {
-			maxModalW := w - 4
-			maxModalH := h - 4
-			if maxModalW < 0 {
-				maxModalW = 0
-			}
-			if maxModalH < 0 {
-				maxModalH = 0
-			}
-
-			modalConstraints := Constraints{
-				MaxW: maxModalW,
-				MaxH: maxModalH,
-			}
-
-			// Layout at 0,0 to find size
-			modalLayout := Layout(activeModal.Child, 0, 0, modalConstraints)
-
-			modalW := modalLayout.W + 2
-			modalH := modalLayout.H + 2
-
-			if modalW > w {
-				modalW = w
-			}
-			if modalH > h {
-				modalH = h
-			}
-
-			modalX := (w - modalW) / 2
-			modalY := (h - modalH) / 2
-
-			// Layout at correct position
-			modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
-
-			style := tcell.StyleDefault.Foreground(activeModal.Style.Color).Background(activeModal.Style.Background)
-			drawBorder(grid, modalX, modalY, modalW, modalH, "", style)
-
-			for y := modalY + 1; y < modalY+modalH-1; y++ {
-				for x := modalX + 1; x < modalX+modalW-1; x++ {
-					grid.SetContent(x, y, ' ', style)
-				}
-			}
-
-			Render(grid, modalLayout, a.focusedID, a.componentStates)
-		}
-
-		// Render dropdown overlays
-		for id, stateObj := range a.componentStates {
-			if state, ok := stateObj.(*DropdownState); ok && state.Open {
-				res := findLayoutResultByID(layout, id)
-				dropdownNode := findNodeByID(root, id)
-				if res != nil && dropdownNode != nil {
-					if drp, ok := dropdownNode.(*Dropdown); ok {
-						listY := res.Y + res.H
-						listW := res.W
-						maxH := drp.MaxListHeight
-						if maxH <= 0 {
-							maxH = 5 // Default limit
-						}
-						if maxH > len(drp.Options) {
-							maxH = len(drp.Options)
-						}
-						listH := maxH
-
-						style := tcell.StyleDefault.Foreground(drp.Style.Color).Background(tcell.ColorBlack)
-						popupH := listH + 2
-
-						spaceBelow := h - (res.Y + res.H)
-						if spaceBelow < popupH && res.Y >= popupH {
-							state.OpenAbove = true
-						} else {
-							state.OpenAbove = false
-						}
-
-						if state.OpenAbove {
-							listY = res.Y - popupH
-						}
-
-						// Draw Shadow (right and bottom edges only)
-						for i := 1; i <= popupH; i++ {
-							if listY+i < h && res.X+listW < w {
-								currentCell := grid.Cells[listY+i][res.X+listW]
-								grid.SetContent(res.X+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-							}
-						}
-						for j := 1; j <= listW; j++ {
-							if listY+popupH < h && res.X+j < w {
-								currentCell := grid.Cells[listY+popupH][res.X+j]
-								grid.SetContent(res.X+j, listY+popupH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-							}
-						}
-
-						// Fill background
-						for y := 0; y < popupH; y++ {
-							for x := 0; x < listW; x++ {
-								if listY+y < h && res.X+x < w {
-									grid.SetContent(res.X+x, listY+y, ' ', style)
-								}
-							}
-						}
-
-						// Draw Border
-						drawBorder(grid, res.X, listY, listW, popupH, "", style)
-
-						for i := 0; i < listH; i++ {
-							optIdx := i + state.ScrollOffset
-							if optIdx >= len(drp.Options) {
-								break
-							}
-							opt := drp.Options[optIdx]
-							optStyle := style
-							if optIdx == state.FocusedIndex {
-								optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
-							}
-
-							label := " " + opt
-							for len(label) < listW-2 {
-								label += " "
-							}
-
-							curX := res.X + 1
-							for _, r := range label {
-								if listY+1+i < h && curX < w && curX < res.X+listW-1 {
-									grid.SetContent(curX, listY+1+i, r, optStyle)
-									curX++
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// Render MenuBar overlays
-		for id, stateObj := range a.componentStates {
-			if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
-				debugLog(fmt.Sprintf("Found open MenuBar state for ID: %s, open index: %d", id, state.OpenMenuIndex))
-				res := findLayoutResultByID(layout, id)
-				if res == nil {
-					debugLog(fmt.Sprintf("  Layout result not found for ID: %s", id))
-				}
-				menuBarNode := findNodeByID(root, id)
-				if menuBarNode == nil {
-					debugLog(fmt.Sprintf("  Node not found for ID: %s", id))
-				}
-				if res != nil && menuBarNode != nil {
-					if mb, ok := menuBarNode.(*MenuBar); ok {
-						borderOffset := 0
-						if mb.Style.Border {
-							borderOffset = 1
-						}
-						curX := res.X + borderOffset + mb.Style.Padding.Left
-
-						menuX := curX
-						for i := 0; i < state.OpenMenuIndex; i++ {
-							menuX += len(mb.Menus[i].Title) + 4
-						}
-
-						openMenu := mb.Menus[state.OpenMenuIndex]
-						listY := res.Y + borderOffset + mb.Style.Padding.Top + 1
-
-						listW := 0
-						for _, item := range openMenu.Items {
-							if len(item.Label) > listW {
-								listW = len(item.Label)
-							}
-						}
-						listW += 4 // +2 for padding, +2 for borders
-
-						listH := len(openMenu.Items) + 2 // +2 for top/bottom borders
-
-						style := tcell.StyleDefault.Foreground(mb.Style.Color).Background(tcell.ColorBlack)
-
-						// Draw Shadow (right and bottom edges only)
-						for i := 1; i <= listH; i++ {
-							if listY+i < h && menuX+listW < w {
-								currentCell := grid.Cells[listY+i][menuX+listW]
-								grid.SetContent(menuX+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-							}
-						}
-						for j := 1; j <= listW; j++ {
-							if listY+listH < h && menuX+j < w {
-								currentCell := grid.Cells[listY+listH][menuX+j]
-								grid.SetContent(menuX+j, listY+listH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-							}
-						}
-
-						// Fill background
-						for i := 0; i < listH; i++ {
-							for j := 0; j < listW; j++ {
-								if listY+i < h && menuX+j < w {
-									grid.SetContent(menuX+j, listY+i, ' ', style)
-								}
-							}
-						}
-
-						// Draw Border
-						drawBorder(grid, menuX, listY, listW, listH, "", style)
-
-						for i, item := range openMenu.Items {
-							itemStyle := style
-							if state.FocusedItemIndex == i {
-								itemStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
-							}
-							if item.Disabled {
-								itemStyle = itemStyle.Foreground(tcell.ColorGray)
-							}
-
-							label := " " + item.Label
-							for len(label) < listW-2 {
-								label += " "
-							}
-
-							curItemX := menuX + 1
-							for _, r := range label {
-								if listY+i+1 < h && curItemX < w {
-									grid.SetContent(curItemX, listY+i+1, r, itemStyle)
-									curItemX++
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// Render Popup overlays
-		var activePopups []*Popup
-		for id, stateObj := range a.componentStates {
-			if state, ok := stateObj.(*PopupState); ok && state.Open {
-				node := findNodeByID(root, id)
-				if n, ok := node.(*Popup); ok {
-					activePopups = append(activePopups, n)
-				}
-			}
-		}
-
-		for _, popup := range activePopups {
-			maxPopupW := w - popup.X
-			maxPopupH := h - popup.Y
-			if maxPopupW < 0 {
-				maxPopupW = 0
-			}
-			if maxPopupH < 0 {
-				maxPopupH = 0
-			}
-
-			popupConstraints := Constraints{
-				MaxW: maxPopupW,
-				MaxH: maxPopupH,
-			}
-
-			popupLayout := Layout(popup.Child, popup.X, popup.Y, popupConstraints)
-
-			// Fill background to prevent see-through
-			style := tcell.StyleDefault.Foreground(popup.Style.Color).Background(popup.Style.Background)
-			for y := popup.Y; y < popup.Y+popupLayout.H; y++ {
-				for x := popup.X; x < popup.X+popupLayout.W; x++ {
-					if x < w && y < h {
-						grid.SetContent(x, y, ' ', style)
-					}
-				}
-			}
-
-			Render(grid, popupLayout, a.focusedID, a.componentStates)
-		}
-
-		// 4. Diff and update screen
-		if a.previousGrid == nil || a.previousGrid.W != w || a.previousGrid.H != h {
-			a.screen.Clear()
-			for y := 0; y < h; y++ {
-				for x := 0; x < w; x++ {
-					cell := grid.Cells[y][x]
-					a.screen.SetContent(x, y, cell.Rune, nil, cell.Style)
-				}
-			}
-		} else {
-			for y := 0; y < h; y++ {
-				for x := 0; x < w; x++ {
-					newCell := grid.Cells[y][x]
-					oldCell := a.previousGrid.Cells[y][x]
-					if newCell.Rune != oldCell.Rune || newCell.Style != oldCell.Style {
-						a.screen.SetContent(x, y, newCell.Rune, nil, newCell.Style)
-					}
-				}
-			}
-		}
-
-		a.previousGrid = grid
-
-		// Handle cursor for focused TextInput
-		if a.focusedID != "" {
-			focusedNode := findNodeByID(root, a.focusedID)
-			if input, ok := focusedNode.(*TextInput); ok {
-				var res *LayoutResult
-				for id, stateObj := range a.componentStates {
-					if state, ok := stateObj.(*ModalState); ok && state.Open {
-						node := findNodeByID(root, id)
-						if modal, ok := node.(*Modal); ok {
-							w, h := a.screen.Size()
-							maxModalW := w - 4
-							maxModalH := h - 4
-							if maxModalW < 0 {
-								maxModalW = 0
-							}
-							if maxModalH < 0 {
-								maxModalH = 0
-							}
-
-							modalConstraints := Constraints{
-								MaxW: maxModalW,
-								MaxH: maxModalH,
-							}
-
-							modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
-							modalW := modalLayout.W + 2
-							modalH := modalLayout.H + 2
-
-							if modalW > w {
-								modalW = w
-							}
-							if modalH > h {
-								modalH = h
-							}
-
-							modalX := (w - modalW) / 2
-							modalY := (h - modalH) / 2
-
-							ml := Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
-							res = findLayoutResultByID(ml, a.focusedID)
-							if res != nil {
-								break
-							}
-						}
-					}
-				}
-				if res == nil {
-					res = findLayoutResultByID(layout, a.focusedID)
-				}
-				if res != nil {
-					stateObj, ok := a.componentStates[a.focusedID]
-					if ok {
-						state := stateObj.(*TextInputState)
-						if input.Cursor != nil {
-							state.cursorOffset = *input.Cursor
-						}
-						borderOffset := 0
-						if input.Style.Border {
-							borderOffset = 1
-						}
-						if input.Style.Multiline {
-							line, col := offsetToLineCol(input.Value, state.cursorOffset)
-							a.screen.ShowCursor(res.X+input.Style.Padding.Left+col-state.scrollOffset+borderOffset, res.Y+input.Style.Padding.Top+line+borderOffset-state.vScrollOffset)
-						} else {
-							visualOffset := state.cursorOffset - state.scrollOffset
-							a.screen.ShowCursor(res.X+input.Style.Padding.Left+visualOffset+borderOffset, res.Y+input.Style.Padding.Top+borderOffset)
-						}
-					} else {
-						borderOffset := 0
-						if input.Style.Border {
-							borderOffset = 1
-						}
-						a.screen.ShowCursor(res.X+len(input.Value)+borderOffset, res.Y+borderOffset)
-					}
-				}
-			} else {
-				a.screen.HideCursor()
-			}
-		} else {
-			a.screen.HideCursor()
-		}
-
-		a.screen.Show()
 
 		// Event loop
 		ev := a.screen.PollEvent()
