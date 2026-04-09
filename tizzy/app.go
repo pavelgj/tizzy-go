@@ -984,6 +984,21 @@ func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) 
 				}
 			}
 		}
+		
+		if tabs, ok := res.Node.(*Tabs); ok {
+			activeIdx := 0
+			if tabs.Style.ID != "" && componentStates != nil {
+				if stateObj, ok := componentStates[tabs.Style.ID]; ok {
+					activeIdx = stateObj.(*TabsState).ActiveTab
+				}
+			}
+			if activeIdx >= 0 && activeIdx < len(res.Children) {
+				if path := findNodePathAt(res.Children[activeIdx], x, y+scrollOffset, componentStates); path != nil {
+					return append([]Node{res.Node}, path...)
+				}
+			}
+			return []Node{res.Node}
+		}
 
 		for _, child := range res.Children {
 			if path := findNodePathAt(child, x, y+scrollOffset, componentStates); path != nil {

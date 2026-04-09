@@ -20,6 +20,7 @@ func main() {
 		count, setCount := tz.UseState(ctx, 0)
 		countOutside, setCountOutside := tz.UseState(ctx, 0)
 		notificationsEnabled, setNotificationsEnabled := tz.UseState(ctx, true)
+		textValue, setTextValue := tz.UseState(ctx, "Initial Value")
 
 		return tz.NewBox(
 			tz.Style{
@@ -55,7 +56,9 @@ func main() {
 							tz.NewCheckbox(ctx, tz.Style{Focusable: true}, "Enable Notifications", notificationsEnabled, func(val bool) {
 								setNotificationsEnabled(val)
 							}),
-							tz.NewTextInput(ctx, tz.Style{Focusable: true, Width: 20, Margin: tz.Margin{Top: 1}}, "Initial Value", func(val string) {}),
+							tz.NewTextInput(ctx, tz.Style{Focusable: true, Width: 20, Margin: tz.Margin{Top: 1}}, textValue, func(val string) {
+								setTextValue(val)
+							}),
 						),
 					},
 					{
