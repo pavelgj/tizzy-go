@@ -799,20 +799,7 @@ func (e *EventTick) When() time.Time {
 	return e.t
 }
 
-func findListAt(res LayoutResult, x, y int, componentStates map[string]any) *List {
-	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
-		if l, ok := res.Node.(*List); ok {
-			return l
-		}
 
-		for _, child := range res.Children {
-			if lChild := findListAt(child, x, y, componentStates); lChild != nil {
-				return lChild
-			}
-		}
-	}
-	return nil
-}
 
 func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) []Node {
 	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {

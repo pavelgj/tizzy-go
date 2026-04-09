@@ -86,26 +86,7 @@ func TestListEnterSelection(t *testing.T) {
 	}
 }
 
-func TestFindListAt(t *testing.T) {
-	list := &List{Style: Style{ID: "mylist"}}
-	res := LayoutResult{
-		Node: list,
-		X:    10,
-		Y:    10,
-		W:    20,
-		H:    20,
-	}
 
-	found := findListAt(res, 15, 15, nil)
-	if found != list {
-		t.Errorf("Expected to find list, got %v", found)
-	}
-
-	found = findListAt(res, 5, 5, nil)
-	if found != nil {
-		t.Errorf("Expected not to find list, got %v", found)
-	}
-}
 
 func TestListPageUpDown(t *testing.T) {
 	app := &App{

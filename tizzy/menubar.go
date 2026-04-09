@@ -69,6 +69,16 @@ func (m *MenuBar) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool 
 				s.FocusedItemIndex = -1
 				return true
 			}
+			if key.Key() == tcell.KeyRune {
+				r := key.Rune()
+				for i, menu := range m.Menus {
+					if menu.AltRune == r && r != 0 {
+						s.OpenMenuIndex = i
+						s.FocusedItemIndex = -1
+						return true
+					}
+				}
+			}
 		} else {
 			openMenu := m.Menus[s.OpenMenuIndex]
 			if key.Key() == tcell.KeyDown {
