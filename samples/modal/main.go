@@ -18,6 +18,7 @@ func main() {
 		simpleOpen, setSimpleOpen := tz.UseState(ctx, false)
 		confirmOpen, setConfirmOpen := tz.UseState(ctx, false)
 		formOpen, setFormOpen := tz.UseState(ctx, false)
+		inputValue, setInputValue := tz.UseState(ctx, "Type here")
 
 		return tz.NewBox(
 			tz.Style{
@@ -103,8 +104,8 @@ func main() {
 
 					tz.NewBox(
 						tz.Style{Margin: tz.Margin{Top: 1, Bottom: 1}},
-						tz.NewButton(tz.Style{ID: "form_opt1", Focusable: true, Color: tcell.ColorWhite}, "Option 1", nil),
-						tz.NewButton(tz.Style{ID: "form_opt2", Focusable: true, Color: tcell.ColorWhite}, "Option 2", nil),
+						tz.NewText(tz.Style{Color: tcell.ColorWhite}, "Name:"),
+						tz.NewTextInput(ctx, tz.Style{ID: "form_input", Focusable: true, Color: tcell.ColorWhite, Width: 20}, inputValue, setInputValue),
 					),
 
 					tz.NewBox(

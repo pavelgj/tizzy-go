@@ -28,14 +28,25 @@ type Renderable interface {
 
 // EventContext provides context for event handling.
 type EventContext struct {
-	Layout    LayoutResult
-	PopupOpen bool
+	Layout        LayoutResult
+	PopupOpen     bool
+	OverlayLayout LayoutResult
 }
 
 // EventHandler indicates that a node can handle events.
 type EventHandler interface {
 	HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 	DefaultState() any
+}
+
+// OpenableState allows app.go to check if a component has an open overlay
+type OpenableState interface {
+	IsOpen() bool
+}
+
+// OverlayHandler allows app.go to delegate events to the overlay
+type OverlayHandler interface {
+	HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult)
 }
 
 // Focusable indicates that a node can receive focus.

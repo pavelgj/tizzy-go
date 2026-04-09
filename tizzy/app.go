@@ -519,7 +519,43 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 		if a.focusedID != "" {
 			focusedNode := findNodeByID(root, a.focusedID)
 			if input, ok := focusedNode.(*TextInput); ok {
-				res := findLayoutResultByID(layout, a.focusedID)
+				var res *LayoutResult
+				for id, stateObj := range a.componentStates {
+					if state, ok := stateObj.(*ModalState); ok && state.Open {
+						node := findNodeByID(root, id)
+						if modal, ok := node.(*Modal); ok {
+							w, h := a.screen.Size()
+							maxModalW := w - 4
+							maxModalH := h - 4
+							if maxModalW < 0 { maxModalW = 0 }
+							if maxModalH < 0 { maxModalH = 0 }
+							
+							modalConstraints := Constraints{
+								MaxW: maxModalW,
+								MaxH: maxModalH,
+							}
+							
+							modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
+							modalW := modalLayout.W + 2
+							modalH := modalLayout.H + 2
+							
+							if modalW > w { modalW = w }
+							if modalH > h { modalH = h }
+							
+							modalX := (w - modalW) / 2
+							modalY := (h - modalH) / 2
+							
+							ml := Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
+							res = findLayoutResultByID(ml, a.focusedID)
+							if res != nil {
+								break
+							}
+						}
+					}
+				}
+				if res == nil {
+					res = findLayoutResultByID(layout, a.focusedID)
+				}
 				if res != nil {
 					stateObj, ok := a.componentStates[a.focusedID]
 					if ok {
@@ -819,6 +855,8 @@ func (a *App) setFocus(id string, root Node) {
 	a.focusedID = id
 	a.dirty = true
 
+	a.closeOtherDropdowns(id)
+
 	if id != "" && root != nil {
 		node := findNodeByID(root, id)
 		if list, ok := node.(*List); ok {
@@ -911,121 +949,69 @@ type MouseEvent interface {
 func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bool {
 	mx, my := ev.Position()
 
-	if ev.Buttons()&tcell.Button1 != 0 {
-		handled := false
-
-		// Find open modal if any
-		var activeModal *Modal
-		for id, stateObj := range a.componentStates {
-			if state, ok := stateObj.(*ModalState); ok && state.Open {
-				node := findNodeByID(root, id)
-				if n, ok := node.(*Modal); ok {
-					activeModal = n
-					break
+	// Handle generic overlays
+	for id, stateObj := range a.componentStates {
+		if openable, ok := stateObj.(OpenableState); ok && openable.IsOpen() {
+			node := findNodeByID(root, id)
+			if handler, ok := node.(OverlayHandler); ok {
+				res := findLayoutResultByID(layout, id)
+				var compLayout LayoutResult
+				if res != nil {
+					compLayout = *res
 				}
-			}
-		}
-
-		if activeModal != nil {
-			w, h := a.screen.Size()
-			maxModalW := w - 4
-			maxModalH := h - 4
-			if maxModalW < 0 {
-				maxModalW = 0
-			}
-			if maxModalH < 0 {
-				maxModalH = 0
-			}
-
-			modalConstraints := Constraints{
-				MaxW: maxModalW,
-				MaxH: maxModalH,
-			}
-
-			modalLayout := Layout(activeModal.Child, 0, 0, modalConstraints)
-			modalW := modalLayout.W + 2
-			modalH := modalLayout.H + 2
-
-			if modalW > w {
-				modalW = w
-			}
-			if modalH > h {
-				modalH = h
-			}
-
-			modalX := (w - modalW) / 2
-			modalY := (h - modalH) / 2
-
-			modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
-
-			path := findNodePathAt(modalLayout, mx, my, a.componentStates)
-			if len(path) > 0 {
-				clickedNode := path[len(path)-1]
-
-				var nodeStyle Style
-				var focusableNode Node
-				for i := len(path) - 1; i >= 0; i-- {
-					n := path[i]
-					var s Style
-					switch node := n.(type) {
-					case *Text:
-						s = node.Style
-					case *TextInput:
-						s = node.Style
-					case *Button:
-						s = node.Style
-					case *Checkbox:
-						s = node.Style
-					case *RadioButton:
-						s = node.Style
-					case *Spinner:
-						s = node.Style
-					case *ProgressBar:
-						s = node.Style
-					case *ScrollView:
-						s = node.Style
-					case *Dropdown:
-						s = node.Style
-					case *Box:
-						s = node.Style
-					case *Modal:
-						s = node.Style
-					}
-					if s.Focusable && s.ID != "" {
-						focusableNode = n
-						nodeStyle = s
-						break
-					}
+				
+				eventCtx := EventContext{
+					Layout: compLayout,
 				}
-
-				if focusableNode != nil {
-					a.focusedID = nodeStyle.ID
-					a.closeOtherDropdowns(a.focusedID)
+				
+				// Special case for Modal layout calculation
+				if modal, ok := node.(*Modal); ok {
+					w, h := a.screen.Size()
+					maxModalW := w - 4
+					maxModalH := h - 4
+					if maxModalW < 0 { maxModalW = 0 }
+					if maxModalH < 0 { maxModalH = 0 }
+					
+					modalConstraints := Constraints{
+						MaxW: maxModalW,
+						MaxH: maxModalH,
+					}
+					
+					modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
+					modalW := modalLayout.W + 2
+					modalH := modalLayout.H + 2
+					
+					if modalW > w { modalW = w }
+					if modalH > h { modalH = h }
+					
+					modalX := (w - modalW) / 2
+					modalY := (h - modalH) / 2
+					
+					eventCtx.OverlayLayout = Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
 				}
-
-				if handler, ok := clickedNode.(EventHandler); ok {
-					state := a.componentStates[clickedNode.GetStyle().ID]
-					res := findLayoutResultByID(layout, clickedNode.GetStyle().ID)
-					var clickedLayout LayoutResult
-					if res != nil {
-						clickedLayout = *res
+				
+				if tcellEv, ok := ev.(tcell.Event); ok {
+					handled, searchLayout := handler.HandleOverlayEvent(tcellEv, stateObj, eventCtx)
+					if handled {
+						a.dirty = true
+						return true
 					}
-					eventCtx := EventContext{
-						Layout: clickedLayout,
-					}
-					if tcellEv, ok := ev.(tcell.Event); ok {
-						if handler.HandleEvent(tcellEv, state, eventCtx) {
-							a.dirty = true
+					if searchLayout != nil {
+						path := findNodePathAt(*searchLayout, mx, my, a.componentStates)
+						if len(path) > 0 {
+							a.dispatchEventToPath(path, tcellEv, root, *searchLayout)
+							return true
 						}
 					}
 				}
-
-				handled = true
-			} else {
-				// Trap clicks outside modal
-				handled = true
 			}
 		}
+	}
+
+	if ev.Buttons()&tcell.Button1 != 0 {
+		handled := false
+
+
 
 		if !handled {
 			var openMenuBar *MenuBar
@@ -1093,32 +1079,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 			}
 		}
 
-		if !handled {
-			for id, stateObj := range a.componentStates {
-				if state, ok := stateObj.(*DropdownState); ok && state.Open {
-					res := findLayoutResultByID(layout, id)
-					dropdownNode := findNodeByID(root, id)
-					if res != nil && dropdownNode != nil {
-						if drp, ok := dropdownNode.(*Dropdown); ok {
-							listY := res.Y + res.H
-							listW := res.W
-							listH := len(drp.Options)
 
-							if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
-								clickedIndex := my - listY + state.ScrollOffset
-								drp.SelectedIndex = clickedIndex
-								if drp.OnChange != nil {
-									drp.OnChange(clickedIndex)
-								}
-								state.Open = false
-								handled = true
-								break
-							}
-						}
-					}
-				}
-			}
-		}
 
 		if !handled {
 			path := findNodePathAt(layout, mx, my, a.componentStates)
@@ -1151,155 +1112,94 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				if !validPath {
 					// Do nothing
 				} else {
-					clickedNode := path[len(path)-1]
-
-					var nodeStyle Style
-					var focusableNode Node
-					for i := len(path) - 1; i >= 0; i-- {
-						n := path[i]
-						nodeStyle = n.GetStyle()
-						if nodeStyle.Focusable && nodeStyle.ID != "" {
-							focusableNode = n
-							break
-						}
-					}
-
-					if focusableNode != nil {
-						a.setFocus(nodeStyle.ID, root)
-						a.closeOtherDropdowns(a.focusedID)
-					}
-
-					if handler, ok := clickedNode.(EventHandler); ok {
-						state := a.componentStates[clickedNode.GetStyle().ID]
-						res := findLayoutResultByID(layout, clickedNode.GetStyle().ID)
-						var clickedLayout LayoutResult
-						if res != nil {
-							clickedLayout = *res
-						}
-						eventCtx := EventContext{
-							Layout: clickedLayout,
-						}
-						if tcellEv, ok := ev.(tcell.Event); ok {
-							if handler.HandleEvent(tcellEv, state, eventCtx) {
-								a.dirty = true
-							}
-						}
-						handled = true
+					if tcellEv, ok := ev.(tcell.Event); ok {
+						handled = a.dispatchEventToPath(path, tcellEv, root, layout)
 					}
 				}
 			}
 		}
 	} else if ev.Buttons()&tcell.Button4 != 0 || ev.Buttons()&tcell.WheelUp != 0 { // Wheel Up
-		dropdownScrolled := false
-		for id, stateObj := range a.componentStates {
-			if state, ok := stateObj.(*DropdownState); ok && state.Open {
-				res := findLayoutResultByID(layout, id)
-				dropdownNode := findNodeByID(root, id)
-				if res != nil && dropdownNode != nil {
-					if drp, ok := dropdownNode.(*Dropdown); ok {
-						listY := res.Y + res.H
-						listW := res.W
-						maxH := drp.MaxListHeight
-						if maxH <= 0 {
-							maxH = 5
-						}
-						if maxH > len(drp.Options) {
-							maxH = len(drp.Options)
-						}
-						listH := maxH
-
-						if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
-							state.ScrollOffset--
-							if state.ScrollOffset < 0 {
-								state.ScrollOffset = 0
-							}
-							dropdownScrolled = true
-							break
-						}
-					}
+		path := findNodePathAt(layout, mx, my, a.componentStates)
+		if len(path) > 0 {
+			targetNode := path[len(path)-1]
+			if handler, ok := targetNode.(EventHandler); ok {
+				state := a.componentStates[targetNode.GetStyle().ID]
+				res := findLayoutResultByID(layout, targetNode.GetStyle().ID)
+				var targetLayout LayoutResult
+				if res != nil {
+					targetLayout = *res
 				}
-			}
-		}
-
-		if !dropdownScrolled {
-			path := findNodePathAt(layout, mx, my, a.componentStates)
-			if len(path) > 0 {
-				targetNode := path[len(path)-1]
-				if handler, ok := targetNode.(EventHandler); ok {
-					state := a.componentStates[targetNode.GetStyle().ID]
-					res := findLayoutResultByID(layout, targetNode.GetStyle().ID)
-					var targetLayout LayoutResult
-					if res != nil {
-						targetLayout = *res
-					}
-					eventCtx := EventContext{
-						Layout: targetLayout,
-					}
-					if tcellEv, ok := ev.(tcell.Event); ok {
-						if handler.HandleEvent(tcellEv, state, eventCtx) {
-							a.dirty = true
-						}
+				eventCtx := EventContext{
+					Layout: targetLayout,
+				}
+				if tcellEv, ok := ev.(tcell.Event); ok {
+					if handler.HandleEvent(tcellEv, state, eventCtx) {
+						a.dirty = true
 					}
 				}
 			}
 		}
 	} else if ev.Buttons()&tcell.Button5 != 0 || ev.Buttons()&tcell.WheelDown != 0 { // Wheel Down
-		dropdownScrolled := false
-		for id, stateObj := range a.componentStates {
-			if state, ok := stateObj.(*DropdownState); ok && state.Open {
-				res := findLayoutResultByID(layout, id)
-				dropdownNode := findNodeByID(root, id)
-				if res != nil && dropdownNode != nil {
-					if drp, ok := dropdownNode.(*Dropdown); ok {
-						listY := res.Y + res.H
-						listW := res.W
-						maxH := drp.MaxListHeight
-						if maxH <= 0 {
-							maxH = 5
-						}
-						if maxH > len(drp.Options) {
-							maxH = len(drp.Options)
-						}
-						listH := maxH
-
-						if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
-							state.ScrollOffset++
-							if state.ScrollOffset+maxH > len(drp.Options) {
-								state.ScrollOffset = len(drp.Options) - maxH
-								if state.ScrollOffset < 0 {
-									state.ScrollOffset = 0
-								}
-							}
-							dropdownScrolled = true
-							break
-						}
-					}
+		path := findNodePathAt(layout, mx, my, a.componentStates)
+		if len(path) > 0 {
+			targetNode := path[len(path)-1]
+			if handler, ok := targetNode.(EventHandler); ok {
+				state := a.componentStates[targetNode.GetStyle().ID]
+				res := findLayoutResultByID(layout, targetNode.GetStyle().ID)
+				var targetLayout LayoutResult
+				if res != nil {
+					targetLayout = *res
 				}
-			}
-		}
-
-		if !dropdownScrolled {
-			path := findNodePathAt(layout, mx, my, a.componentStates)
-			if len(path) > 0 {
-				targetNode := path[len(path)-1]
-				if handler, ok := targetNode.(EventHandler); ok {
-					state := a.componentStates[targetNode.GetStyle().ID]
-					res := findLayoutResultByID(layout, targetNode.GetStyle().ID)
-					var targetLayout LayoutResult
-					if res != nil {
-						targetLayout = *res
-					}
-					eventCtx := EventContext{
-						Layout: targetLayout,
-					}
-					if tcellEv, ok := ev.(tcell.Event); ok {
-						if handler.HandleEvent(tcellEv, state, eventCtx) {
-							a.dirty = true
-						}
+				eventCtx := EventContext{
+					Layout: targetLayout,
+				}
+				if tcellEv, ok := ev.(tcell.Event); ok {
+					if handler.HandleEvent(tcellEv, state, eventCtx) {
+						a.dirty = true
 					}
 				}
 			}
 		}
 	}
 	return true
+}
+
+func (a *App) dispatchEventToPath(path []Node, ev tcell.Event, root Node, searchLayout LayoutResult) bool {
+	if len(path) == 0 {
+		return false
+	}
+	clickedNode := path[len(path)-1]
+
+	var nodeStyle Style
+	var focusableNode Node
+	for i := len(path) - 1; i >= 0; i-- {
+		n := path[i]
+		nodeStyle = n.GetStyle()
+		if nodeStyle.Focusable && nodeStyle.ID != "" {
+			focusableNode = n
+			break
+		}
+	}
+
+	if focusableNode != nil {
+		a.setFocus(nodeStyle.ID, root)
+	}
+
+	handled := false
+	if handler, ok := clickedNode.(EventHandler); ok {
+		state := a.componentStates[clickedNode.GetStyle().ID]
+		res := findLayoutResultByID(searchLayout, clickedNode.GetStyle().ID)
+		var clickedLayout LayoutResult
+		if res != nil {
+			clickedLayout = *res
+		}
+		eventCtx := EventContext{
+			Layout: clickedLayout,
+		}
+		if handler.HandleEvent(ev, state, eventCtx) {
+			a.dirty = true
+		}
+		handled = true
+	}
+	return handled
 }

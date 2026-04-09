@@ -97,6 +97,9 @@ func (n *TextInput) Render(grid *Grid, layout LayoutResult, focusedID string, co
 	borderStyle := style
 	if focused {
 		borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
+		if !n.Style.Border {
+			style = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+		}
 	}
 
 	borderOffset := 0
@@ -323,6 +326,23 @@ func (n *TextInput) HandleEvent(ev tcell.Event, state any, ctx EventContext) boo
 		dirty = true
 		if n.OnChange != nil {
 			n.OnChange(newVal)
+		}
+	}
+
+	// Adjust scroll offset to keep cursor visible
+	borderOffset := 0
+	if n.Style.Border {
+		borderOffset = 1
+	}
+	w := ctx.Layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2
+	if w > 0 {
+		if s.cursorOffset-s.scrollOffset >= w {
+			s.scrollOffset = s.cursorOffset - w + 1
+			dirty = true
+		}
+		if s.cursorOffset < s.scrollOffset {
+			s.scrollOffset = s.cursorOffset
+			dirty = true
 		}
 	}
 

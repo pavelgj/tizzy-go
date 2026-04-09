@@ -85,10 +85,12 @@ func (n *Button) IsFocusable() bool {
 
 // HandleEvent handles mouse and key events for the button.
 func (n *Button) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
-	if _, ok := ev.(MouseEvent); ok {
-		if n.OnClick != nil {
-			n.OnClick()
-			return true
+	if mev, ok := ev.(MouseEvent); ok {
+		if mev.Buttons()&tcell.Button1 != 0 {
+			if n.OnClick != nil {
+				n.OnClick()
+				return true
+			}
 		}
 	}
 	if key, ok := ev.(*tcell.EventKey); ok {

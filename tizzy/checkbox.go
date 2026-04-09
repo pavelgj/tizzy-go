@@ -107,12 +107,14 @@ func (n *Checkbox) IsFocusable() bool {
 
 // HandleEvent handles mouse and key events for the checkbox.
 func (n *Checkbox) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
-	if _, ok := ev.(MouseEvent); ok {
-		n.Checked = !n.Checked
-		if n.OnChange != nil {
-			n.OnChange(n.Checked)
+	if mev, ok := ev.(MouseEvent); ok {
+		if mev.Buttons()&tcell.Button1 != 0 {
+			n.Checked = !n.Checked
+			if n.OnChange != nil {
+				n.OnChange(n.Checked)
+			}
+			return true
 		}
-		return true
 	}
 	if key, ok := ev.(*tcell.EventKey); ok {
 		if key.Key() == tcell.KeyEnter || key.Rune() == ' ' {

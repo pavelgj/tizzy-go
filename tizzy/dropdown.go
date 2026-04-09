@@ -43,6 +43,10 @@ type DropdownState struct {
 	ScrollOffset int
 }
 
+func (s *DropdownState) IsOpen() bool {
+	return s.Open
+}
+
 // GetStyle returns the style of the Dropdown node.
 func (d *Dropdown) GetStyle() Style {
 	return d.Style
@@ -141,9 +145,11 @@ func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 		return false
 	}
 
-	if _, ok := ev.(*tcell.EventMouse); ok {
-		s.Open = !s.Open
-		return true
+	if mev, ok := ev.(MouseEvent); ok {
+		if mev.Buttons()&tcell.Button1 != 0 {
+			s.Open = !s.Open
+			return true
+		}
 	}
 
 	key, ok := ev.(*tcell.EventKey)
@@ -261,4 +267,70 @@ func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 	}
 
 	return dirty
+}
+
+func (d *Dropdown) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult) {
+	s, ok := state.(*DropdownState)
+	if !ok || !s.Open {
+		return false, nil
+	}
+
+	mouse, ok := ev.(*tcell.EventMouse)
+	if !ok {
+		return false, nil
+	}
+
+	mx, my := mouse.Position()
+	res := ctx.Layout
+	listY := res.Y + res.H
+	listW := res.W
+	
+	maxH := d.MaxListHeight
+	if maxH <= 0 {
+		maxH = 5
+	}
+	if maxH > len(d.Options) {
+		maxH = len(d.Options)
+	}
+	listH := maxH
+
+	if mouse.Buttons()&tcell.Button1 != 0 {
+		if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+			clickedIndex := my - listY + s.ScrollOffset
+			if clickedIndex >= 0 && clickedIndex < len(d.Options) {
+				d.SelectedIndex = clickedIndex
+				if d.OnChange != nil {
+					d.OnChange(clickedIndex)
+				}
+				s.Open = false
+				return true, nil
+			}
+		} else {
+			if !(mx >= res.X && mx < res.X+res.W && my >= res.Y && my < res.Y+res.H) {
+				s.Open = false
+				return true, nil
+			}
+		}
+	} else if mouse.Buttons()&tcell.WheelUp != 0 {
+		if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+			s.ScrollOffset--
+			if s.ScrollOffset < 0 {
+				s.ScrollOffset = 0
+			}
+			return true, nil
+		}
+	} else if mouse.Buttons()&tcell.WheelDown != 0 {
+		if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+			s.ScrollOffset++
+			if s.ScrollOffset+maxH > len(d.Options) {
+				s.ScrollOffset = len(d.Options) - maxH
+				if s.ScrollOffset < 0 {
+					s.ScrollOffset = 0
+				}
+			}
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

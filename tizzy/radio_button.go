@@ -109,11 +109,13 @@ func (n *RadioButton) IsFocusable() bool {
 
 // HandleEvent handles mouse and key events for the radio button.
 func (n *RadioButton) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
-	if _, ok := ev.(MouseEvent); ok {
-		if n.OnChange != nil {
-			n.OnChange(n.Value)
+	if mev, ok := ev.(MouseEvent); ok {
+		if mev.Buttons()&tcell.Button1 != 0 {
+			if n.OnChange != nil {
+				n.OnChange(n.Value)
+			}
+			return true
 		}
-		return true
 	}
 	if key, ok := ev.(*tcell.EventKey); ok {
 		if key.Key() == tcell.KeyEnter || key.Rune() == ' ' {
