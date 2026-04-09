@@ -2,7 +2,7 @@ package tizzy
 
 import (
 	"fmt"
-	"unicode"
+
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -36,6 +36,7 @@ func NewMenuBar(ctx *RenderContext, style Style, menus []Menu) *MenuBar {
 	// Derive hook ID and set it on style
 	id := fmt.Sprintf("hook-%d", ctx.hookIndex-1)
 	style.ID = id
+	style.Focusable = true // MenuBar must be focusable for keyboard access
 
 	return &MenuBar{
 		Style: style,
@@ -59,14 +60,56 @@ func (m *MenuBar) DefaultState() any {
 func (m *MenuBar) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 	s := state.(*MenuBarState)
 	if key, ok := ev.(*tcell.EventKey); ok {
-		if key.Modifiers()&tcell.ModAlt == 0 && key.Key() == tcell.KeyRune {
-			runeLower := unicode.ToLower(key.Rune())
-			for i, menu := range m.Menus {
-				if unicode.ToLower(menu.AltRune) == runeLower {
-					s.OpenMenuIndex = i
-					s.FocusedItemIndex = -1
+		if key.Key() == tcell.KeyTab || key.Key() == tcell.KeyBacktab {
+			s.OpenMenuIndex = -1
+			return false // Let app.go handle focus change
+		}
+		if s.OpenMenuIndex == -1 {
+			if key.Key() == tcell.KeyEnter || key.Key() == tcell.KeyDown {
+				s.OpenMenuIndex = 0
+				s.FocusedItemIndex = -1
+				return true
+			}
+		} else {
+			openMenu := m.Menus[s.OpenMenuIndex]
+			if key.Key() == tcell.KeyDown {
+				s.FocusedItemIndex++
+				if s.FocusedItemIndex >= len(openMenu.Items) {
+					s.FocusedItemIndex = 0
+				}
+				return true
+			} else if key.Key() == tcell.KeyUp {
+				s.FocusedItemIndex--
+				if s.FocusedItemIndex < 0 {
+					s.FocusedItemIndex = len(openMenu.Items) - 1
+				}
+				return true
+			} else if key.Key() == tcell.KeyRight {
+				s.OpenMenuIndex++
+				if s.OpenMenuIndex >= len(m.Menus) {
+					s.OpenMenuIndex = 0
+				}
+				s.FocusedItemIndex = -1
+				return true
+			} else if key.Key() == tcell.KeyLeft {
+				s.OpenMenuIndex--
+				if s.OpenMenuIndex < 0 {
+					s.OpenMenuIndex = len(m.Menus) - 1
+				}
+				s.FocusedItemIndex = -1
+				return true
+			} else if key.Key() == tcell.KeyEnter {
+				if s.FocusedItemIndex >= 0 && s.FocusedItemIndex < len(openMenu.Items) {
+					item := openMenu.Items[s.FocusedItemIndex]
+					if !item.Disabled && item.Action != nil {
+						item.Action()
+					}
+					s.OpenMenuIndex = -1
 					return true
 				}
+			} else if key.Key() == tcell.KeyEscape {
+				s.OpenMenuIndex = -1
+				return true
 			}
 		}
 	} else if mouse, ok := ev.(*tcell.EventMouse); ok {
@@ -137,6 +180,9 @@ func (n *MenuBar) Layout(x, y int, c Constraints) LayoutResult {
 // Render draws the MenuBar component to the grid.
 func (n *MenuBar) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+	if n.Style.ID != "" && n.Style.ID == focusedID {
+		style = style.Background(tcell.ColorNavy)
+	}
 	borderStyle := style
 	if n.Style.ID != "" && n.Style.ID == focusedID {
 		borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow)
