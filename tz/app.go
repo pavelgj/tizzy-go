@@ -318,15 +318,34 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 						}
 						listH := maxH
 
-						style := tcell.StyleDefault.Foreground(drp.Style.Color).Background(drp.Style.Background)
+						style := tcell.StyleDefault.Foreground(drp.Style.Color).Background(tcell.ColorBlack)
+						popupH := listH + 2
 
-						for y := 0; y < listH; y++ {
+						// Draw Shadow (right and bottom edges only)
+						for i := 1; i <= popupH; i++ {
+							if listY+i < h && res.X+listW < w {
+								currentCell := grid.Cells[listY+i][res.X+listW]
+								grid.SetContent(res.X+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+							}
+						}
+						for j := 1; j <= listW; j++ {
+							if listY+popupH < h && res.X+j < w {
+								currentCell := grid.Cells[listY+popupH][res.X+j]
+								grid.SetContent(res.X+j, listY+popupH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+							}
+						}
+
+						// Fill background
+						for y := 0; y < popupH; y++ {
 							for x := 0; x < listW; x++ {
 								if listY+y < h && res.X+x < w {
 									grid.SetContent(res.X+x, listY+y, ' ', style)
 								}
 							}
 						}
+
+						// Draw Border
+						drawBorder(grid, res.X, listY, listW, popupH, "", style)
 
 						for i := 0; i < listH; i++ {
 							optIdx := i + state.ScrollOffset
@@ -339,17 +358,16 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 								optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
 							}
 
-							curX := res.X + 1
-							for _, r := range opt {
-								if listY+i < h && curX < w {
-									grid.SetContent(curX, listY+i, r, optStyle)
-									curX++
-								}
+							label := " " + opt
+							for len(label) < listW-2 {
+								label += " "
 							}
 
-							for j := len(opt) + 1; j < listW; j++ {
-								if listY+i < h && res.X+j < w {
-									grid.SetContent(res.X+j, listY+i, ' ', optStyle)
+							curX := res.X + 1
+							for _, r := range label {
+								if listY+1+i < h && curX < w && curX < res.X+listW-1 {
+									grid.SetContent(curX, listY+1+i, r, optStyle)
+									curX++
 								}
 							}
 						}

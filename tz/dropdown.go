@@ -295,8 +295,8 @@ func (d *Dropdown) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContex
 	listH := maxH
 
 	if mouse.Buttons()&tcell.Button1 != 0 {
-		if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
-			clickedIndex := my - listY + s.ScrollOffset
+		if mx >= res.X && mx < res.X+listW && my >= listY+1 && my < listY+1+listH {
+			clickedIndex := my - listY - 1 + s.ScrollOffset
 			if clickedIndex >= 0 && clickedIndex < len(d.Options) {
 				d.SelectedIndex = clickedIndex
 				if d.OnChange != nil {
@@ -312,7 +312,7 @@ func (d *Dropdown) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContex
 			}
 		}
 	} else if mouse.Buttons()&tcell.WheelUp != 0 {
-		if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+		if mx >= res.X && mx < res.X+listW && my >= listY+1 && my < listY+1+listH {
 			s.ScrollOffset--
 			if s.ScrollOffset < 0 {
 				s.ScrollOffset = 0
@@ -320,7 +320,7 @@ func (d *Dropdown) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContex
 			return true, nil
 		}
 	} else if mouse.Buttons()&tcell.WheelDown != 0 {
-		if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
+		if mx >= res.X && mx < res.X+listW && my >= listY+1 && my < listY+1+listH {
 			s.ScrollOffset++
 			if s.ScrollOffset+maxH > len(d.Options) {
 				s.ScrollOffset = len(d.Options) - maxH
