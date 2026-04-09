@@ -1134,7 +1134,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 							listH := len(drp.Options)
 
 							if mx >= res.X && mx < res.X+listW && my >= listY && my < listY+listH {
-								clickedIndex := my - listY
+								clickedIndex := my - listY + state.ScrollOffset
 								drp.SelectedIndex = clickedIndex
 								if drp.OnChange != nil {
 									drp.OnChange(clickedIndex)
