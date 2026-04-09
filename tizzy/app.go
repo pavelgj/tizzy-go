@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 	"time"
-	"unicode"
+
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -885,51 +885,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 		return true // Request exit
 	}
 
-	// Handle MenuBar shortcuts (Alt+Letter or Mac fallback)
-	runeLower := unicode.ToLower(ev.Rune())
-	isMacAlt := false
-	if ev.Key() == tcell.KeyRune && ev.Modifiers() == 0 {
-		// Map common Mac Option+Letter characters
-		if runeLower == 402 {
-			runeLower = 'f'
-			isMacAlt = true
-		}
-		if runeLower == 180 {
-			runeLower = 'e'
-			isMacAlt = true
-		}
-		if runeLower == 729 {
-			runeLower = 'h'
-			isMacAlt = true
-		}
-	}
 
-	if (ev.Modifiers()&tcell.ModAlt != 0 && ev.Key() == tcell.KeyRune) || isMacAlt {
-		menuBar := findMenuBar(root)
-
-		if menuBar != nil && menuBar.Style.ID != "" {
-			for i, menu := range menuBar.Menus {
-				if unicode.ToLower(menu.AltRune) == runeLower {
-					stateObj, ok := a.componentStates[menuBar.Style.ID]
-					var state *MenuBarState
-					if !ok {
-						state = &MenuBarState{OpenMenuIndex: -1}
-						a.componentStates[menuBar.Style.ID] = state
-					} else {
-						state = stateObj.(*MenuBarState)
-					}
-
-					if state.OpenMenuIndex == i {
-						state.OpenMenuIndex = -1 // Toggle close
-					} else {
-						state.OpenMenuIndex = i     // Open
-						state.FocusedItemIndex = -1 // Reset focus
-					}
-					return false // Handled
-				}
-			}
-		}
-	}
 
 	// Handle MenuBar arrow navigation when open
 	menuBar := findMenuBar(root)
