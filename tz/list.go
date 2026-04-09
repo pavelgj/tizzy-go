@@ -14,6 +14,14 @@ type List struct {
 	OnSelect          func(int)
 	OnSelectionChange func(int)
 	OnFocus           func(state *ListState)
+	ItemHeight        int
+}
+
+func (l *List) getItemHeight() int {
+	if l.ItemHeight <= 0 {
+		return 1
+	}
+	return l.ItemHeight
 }
 
 // NewList creates a new List component.
@@ -146,19 +154,17 @@ func (l *List) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 
 		itemNode := l.RenderItem(item, idx, selected, cursor)
 
-		// Layout item with full width and 1 line height
-		itemLayout := Layout(itemNode, curX, curY, Constraints{MaxW: viewportW, MaxH: 1})
+		// Layout item with full width and item height
+		itemLayout := Layout(itemNode, curX, curY, Constraints{MaxW: viewportW, MaxH: l.getItemHeight()})
 
 		// Ensure background fills the width if selected
 		if selected {
-			// We could modify the layout to fit the full width or let the child fill it
-			// Let's assume RenderItem returns a Box or Text that respects layout width
 			itemLayout.W = viewportW
 		}
 
 		Render(grid, itemLayout, focusedID, componentStates)
 
-		curY++
+		curY += l.getItemHeight()
 	}
 }
 
@@ -206,7 +212,7 @@ func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 
 		clickY := my - ctx.Layout.Y - borderOffset
 		if clickY >= 0 && clickY < viewportH {
-			clickedIdx := s.ScrollOffset + clickY
+			clickedIdx := s.ScrollOffset + clickY/l.getItemHeight()
 			if clickedIdx < len(l.Items) {
 				s.CursorIndex = clickedIdx
 				s.SelectedIndex = clickedIdx
@@ -233,6 +239,11 @@ func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 		viewportH = ctx.Layout.H - borderOffset*2
 	}
 
+	visibleItems := viewportH / l.getItemHeight()
+	if visibleItems <= 0 {
+		visibleItems = 1
+	}
+
 	dirty := false
 
 	if key.Key() == tcell.KeyUp {
@@ -249,8 +260,8 @@ func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 	} else if key.Key() == tcell.KeyDown {
 		if s.CursorIndex < len(l.Items)-1 {
 			s.CursorIndex++
-			if s.CursorIndex >= s.ScrollOffset+viewportH {
-				s.ScrollOffset = s.CursorIndex - viewportH + 1
+			if s.CursorIndex >= s.ScrollOffset+visibleItems {
+				s.ScrollOffset = s.CursorIndex - visibleItems + 1
 			}
 			dirty = true
 			if l.OnSelectionChange != nil {
@@ -259,7 +270,7 @@ func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 		}
 	} else if key.Key() == tcell.KeyPgUp {
 		if len(l.Items) > 0 {
-			s.CursorIndex -= viewportH
+			s.CursorIndex -= visibleItems
 			if s.CursorIndex < 0 {
 				s.CursorIndex = 0
 			}
@@ -273,12 +284,12 @@ func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 		}
 	} else if key.Key() == tcell.KeyPgDn {
 		if len(l.Items) > 0 {
-			s.CursorIndex += viewportH
+			s.CursorIndex += visibleItems
 			if s.CursorIndex >= len(l.Items) {
 				s.CursorIndex = len(l.Items) - 1
 			}
-			if s.CursorIndex >= s.ScrollOffset+viewportH {
-				s.ScrollOffset = s.CursorIndex - viewportH + 1
+			if s.CursorIndex >= s.ScrollOffset+visibleItems {
+				s.ScrollOffset = s.CursorIndex - visibleItems + 1
 				if s.ScrollOffset < 0 {
 					s.ScrollOffset = 0
 				}
