@@ -2,7 +2,7 @@
 
 A declarative Terminal User Interface (TUI) library for Go, inspired by React's component model and CSS Flexbox layout.
 
-![File Explorer](docs/images/fileexplorer.png)
+![Hero Image](docs/images/hero.png)
 
 ## Features
 

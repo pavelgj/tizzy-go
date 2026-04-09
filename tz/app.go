@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -18,6 +19,7 @@ type App struct {
 	activeCleanups  map[string]func()
 	dirty           bool
 	previousRoot    Node
+	mu              sync.Mutex
 }
 
 // NewApp creates a new App instance.
@@ -82,7 +84,14 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 
 	// Find open modal if any
 	var activeModal *Modal
-	for id, stateObj := range a.componentStates {
+	a.mu.Lock()
+	statesCopy := make(map[string]any, len(a.componentStates))
+	for k, v := range a.componentStates {
+		statesCopy[k] = v
+	}
+	a.mu.Unlock()
+
+	for id, stateObj := range statesCopy {
 		if state, ok := stateObj.(*ModalState); ok && state.Open {
 			node := findNodeByID(root, id)
 			if n, ok := node.(*Modal); ok {
@@ -170,7 +179,7 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 
 	// 3. Render to grid
 	grid := NewGrid(w, h)
-	Render(grid, layout, a.focusedID, a.componentStates)
+	Render(grid, layout, a.focusedID, statesCopy)
 
 	// Render Modal overlay if active
 	if activeModal != nil {
@@ -216,11 +225,11 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 			}
 		}
 
-		Render(grid, modalLayout, a.focusedID, a.componentStates)
+		Render(grid, modalLayout, a.focusedID, statesCopy)
 	}
 
 	// Render dropdown overlays
-	for id, stateObj := range a.componentStates {
+	for id, stateObj := range statesCopy {
 		if state, ok := stateObj.(*DropdownState); ok && state.Open {
 			res := findLayoutResultByID(layout, id)
 			dropdownNode := findNodeByID(root, id)
@@ -437,7 +446,7 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 			}
 		}
 
-		Render(grid, popupLayout, a.focusedID, a.componentStates)
+		Render(grid, popupLayout, a.focusedID, statesCopy)
 	}
 
 	// 4. Diff and update screen
