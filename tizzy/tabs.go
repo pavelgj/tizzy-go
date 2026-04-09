@@ -202,3 +202,19 @@ func (n *Tabs) GetStyle() Style {
 func (n *Tabs) IsFocusable() bool {
 	return n.Style.Focusable
 }
+
+// FindNodePathAt overrides default hit testing to only search the active tab.
+func (n *Tabs) FindNodePathAt(x, y int, res LayoutResult, componentStates map[string]any) []Node {
+	activeIdx := 0
+	if n.Style.ID != "" && componentStates != nil {
+		if stateObj, ok := componentStates[n.Style.ID]; ok {
+			activeIdx = stateObj.(*TabsState).ActiveTab
+		}
+	}
+	if activeIdx >= 0 && activeIdx < len(res.Children) {
+		if path := findNodePathAt(res.Children[activeIdx], x, y, componentStates); path != nil {
+			return append([]Node{res.Node}, path...)
+		}
+	}
+	return []Node{res.Node}
+}

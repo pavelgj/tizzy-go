@@ -803,33 +803,12 @@ func (e *EventTick) When() time.Time {
 
 func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) []Node {
 	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
-		scrollOffset := 0
-		if sv, ok := res.Node.(*ScrollView); ok {
-			if sv.Style.ID != "" && componentStates != nil {
-				if stateObj, ok := componentStates[sv.Style.ID]; ok {
-					state := stateObj.(*ScrollViewState)
-					scrollOffset = state.ScrollOffset
-				}
-			}
-		}
-
-		if tabs, ok := res.Node.(*Tabs); ok {
-			activeIdx := 0
-			if tabs.Style.ID != "" && componentStates != nil {
-				if stateObj, ok := componentStates[tabs.Style.ID]; ok {
-					activeIdx = stateObj.(*TabsState).ActiveTab
-				}
-			}
-			if activeIdx >= 0 && activeIdx < len(res.Children) {
-				if path := findNodePathAt(res.Children[activeIdx], x, y+scrollOffset, componentStates); path != nil {
-					return append([]Node{res.Node}, path...)
-				}
-			}
-			return []Node{res.Node}
+		if hitTester, ok := res.Node.(CustomHitTester); ok {
+			return hitTester.FindNodePathAt(x, y, res, componentStates)
 		}
 
 		for _, child := range res.Children {
-			if path := findNodePathAt(child, x, y+scrollOffset, componentStates); path != nil {
+			if path := findNodePathAt(child, x, y, componentStates); path != nil {
 				return append([]Node{res.Node}, path...)
 			}
 		}

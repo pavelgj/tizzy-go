@@ -49,6 +49,11 @@ type OverlayHandler interface {
 	HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult)
 }
 
+// CustomHitTester allows components to override default hit testing for children
+type CustomHitTester interface {
+	FindNodePathAt(x, y int, res LayoutResult, componentStates map[string]any) []Node
+}
+
 // Focusable indicates that a node can receive focus.
 type Focusable interface {
 	IsFocusable() bool

@@ -208,3 +208,21 @@ func (n *ScrollView) HandleEvent(ev tcell.Event, state any, ctx EventContext) bo
 
 	return dirty
 }
+
+// FindNodePathAt overrides default hit testing to account for scroll offset.
+func (sv *ScrollView) FindNodePathAt(x, y int, res LayoutResult, componentStates map[string]any) []Node {
+	scrollOffset := 0
+	if sv.Style.ID != "" && componentStates != nil {
+		if stateObj, ok := componentStates[sv.Style.ID]; ok {
+			state := stateObj.(*ScrollViewState)
+			scrollOffset = state.ScrollOffset
+		}
+	}
+
+	for _, child := range res.Children {
+		if path := findNodePathAt(child, x, y+scrollOffset, componentStates); path != nil {
+			return append([]Node{sv}, path...)
+		}
+	}
+	return []Node{sv}
+}
