@@ -27,8 +27,23 @@ func main() {
 
 	render := func(ctx *tz.RenderContext) tz.Node {
 		selectedIndex1, setSelectedIndex1 := tz.UseState(ctx, 0)
-		selectedIndex2, setSelectedIndex2 := tz.UseState(ctx, 0)
+		selectedIndex2, setSelectedIndex2 := tz.UseState(ctx, -1)
 		selectedIndex3, setSelectedIndex3 := tz.UseState(ctx, 0)
+
+		d2 := tz.NewDropdown(
+			ctx,
+			tz.Style{
+				Color:     tcell.ColorWhite,
+				Border:    true,
+				Focusable: true,
+			},
+			options[:3],
+			selectedIndex2,
+			func(idx int) {
+				setSelectedIndex2(idx)
+			},
+		)
+		d2.Placeholder = "Select..."
 
 		return tz.NewBox(
 			tz.Style{
@@ -59,19 +74,7 @@ func main() {
 			tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex1)),
 
 			tz.NewText(tz.Style{Color: tcell.ColorGray}, "Dropdown 2 (Short List):"),
-			tz.NewDropdown(
-				ctx,
-				tz.Style{
-					Color:     tcell.ColorWhite,
-					Border:    true,
-					Focusable: true,
-				},
-				options[:3],
-				selectedIndex2,
-				func(idx int) {
-					setSelectedIndex2(idx)
-				},
-			),
+			d2,
 			tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Selected index: "+strconv.Itoa(selectedIndex2)),
 
 			tz.NewText(tz.Style{Color: tcell.ColorGray}, "Dropdown 3 (Limit 10):"),

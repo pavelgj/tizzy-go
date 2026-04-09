@@ -13,6 +13,7 @@ type Dropdown struct {
 	SelectedIndex int
 	OnChange      func(int)
 	MaxListHeight int
+	Placeholder   string
 }
 
 // NewDropdown creates a new Dropdown component.
@@ -60,7 +61,7 @@ func (n *Dropdown) Layout(x, y int, c Constraints) LayoutResult {
 	boxX := x + margin.Left
 	boxY := y + margin.Top
 
-	maxW := 0
+	maxW := len(n.Placeholder)
 	for _, opt := range n.Options {
 		if len(opt) > maxW {
 			maxW = len(opt)
@@ -110,7 +111,7 @@ func (n *Dropdown) Render(grid *Grid, layout LayoutResult, focusedID string, com
 	curX := layout.X + pad.Left + borderOffset
 	curY := layout.Y + pad.Top + borderOffset
 
-	selectedText := ""
+	selectedText := n.Placeholder
 	if n.SelectedIndex >= 0 && n.SelectedIndex < len(n.Options) {
 		selectedText = n.Options[n.SelectedIndex]
 	}
