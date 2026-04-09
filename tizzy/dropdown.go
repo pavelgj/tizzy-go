@@ -284,7 +284,7 @@ func (d *Dropdown) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContex
 	res := ctx.Layout
 	listY := res.Y + res.H
 	listW := res.W
-	
+
 	maxH := d.MaxListHeight
 	if maxH <= 0 {
 		maxH = 5

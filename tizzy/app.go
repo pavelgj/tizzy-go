@@ -527,24 +527,32 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 							w, h := a.screen.Size()
 							maxModalW := w - 4
 							maxModalH := h - 4
-							if maxModalW < 0 { maxModalW = 0 }
-							if maxModalH < 0 { maxModalH = 0 }
-							
+							if maxModalW < 0 {
+								maxModalW = 0
+							}
+							if maxModalH < 0 {
+								maxModalH = 0
+							}
+
 							modalConstraints := Constraints{
 								MaxW: maxModalW,
 								MaxH: maxModalH,
 							}
-							
+
 							modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
 							modalW := modalLayout.W + 2
 							modalH := modalLayout.H + 2
-							
-							if modalW > w { modalW = w }
-							if modalH > h { modalH = h }
-							
+
+							if modalW > w {
+								modalW = w
+							}
+							if modalH > h {
+								modalH = h
+							}
+
 							modalX := (w - modalW) / 2
 							modalY := (h - modalH) / 2
-							
+
 							ml := Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
 							res = findLayoutResultByID(ml, a.focusedID)
 							if res != nil {
@@ -907,24 +915,32 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 						w, h := a.screen.Size()
 						maxModalW := w - 4
 						maxModalH := h - 4
-						if maxModalW < 0 { maxModalW = 0 }
-						if maxModalH < 0 { maxModalH = 0 }
-						
+						if maxModalW < 0 {
+							maxModalW = 0
+						}
+						if maxModalH < 0 {
+							maxModalH = 0
+						}
+
 						modalConstraints := Constraints{
 							MaxW: maxModalW,
 							MaxH: maxModalH,
 						}
-						
+
 						modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
 						modalW := modalLayout.W + 2
 						modalH := modalLayout.H + 2
-						
-						if modalW > w { modalW = w }
-						if modalH > h { modalH = h }
-						
+
+						if modalW > w {
+							modalW = w
+						}
+						if modalH > h {
+							modalH = h
+						}
+
 						modalX := (w - modalW) / 2
 						modalY := (h - modalH) / 2
-						
+
 						ml := Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
 						res = findLayoutResultByID(ml, a.focusedID)
 						if res != nil {
@@ -995,37 +1011,45 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				if res != nil {
 					compLayout = *res
 				}
-				
+
 				eventCtx := EventContext{
 					Layout: compLayout,
 				}
-				
+
 				// Special case for Modal layout calculation
 				if modal, ok := node.(*Modal); ok {
 					w, h := a.screen.Size()
 					maxModalW := w - 4
 					maxModalH := h - 4
-					if maxModalW < 0 { maxModalW = 0 }
-					if maxModalH < 0 { maxModalH = 0 }
-					
+					if maxModalW < 0 {
+						maxModalW = 0
+					}
+					if maxModalH < 0 {
+						maxModalH = 0
+					}
+
 					modalConstraints := Constraints{
 						MaxW: maxModalW,
 						MaxH: maxModalH,
 					}
-					
+
 					modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
 					modalW := modalLayout.W + 2
 					modalH := modalLayout.H + 2
-					
-					if modalW > w { modalW = w }
-					if modalH > h { modalH = h }
-					
+
+					if modalW > w {
+						modalW = w
+					}
+					if modalH > h {
+						modalH = h
+					}
+
 					modalX := (w - modalW) / 2
 					modalY := (h - modalH) / 2
-					
+
 					eventCtx.OverlayLayout = Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
 				}
-				
+
 				if tcellEv, ok := ev.(tcell.Event); ok {
 					handled, searchLayout := handler.HandleOverlayEvent(tcellEv, stateObj, eventCtx)
 					if handled {
@@ -1046,8 +1070,6 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 
 	if ev.Buttons()&tcell.Button1 != 0 {
 		handled := false
-
-
 
 		if !handled {
 			var openMenuBar *MenuBar
@@ -1114,8 +1136,6 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				}
 			}
 		}
-
-
 
 		if !handled {
 			path := findNodePathAt(layout, mx, my, a.componentStates)
