@@ -126,53 +126,13 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 	w, h := a.screen.Size()
 	layout := Layout(root, 0, 0, Constraints{MaxW: w, MaxH: h})
 
-	// Update scroll offset for focused TextInput based on up-to-date layout
+	// Update scroll offset for focused cursor provider based on up-to-date layout
 	if a.focusedID != "" {
 		focusedNode := findNodeByID(root, a.focusedID)
-		if input, ok := focusedNode.(*TextInput); ok {
+		if provider, ok := focusedNode.(CursorProvider); ok {
 			res := findLayoutResultByID(layout, a.focusedID)
 			if res != nil {
-				stateObj, ok := a.componentStates[a.focusedID]
-				if ok {
-					state := stateObj.(*TextInputState)
-					borderOffset := 0
-					if input.Style.Border {
-						borderOffset = 1
-					}
-
-					w := res.W - input.Style.Padding.Left - input.Style.Padding.Right - borderOffset*2
-					if w > 0 && !input.Style.Multiline {
-						if state.cursorOffset < state.scrollOffset {
-							state.scrollOffset = state.cursorOffset
-						}
-						if state.cursorOffset > state.scrollOffset+w {
-							state.scrollOffset = state.cursorOffset - w
-						}
-					}
-
-					if input.Style.Multiline {
-						line, col := offsetToLineCol(input.Value, state.cursorOffset)
-						h := res.H - input.Style.Padding.Top - input.Style.Padding.Bottom - borderOffset*2
-						if h > 0 {
-							if line < state.vScrollOffset {
-								state.vScrollOffset = line
-							}
-							if line >= state.vScrollOffset+h {
-								state.vScrollOffset = line - h + 1
-							}
-						}
-
-						// Horizontal scroll for multiline
-						if w > 0 {
-							if col < state.scrollOffset {
-								state.scrollOffset = col
-							}
-							if col >= state.scrollOffset+w {
-								state.scrollOffset = col - w + 1
-							}
-						}
-					}
-				}
+				provider.UpdateScrollOffset(*res, a.componentStates[a.focusedID])
 			}
 		}
 	}
@@ -224,10 +184,10 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 
 	a.previousGrid = grid
 
-	// Handle cursor for focused TextInput
+	// Handle terminal cursor for focused component
 	if a.focusedID != "" {
 		focusedNode := findNodeByID(root, a.focusedID)
-		if input, ok := focusedNode.(*TextInput); ok {
+		if provider, ok := focusedNode.(CursorProvider); ok {
 			var res *LayoutResult
 			for _, stateObj := range a.componentStates {
 				if state, ok := stateObj.(*ModalState); ok && state.Open {
@@ -241,30 +201,14 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 				res = findLayoutResultByID(layout, a.focusedID)
 			}
 			if res != nil {
-				stateObj, ok := a.componentStates[a.focusedID]
-				if ok {
-					state := stateObj.(*TextInputState)
-					if input.Cursor != nil {
-						state.cursorOffset = *input.Cursor
-					}
-					borderOffset := 0
-					if input.Style.Border {
-						borderOffset = 1
-					}
-					if input.Style.Multiline {
-						line, col := offsetToLineCol(input.Value, state.cursorOffset)
-						a.screen.ShowCursor(res.X+input.Style.Padding.Left+col-state.scrollOffset+borderOffset, res.Y+input.Style.Padding.Top+line+borderOffset-state.vScrollOffset)
-					} else {
-						visualOffset := state.cursorOffset - state.scrollOffset
-						a.screen.ShowCursor(res.X+input.Style.Padding.Left+visualOffset+borderOffset, res.Y+input.Style.Padding.Top+borderOffset)
-					}
+				cx, cy, show := provider.GetCursorPosition(*res, a.componentStates[a.focusedID])
+				if show {
+					a.screen.ShowCursor(cx, cy)
 				} else {
-					borderOffset := 0
-					if input.Style.Border {
-						borderOffset = 1
-					}
-					a.screen.ShowCursor(res.X+len(input.Value)+borderOffset, res.Y+borderOffset)
+					a.screen.HideCursor()
 				}
+			} else {
+				a.screen.HideCursor()
 			}
 		} else {
 			a.screen.HideCursor()
@@ -404,33 +348,13 @@ func findFocusableIDs(node Node, componentStates map[string]any) []string {
 		ids = append(ids, node.GetStyle().ID)
 	}
 
-	switch n := node.(type) {
-	case *Tabs:
-		activeIdx := 0
-		if n.Style.ID != "" && componentStates != nil {
-			if stateObj, ok := componentStates[n.Style.ID]; ok {
-				activeIdx = stateObj.(*TabsState).ActiveTab
-			}
+	if scope, ok := node.(FocusScope); ok {
+		for _, child := range scope.FocusableChildren(componentStates) {
+			ids = append(ids, findFocusableIDs(child, componentStates)...)
 		}
-		if activeIdx >= 0 && activeIdx < len(n.Tabs) {
-			ids = append(ids, findFocusableIDs(n.Tabs[activeIdx].Content, componentStates)...)
-		}
-	case *Modal:
-		if n.Style.ID != "" && componentStates != nil {
-			if stateObj, ok := componentStates[n.Style.ID]; ok {
-				if state, ok := stateObj.(*ModalState); ok && !state.Open {
-					return ids
-				}
-			}
-		}
-		if n.Child != nil {
-			ids = append(ids, findFocusableIDs(n.Child, componentStates)...)
-		}
-	default:
-		if p, ok := node.(ParentNode); ok {
-			for _, child := range p.GetChildren() {
-				ids = append(ids, findFocusableIDs(child, componentStates)...)
-			}
+	} else if p, ok := node.(ParentNode); ok {
+		for _, child := range p.GetChildren() {
+			ids = append(ids, findFocusableIDs(child, componentStates)...)
 		}
 	}
 	return ids
@@ -613,18 +537,9 @@ func (a *App) setFocus(id string, root Node) {
 
 	if id != "" && root != nil {
 		node := findNodeByID(root, id)
-		if list, ok := node.(*List); ok {
-			if list.OnFocus != nil {
-				stateObj, ok := a.componentStates[id]
-				var state *ListState
-				if !ok {
-					state = &ListState{}
-					a.componentStates[id] = state
-				} else {
-					state = stateObj.(*ListState)
-				}
-				list.OnFocus(state)
-			}
+		if handler, ok := node.(FocusGainHandler); ok {
+			stateObj := a.componentStates[id]
+			handler.OnFocusGained(stateObj)
 		}
 	}
 }
@@ -727,10 +642,6 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 
 				eventCtx := EventContext{
 					Layout: compLayout,
-				}
-
-				if modalState, ok := stateObj.(*ModalState); ok {
-					eventCtx.OverlayLayout = modalState.OverlayLayout
 				}
 
 				if tcellEv, ok := ev.(tcell.Event); ok {

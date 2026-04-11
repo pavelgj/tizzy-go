@@ -203,6 +203,20 @@ func (n *Tabs) IsFocusable() bool {
 	return n.Style.Focusable
 }
 
+// FocusableChildren returns only the active tab's content for focus traversal.
+func (n *Tabs) FocusableChildren(componentStates map[string]any) []Node {
+	activeIdx := 0
+	if n.Style.ID != "" && componentStates != nil {
+		if stateObj, ok := componentStates[n.Style.ID]; ok {
+			activeIdx = stateObj.(*TabsState).ActiveTab
+		}
+	}
+	if activeIdx >= 0 && activeIdx < len(n.Tabs) {
+		return []Node{n.Tabs[activeIdx].Content}
+	}
+	return nil
+}
+
 // FindNodePathAt overrides default hit testing to only search the active tab.
 func (n *Tabs) FindNodePathAt(x, y int, res LayoutResult, componentStates map[string]any) []Node {
 	activeIdx := 0

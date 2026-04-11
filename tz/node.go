@@ -28,9 +28,11 @@ type Renderable interface {
 
 // EventContext provides context for event handling.
 type EventContext struct {
-	Layout        LayoutResult
-	PopupOpen     bool
-	OverlayLayout LayoutResult
+	Layout    LayoutResult
+	// PopupOpen reports whether any Popup overlay is currently open. Components
+	// can use this to suppress keys that should be handled by the popup instead
+	// (e.g. TextInput suppresses Enter/Up/Down when a popup is open above it).
+	PopupOpen bool
 }
 
 // EventHandler indicates that a node can handle events.
@@ -58,6 +60,32 @@ type OverlayHandler interface {
 // component's state so that event handlers can use it without re-running layout.
 type OverlayRenderer interface {
 	RenderOverlay(grid *Grid, screenW, screenH int, mainLayout LayoutResult, focusedID string, componentStates map[string]any)
+}
+
+// CursorProvider allows a component to manage the terminal hardware cursor.
+// The framework calls UpdateScrollOffset after layout and GetCursorPosition
+// after rendering, then calls screen.ShowCursor with the result.
+type CursorProvider interface {
+	// UpdateScrollOffset adjusts internal scroll offsets so the cursor stays
+	// visible. Called after layout, before rendering.
+	UpdateScrollOffset(layout LayoutResult, state any)
+
+	// GetCursorPosition returns the screen coordinates where the terminal
+	// cursor should appear, and whether it should be shown at all.
+	GetCursorPosition(layout LayoutResult, state any) (x, y int, show bool)
+}
+
+// FocusGainHandler allows a component to react when it receives focus.
+// The framework calls this after updating the focused ID.
+type FocusGainHandler interface {
+	OnFocusGained(state any)
+}
+
+// FocusScope allows a component to control which of its children participate
+// in focus traversal. Components that don't implement this fall back to
+// traversing all children via ParentNode.GetChildren().
+type FocusScope interface {
+	FocusableChildren(componentStates map[string]any) []Node
 }
 
 // CustomHitTester allows components to override default hit testing for children

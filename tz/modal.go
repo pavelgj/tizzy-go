@@ -67,6 +67,21 @@ func (n *Modal) Render(grid *Grid, layout LayoutResult, focusedID string, compon
 	// Do nothing, rendered as overlay in App.Run
 }
 
+// FocusableChildren returns the modal's child for focus traversal only when open.
+func (m *Modal) FocusableChildren(componentStates map[string]any) []Node {
+	if m.Style.ID != "" && componentStates != nil {
+		if stateObj, ok := componentStates[m.Style.ID]; ok {
+			if state, ok := stateObj.(*ModalState); ok && !state.Open {
+				return nil
+			}
+		}
+	}
+	if m.Child != nil {
+		return []Node{m.Child}
+	}
+	return nil
+}
+
 // RenderOverlay renders the Modal as a centered overlay on top of the main grid.
 // It also stores the computed content LayoutResult in ModalState.OverlayLayout so
 // that event handlers can use it without recomputing layout.
@@ -132,18 +147,16 @@ func (m *Modal) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) 
 	}
 
 	mx, my := mouse.Position()
-	res := ctx.OverlayLayout
+	res := s.OverlayLayout
 
 	if mouse.Buttons()&tcell.Button1 != 0 {
 		// Check if click is inside modal content
 		if mx >= res.X && mx < res.X+res.W && my >= res.Y && my < res.Y+res.H {
-			// Click is inside modal content!
-			// Tell app.go to search this layout!
-			return false, &ctx.OverlayLayout
+			// Click is inside modal content — tell app.go to search this layout.
+			return false, &s.OverlayLayout
 		}
 
-		// Click is OUTSIDE modal content!
-		// Trap it!
+		// Click is outside modal content — trap it.
 		return true, nil
 	}
 

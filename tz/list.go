@@ -177,6 +177,18 @@ func (l *List) IsFocusable() bool {
 	return l.Style.Focusable
 }
 
+// OnFocusGained implements FocusGainHandler, calling the OnFocus callback if set.
+func (l *List) OnFocusGained(state any) {
+	if l.OnFocus == nil {
+		return
+	}
+	s, ok := state.(*ListState)
+	if !ok {
+		return
+	}
+	l.OnFocus(s)
+}
+
 func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 	s, ok := state.(*ListState)
 	if !ok {

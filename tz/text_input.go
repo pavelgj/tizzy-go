@@ -191,6 +191,81 @@ func (n *TextInput) GetCursorCoords(ctx *RenderContext) (int, int) {
 	return visualOffset, 0
 }
 
+// UpdateScrollOffset adjusts scroll offsets so the cursor stays within the
+// visible area. Called by the framework after layout, before rendering.
+func (n *TextInput) UpdateScrollOffset(layout LayoutResult, state any) {
+	s, ok := state.(*TextInputState)
+	if !ok {
+		return
+	}
+
+	borderOffset := 0
+	if n.Style.Border {
+		borderOffset = 1
+	}
+
+	w := layout.W - n.Style.Padding.Left - n.Style.Padding.Right - borderOffset*2
+	if w > 0 && !n.Style.Multiline {
+		if s.cursorOffset < s.scrollOffset {
+			s.scrollOffset = s.cursorOffset
+		}
+		if s.cursorOffset > s.scrollOffset+w {
+			s.scrollOffset = s.cursorOffset - w
+		}
+	}
+
+	if n.Style.Multiline {
+		line, col := offsetToLineCol(n.Value, s.cursorOffset)
+		h := layout.H - n.Style.Padding.Top - n.Style.Padding.Bottom - borderOffset*2
+		if h > 0 {
+			if line < s.vScrollOffset {
+				s.vScrollOffset = line
+			}
+			if line >= s.vScrollOffset+h {
+				s.vScrollOffset = line - h + 1
+			}
+		}
+		if w > 0 {
+			if col < s.scrollOffset {
+				s.scrollOffset = col
+			}
+			if col >= s.scrollOffset+w {
+				s.scrollOffset = col - w + 1
+			}
+		}
+	}
+}
+
+// GetCursorPosition returns the screen coordinates for the terminal cursor.
+// Called by the framework after rendering.
+func (n *TextInput) GetCursorPosition(layout LayoutResult, state any) (x, y int, show bool) {
+	borderOffset := 0
+	if n.Style.Border {
+		borderOffset = 1
+	}
+
+	s, ok := state.(*TextInputState)
+	if !ok {
+		return layout.X + len(n.Value) + borderOffset, layout.Y + borderOffset, true
+	}
+
+	if n.Cursor != nil {
+		s.cursorOffset = *n.Cursor
+	}
+
+	if n.Style.Multiline {
+		line, col := offsetToLineCol(n.Value, s.cursorOffset)
+		return layout.X + n.Style.Padding.Left + col - s.scrollOffset + borderOffset,
+			layout.Y + n.Style.Padding.Top + line + borderOffset - s.vScrollOffset,
+			true
+	}
+
+	visualOffset := s.cursorOffset - s.scrollOffset
+	return layout.X + n.Style.Padding.Left + visualOffset + borderOffset,
+		layout.Y + n.Style.Padding.Top + borderOffset,
+		true
+}
+
 func (n *TextInput) DefaultState() any {
 	return &TextInputState{cursorOffset: len(n.Value)}
 }
