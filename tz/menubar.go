@@ -51,6 +51,10 @@ type MenuBarState struct {
 	HoverItemIndex   int
 }
 
+func (s *MenuBarState) IsOpen() bool {
+	return s.OpenMenuIndex >= 0
+}
+
 // GetStyle returns the style of the MenuBar node.
 func (m *MenuBar) DefaultState() any {
 	return &MenuBarState{OpenMenuIndex: -1, FocusedItemIndex: -1}
@@ -222,6 +226,95 @@ func (n *MenuBar) Render(grid *Grid, layout LayoutResult, focusedID string, comp
 
 	for x := curX; x < layout.X+layout.W-borderOffset; x++ {
 		grid.SetContent(x, curY, ' ', style)
+	}
+}
+
+// RenderOverlay renders the currently open menu dropdown on top of the main grid.
+func (n *MenuBar) RenderOverlay(grid *Grid, screenW, screenH int, mainLayout LayoutResult, focusedID string, componentStates map[string]any) {
+	state, ok := componentStates[n.Style.ID].(*MenuBarState)
+	if !ok || state.OpenMenuIndex < 0 {
+		return
+	}
+
+	res := findLayoutResultByID(mainLayout, n.Style.ID)
+	if res == nil {
+		return
+	}
+
+	borderOffset := 0
+	if n.Style.Border {
+		borderOffset = 1
+	}
+	curX := res.X + borderOffset + n.Style.Padding.Left
+
+	menuX := curX
+	for i := 0; i < state.OpenMenuIndex; i++ {
+		menuX += len(n.Menus[i].Title) + 4
+	}
+
+	openMenu := n.Menus[state.OpenMenuIndex]
+	listY := res.Y + borderOffset + n.Style.Padding.Top + 1
+
+	listW := 0
+	for _, item := range openMenu.Items {
+		if len(item.Label) > listW {
+			listW = len(item.Label)
+		}
+	}
+	listW += 4 // +2 for padding, +2 for borders
+
+	listH := len(openMenu.Items) + 2 // +2 for top/bottom borders
+
+	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(tcell.ColorBlack)
+
+	// Draw shadow (right and bottom edges only)
+	for i := 1; i <= listH; i++ {
+		if listY+i < screenH && menuX+listW < screenW {
+			currentCell := grid.Cells[listY+i][menuX+listW]
+			grid.SetContent(menuX+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+		}
+	}
+	for j := 1; j <= listW; j++ {
+		if listY+listH < screenH && menuX+j < screenW {
+			currentCell := grid.Cells[listY+listH][menuX+j]
+			grid.SetContent(menuX+j, listY+listH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+		}
+	}
+
+	// Fill background
+	for i := 0; i < listH; i++ {
+		for j := 0; j < listW; j++ {
+			if listY+i < screenH && menuX+j < screenW {
+				grid.SetContent(menuX+j, listY+i, ' ', style)
+			}
+		}
+	}
+
+	// Draw border
+	drawBorder(grid, menuX, listY, listW, listH, "", style)
+
+	// Draw items
+	for i, item := range openMenu.Items {
+		itemStyle := style
+		if state.FocusedItemIndex == i {
+			itemStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+		}
+		if item.Disabled {
+			itemStyle = itemStyle.Foreground(tcell.ColorGray)
+		}
+
+		label := " " + item.Label
+		for len(label) < listW-2 {
+			label += " "
+		}
+
+		curItemX := menuX + 1
+		for _, r := range label {
+			if listY+i+1 < screenH && curItemX < screenW {
+				grid.SetContent(curItemX, listY+i+1, r, itemStyle)
+				curItemX++
+			}
+		}
 	}
 }
 

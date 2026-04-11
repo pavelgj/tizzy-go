@@ -30,7 +30,8 @@ func NewModal(ctx *RenderContext, style Style, child Node, isOpen bool) *Modal {
 
 // ModalState stores the interactive state of a Modal.
 type ModalState struct {
-	Open bool
+	Open         bool
+	OverlayLayout LayoutResult // computed during RenderOverlay, used by event handlers
 }
 
 func (s *ModalState) IsOpen() bool {
@@ -64,6 +65,59 @@ func (n *Modal) Layout(x, y int, c Constraints) LayoutResult {
 // Render draws the Modal component to the grid.
 func (n *Modal) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	// Do nothing, rendered as overlay in App.Run
+}
+
+// RenderOverlay renders the Modal as a centered overlay on top of the main grid.
+// It also stores the computed content LayoutResult in ModalState.OverlayLayout so
+// that event handlers can use it without recomputing layout.
+func (m *Modal) RenderOverlay(grid *Grid, screenW, screenH int, mainLayout LayoutResult, focusedID string, componentStates map[string]any) {
+	state, ok := componentStates[m.Style.ID].(*ModalState)
+	if !ok || !state.Open {
+		return
+	}
+
+	maxModalW := screenW - 4
+	maxModalH := screenH - 4
+	if maxModalW < 0 {
+		maxModalW = 0
+	}
+	if maxModalH < 0 {
+		maxModalH = 0
+	}
+
+	modalConstraints := Constraints{MaxW: maxModalW, MaxH: maxModalH}
+
+	// Layout at 0,0 first to measure size
+	measured := Layout(m.Child, 0, 0, modalConstraints)
+
+	modalW := measured.W + 2
+	modalH := measured.H + 2
+	if modalW > screenW {
+		modalW = screenW
+	}
+	if modalH > screenH {
+		modalH = screenH
+	}
+
+	modalX := (screenW - modalW) / 2
+	modalY := (screenH - modalH) / 2
+
+	// Final layout at correct position
+	contentLayout := Layout(m.Child, modalX+1, modalY+1, modalConstraints)
+
+	// Store for use by event handlers
+	state.OverlayLayout = contentLayout
+
+	style := tcell.StyleDefault.Foreground(m.Style.Color).Background(m.Style.Background)
+	drawBorder(grid, modalX, modalY, modalW, modalH, "", style)
+
+	for y := modalY + 1; y < modalY+modalH-1; y++ {
+		for x := modalX + 1; x < modalX+modalW-1; x++ {
+			grid.SetContent(x, y, ' ', style)
+		}
+	}
+
+	Render(grid, contentLayout, focusedID, componentStates)
 }
 
 func (m *Modal) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult) {

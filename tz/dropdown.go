@@ -271,6 +271,97 @@ func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 	return dirty
 }
 
+// RenderOverlay renders the Dropdown's open list on top of the main grid.
+func (d *Dropdown) RenderOverlay(grid *Grid, screenW, screenH int, mainLayout LayoutResult, focusedID string, componentStates map[string]any) {
+	state, ok := componentStates[d.Style.ID].(*DropdownState)
+	if !ok || !state.Open {
+		return
+	}
+
+	res := findLayoutResultByID(mainLayout, d.Style.ID)
+	if res == nil {
+		return
+	}
+
+	listY := res.Y + res.H
+	listW := res.W
+
+	maxH := d.MaxListHeight
+	if maxH <= 0 {
+		maxH = 5
+	}
+	if maxH > len(d.Options) {
+		maxH = len(d.Options)
+	}
+	listH := maxH
+
+	style := tcell.StyleDefault.Foreground(d.Style.Color).Background(tcell.ColorBlack)
+	popupH := listH + 2
+
+	spaceBelow := screenH - (res.Y + res.H)
+	if spaceBelow < popupH && res.Y >= popupH {
+		state.OpenAbove = true
+	} else {
+		state.OpenAbove = false
+	}
+
+	if state.OpenAbove {
+		listY = res.Y - popupH
+	}
+
+	// Draw shadow (right and bottom edges only)
+	for i := 1; i <= popupH; i++ {
+		if listY+i < screenH && res.X+listW < screenW {
+			currentCell := grid.Cells[listY+i][res.X+listW]
+			grid.SetContent(res.X+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+		}
+	}
+	for j := 1; j <= listW; j++ {
+		if listY+popupH < screenH && res.X+j < screenW {
+			currentCell := grid.Cells[listY+popupH][res.X+j]
+			grid.SetContent(res.X+j, listY+popupH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+		}
+	}
+
+	// Fill background
+	for y := 0; y < popupH; y++ {
+		for x := 0; x < listW; x++ {
+			if listY+y < screenH && res.X+x < screenW {
+				grid.SetContent(res.X+x, listY+y, ' ', style)
+			}
+		}
+	}
+
+	// Draw border
+	drawBorder(grid, res.X, listY, listW, popupH, "", style)
+
+	// Draw items
+	for i := 0; i < listH; i++ {
+		optIdx := i + state.ScrollOffset
+		if optIdx >= len(d.Options) {
+			break
+		}
+		opt := d.Options[optIdx]
+		optStyle := style
+		if optIdx == state.FocusedIndex {
+			optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+		}
+
+		label := " " + opt
+		for len(label) < listW-2 {
+			label += " "
+		}
+
+		curX := res.X + 1
+		for _, r := range label {
+			if listY+1+i < screenH && curX < screenW && curX < res.X+listW-1 {
+				grid.SetContent(curX, listY+1+i, r, optStyle)
+				curX++
+			}
+		}
+	}
+}
+
 func (d *Dropdown) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult) {
 	s, ok := state.(*DropdownState)
 	if !ok || !s.Open {

@@ -181,273 +181,25 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 	grid := NewGrid(w, h)
 	Render(grid, layout, a.focusedID, statesCopy)
 
-	// Render Modal overlay if active
-	if activeModal != nil {
-		maxModalW := w - 4
-		maxModalH := h - 4
-		if maxModalW < 0 {
-			maxModalW = 0
+	// Render overlays: walk the tree and let each component render itself.
+	_ = walkTree(root, func(n Node) error {
+		id := n.GetStyle().ID
+		if id == "" {
+			return nil
 		}
-		if maxModalH < 0 {
-			maxModalH = 0
+		stateObj, ok := statesCopy[id]
+		if !ok {
+			return nil
 		}
-
-		modalConstraints := Constraints{
-			MaxW: maxModalW,
-			MaxH: maxModalH,
+		openable, ok := stateObj.(OpenableState)
+		if !ok || !openable.IsOpen() {
+			return nil
 		}
-
-		// Layout at 0,0 to find size
-		modalLayout := Layout(activeModal.Child, 0, 0, modalConstraints)
-
-		modalW := modalLayout.W + 2
-		modalH := modalLayout.H + 2
-
-		if modalW > w {
-			modalW = w
+		if overlay, ok := n.(OverlayRenderer); ok {
+			overlay.RenderOverlay(grid, w, h, layout, a.focusedID, statesCopy)
 		}
-		if modalH > h {
-			modalH = h
-		}
-
-		modalX := (w - modalW) / 2
-		modalY := (h - modalH) / 2
-
-		// Layout at correct position
-		modalLayout = Layout(activeModal.Child, modalX+1, modalY+1, modalConstraints)
-
-		style := tcell.StyleDefault.Foreground(activeModal.Style.Color).Background(activeModal.Style.Background)
-		drawBorder(grid, modalX, modalY, modalW, modalH, "", style)
-
-		for y := modalY + 1; y < modalY+modalH-1; y++ {
-			for x := modalX + 1; x < modalX+modalW-1; x++ {
-				grid.SetContent(x, y, ' ', style)
-			}
-		}
-
-		Render(grid, modalLayout, a.focusedID, statesCopy)
-	}
-
-	// Render dropdown overlays
-	for id, stateObj := range statesCopy {
-		if state, ok := stateObj.(*DropdownState); ok && state.Open {
-			res := findLayoutResultByID(layout, id)
-			dropdownNode := findNodeByID(root, id)
-			if res != nil && dropdownNode != nil {
-				if drp, ok := dropdownNode.(*Dropdown); ok {
-					listY := res.Y + res.H
-					listW := res.W
-					maxH := drp.MaxListHeight
-					if maxH <= 0 {
-						maxH = 5 // Default limit
-					}
-					if maxH > len(drp.Options) {
-						maxH = len(drp.Options)
-					}
-					listH := maxH
-
-					style := tcell.StyleDefault.Foreground(drp.Style.Color).Background(tcell.ColorBlack)
-					popupH := listH + 2
-
-					spaceBelow := h - (res.Y + res.H)
-					if spaceBelow < popupH && res.Y >= popupH {
-						state.OpenAbove = true
-					} else {
-						state.OpenAbove = false
-					}
-
-					if state.OpenAbove {
-						listY = res.Y - popupH
-					}
-
-					// Draw Shadow (right and bottom edges only)
-					for i := 1; i <= popupH; i++ {
-						if listY+i < h && res.X+listW < w {
-							currentCell := grid.Cells[listY+i][res.X+listW]
-							grid.SetContent(res.X+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-						}
-					}
-					for j := 1; j <= listW; j++ {
-						if listY+popupH < h && res.X+j < w {
-							currentCell := grid.Cells[listY+popupH][res.X+j]
-							grid.SetContent(res.X+j, listY+popupH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-						}
-					}
-
-					// Fill background
-					for y := 0; y < popupH; y++ {
-						for x := 0; x < listW; x++ {
-							if listY+y < h && res.X+x < w {
-								grid.SetContent(res.X+x, listY+y, ' ', style)
-							}
-						}
-					}
-
-					// Draw Border
-					drawBorder(grid, res.X, listY, listW, popupH, "", style)
-
-					for i := 0; i < listH; i++ {
-						optIdx := i + state.ScrollOffset
-						if optIdx >= len(drp.Options) {
-							break
-						}
-						opt := drp.Options[optIdx]
-						optStyle := style
-						if optIdx == state.FocusedIndex {
-							optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
-						}
-
-						label := " " + opt
-						for len(label) < listW-2 {
-							label += " "
-						}
-
-						curX := res.X + 1
-						for _, r := range label {
-							if listY+1+i < h && curX < w && curX < res.X+listW-1 {
-								grid.SetContent(curX, listY+1+i, r, optStyle)
-								curX++
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Render MenuBar overlays
-	for id, stateObj := range a.componentStates {
-		if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
-			debugLog(fmt.Sprintf("Found open MenuBar state for ID: %s, open index: %d", id, state.OpenMenuIndex))
-			res := findLayoutResultByID(layout, id)
-			if res == nil {
-				debugLog(fmt.Sprintf("  Layout result not found for ID: %s", id))
-			}
-			menuBarNode := findNodeByID(root, id)
-			if menuBarNode == nil {
-				debugLog(fmt.Sprintf("  Node not found for ID: %s", id))
-			}
-			if res != nil && menuBarNode != nil {
-				if mb, ok := menuBarNode.(*MenuBar); ok {
-					borderOffset := 0
-					if mb.Style.Border {
-						borderOffset = 1
-					}
-					curX := res.X + borderOffset + mb.Style.Padding.Left
-
-					menuX := curX
-					for i := 0; i < state.OpenMenuIndex; i++ {
-						menuX += len(mb.Menus[i].Title) + 4
-					}
-
-					openMenu := mb.Menus[state.OpenMenuIndex]
-					listY := res.Y + borderOffset + mb.Style.Padding.Top + 1
-
-					listW := 0
-					for _, item := range openMenu.Items {
-						if len(item.Label) > listW {
-							listW = len(item.Label)
-						}
-					}
-					listW += 4 // +2 for padding, +2 for borders
-
-					listH := len(openMenu.Items) + 2 // +2 for top/bottom borders
-
-					style := tcell.StyleDefault.Foreground(mb.Style.Color).Background(tcell.ColorBlack)
-
-					// Draw Shadow (right and bottom edges only)
-					for i := 1; i <= listH; i++ {
-						if listY+i < h && menuX+listW < w {
-							currentCell := grid.Cells[listY+i][menuX+listW]
-							grid.SetContent(menuX+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-						}
-					}
-					for j := 1; j <= listW; j++ {
-						if listY+listH < h && menuX+j < w {
-							currentCell := grid.Cells[listY+listH][menuX+j]
-							grid.SetContent(menuX+j, listY+listH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
-						}
-					}
-
-					// Fill background
-					for i := 0; i < listH; i++ {
-						for j := 0; j < listW; j++ {
-							if listY+i < h && menuX+j < w {
-								grid.SetContent(menuX+j, listY+i, ' ', style)
-							}
-						}
-					}
-
-					// Draw Border
-					drawBorder(grid, menuX, listY, listW, listH, "", style)
-
-					for i, item := range openMenu.Items {
-						itemStyle := style
-						if state.FocusedItemIndex == i {
-							itemStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
-						}
-						if item.Disabled {
-							itemStyle = itemStyle.Foreground(tcell.ColorGray)
-						}
-
-						label := " " + item.Label
-						for len(label) < listW-2 {
-							label += " "
-						}
-
-						curItemX := menuX + 1
-						for _, r := range label {
-							if listY+i+1 < h && curItemX < w {
-								grid.SetContent(curItemX, listY+i+1, r, itemStyle)
-								curItemX++
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Render Popup overlays
-	var activePopups []*Popup
-	for id, stateObj := range a.componentStates {
-		if state, ok := stateObj.(*PopupState); ok && state.Open {
-			node := findNodeByID(root, id)
-			if n, ok := node.(*Popup); ok {
-				activePopups = append(activePopups, n)
-			}
-		}
-	}
-
-	for _, popup := range activePopups {
-		maxPopupW := w - popup.X
-		maxPopupH := h - popup.Y
-		if maxPopupW < 0 {
-			maxPopupW = 0
-		}
-		if maxPopupH < 0 {
-			maxPopupH = 0
-		}
-
-		popupConstraints := Constraints{
-			MaxW: maxPopupW,
-			MaxH: maxPopupH,
-		}
-
-		popupLayout := Layout(popup.Child, popup.X, popup.Y, popupConstraints)
-
-		// Fill background to prevent see-through
-		style := tcell.StyleDefault.Foreground(popup.Style.Color).Background(popup.Style.Background)
-		for y := popup.Y; y < popup.Y+popupLayout.H; y++ {
-			for x := popup.X; x < popup.X+popupLayout.W; x++ {
-				if x < w && y < h {
-					grid.SetContent(x, y, ' ', style)
-				}
-			}
-		}
-
-		Render(grid, popupLayout, a.focusedID, statesCopy)
-	}
+		return nil
+	})
 
 	// 4. Diff and update screen
 	if a.previousGrid == nil || a.previousGrid.W != w || a.previousGrid.H != h {
@@ -477,44 +229,11 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 		focusedNode := findNodeByID(root, a.focusedID)
 		if input, ok := focusedNode.(*TextInput); ok {
 			var res *LayoutResult
-			for id, stateObj := range a.componentStates {
+			for _, stateObj := range a.componentStates {
 				if state, ok := stateObj.(*ModalState); ok && state.Open {
-					node := findNodeByID(root, id)
-					if modal, ok := node.(*Modal); ok {
-						w, h := a.screen.Size()
-						maxModalW := w - 4
-						maxModalH := h - 4
-						if maxModalW < 0 {
-							maxModalW = 0
-						}
-						if maxModalH < 0 {
-							maxModalH = 0
-						}
-
-						modalConstraints := Constraints{
-							MaxW: maxModalW,
-							MaxH: maxModalH,
-						}
-
-						modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
-						modalW := modalLayout.W + 2
-						modalH := modalLayout.H + 2
-
-						if modalW > w {
-							modalW = w
-						}
-						if modalH > h {
-							modalH = h
-						}
-
-						modalX := (w - modalW) / 2
-						modalY := (h - modalH) / 2
-
-						ml := Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
-						res = findLayoutResultByID(ml, a.focusedID)
-						if res != nil {
-							break
-						}
+					res = findLayoutResultByID(state.OverlayLayout, a.focusedID)
+					if res != nil {
+						break
 					}
 				}
 			}
@@ -935,44 +654,11 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 			}
 
 			var res *LayoutResult
-			for id, stateObj := range a.componentStates {
+			for _, stateObj := range a.componentStates {
 				if state, ok := stateObj.(*ModalState); ok && state.Open {
-					node := findNodeByID(root, id)
-					if modal, ok := node.(*Modal); ok {
-						w, h := a.screen.Size()
-						maxModalW := w - 4
-						maxModalH := h - 4
-						if maxModalW < 0 {
-							maxModalW = 0
-						}
-						if maxModalH < 0 {
-							maxModalH = 0
-						}
-
-						modalConstraints := Constraints{
-							MaxW: maxModalW,
-							MaxH: maxModalH,
-						}
-
-						modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
-						modalW := modalLayout.W + 2
-						modalH := modalLayout.H + 2
-
-						if modalW > w {
-							modalW = w
-						}
-						if modalH > h {
-							modalH = h
-						}
-
-						modalX := (w - modalW) / 2
-						modalY := (h - modalH) / 2
-
-						ml := Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
-						res = findLayoutResultByID(ml, a.focusedID)
-						if res != nil {
-							break
-						}
+					res = findLayoutResultByID(state.OverlayLayout, a.focusedID)
+					if res != nil {
+						break
 					}
 				}
 			}
@@ -1043,38 +729,8 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 					Layout: compLayout,
 				}
 
-				// Special case for Modal layout calculation
-				if modal, ok := node.(*Modal); ok {
-					w, h := a.screen.Size()
-					maxModalW := w - 4
-					maxModalH := h - 4
-					if maxModalW < 0 {
-						maxModalW = 0
-					}
-					if maxModalH < 0 {
-						maxModalH = 0
-					}
-
-					modalConstraints := Constraints{
-						MaxW: maxModalW,
-						MaxH: maxModalH,
-					}
-
-					modalLayout := Layout(modal.Child, 0, 0, modalConstraints)
-					modalW := modalLayout.W + 2
-					modalH := modalLayout.H + 2
-
-					if modalW > w {
-						modalW = w
-					}
-					if modalH > h {
-						modalH = h
-					}
-
-					modalX := (w - modalW) / 2
-					modalY := (h - modalH) / 2
-
-					eventCtx.OverlayLayout = Layout(modal.Child, modalX+1, modalY+1, modalConstraints)
+				if modalState, ok := stateObj.(*ModalState); ok {
+					eventCtx.OverlayLayout = modalState.OverlayLayout
 				}
 
 				if tcellEv, ok := ev.(tcell.Event); ok {

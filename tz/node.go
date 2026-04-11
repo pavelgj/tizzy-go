@@ -49,6 +49,17 @@ type OverlayHandler interface {
 	HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult)
 }
 
+// OverlayRenderer allows a component to render an additional layer on top of
+// the main grid (e.g. Modal, Dropdown, MenuBar dropdown, Popup). It is called
+// after the main Render pass for every node whose state satisfies
+// OpenableState.IsOpen() == true.
+//
+// RenderOverlay should also store the computed overlay LayoutResult in the
+// component's state so that event handlers can use it without re-running layout.
+type OverlayRenderer interface {
+	RenderOverlay(grid *Grid, screenW, screenH int, mainLayout LayoutResult, focusedID string, componentStates map[string]any)
+}
+
 // CustomHitTester allows components to override default hit testing for children
 type CustomHitTester interface {
 	FindNodePathAt(x, y int, res LayoutResult, componentStates map[string]any) []Node
