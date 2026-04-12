@@ -19,6 +19,7 @@ type App struct {
 	activeCleanups  map[string]func()
 	dirty           bool
 	previousRoot    Node
+	portals         []collectedPortal // portals collected after each layout pass
 	mu              sync.Mutex
 }
 
@@ -41,7 +42,7 @@ func NewAppWithScreen(s tcell.Screen) *App {
 }
 
 func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, LayoutResult, []string, error) {
-	// 1. Get the current UI tree or reuse previous
+	// 1. Build (or reuse) the UI tree.
 	var root Node
 	if a.dirty || a.previousRoot == nil {
 		ctx := &RenderContext{app: a}
@@ -52,13 +53,13 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 		a.previousRoot = root
 		a.dirty = false
 
-		// Collect all effect IDs requested in this frame
+		// Collect all effect IDs requested in this frame.
 		requestedEffects := make(map[string]bool)
 		for _, eff := range ctx.effects {
 			requestedEffects[eff.ID] = true
 		}
 
-		// Detect Unmounts and run cleanups (not called implies unmounted)
+		// Detect unmounts and run cleanups.
 		for id, cleanup := range a.activeCleanups {
 			if !requestedEffects[id] {
 				if cleanup != nil {
@@ -68,7 +69,7 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 			}
 		}
 
-		// Detect Mounts and run effects
+		// Detect mounts and run effects.
 		for _, effectRec := range ctx.effects {
 			id := effectRec.ID
 			if _, active := a.activeCleanups[id]; !active {
@@ -82,8 +83,6 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 		root = a.previousRoot
 	}
 
-	// Find open modal if any
-	var activeModal *Modal
 	a.mu.Lock()
 	statesCopy := make(map[string]any, len(a.componentStates))
 	for k, v := range a.componentStates {
@@ -91,20 +90,30 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 	}
 	a.mu.Unlock()
 
-	for id, stateObj := range statesCopy {
-		if state, ok := stateObj.(*ModalState); ok && state.Open {
-			node := findNodeByID(root, id)
-			if n, ok := node.(*Modal); ok {
-				activeModal = n
-				break
-			}
+	// 2. Layout the main tree.
+	w, h := a.screen.Size()
+	layout := Layout(root, 0, 0, Constraints{MaxW: w, MaxH: h})
+
+	// 3. Collect portals from the layout tree (zero-size stubs in main layout,
+	//    but Portal.GetChildren lets findNodeByID reach inside them).
+	var portals []collectedPortal
+	collectPortals(layout, w, h, layout, &portals)
+	a.portals = portals
+
+	// 4. Determine focusable IDs.  If a TrapFocus portal is present only its
+	//    subtree participates in Tab traversal.
+	var trapFocusPortal *Portal
+	for i := len(portals) - 1; i >= 0; i-- {
+		if portals[i].portal.TrapFocus {
+			trapFocusPortal = portals[i].portal
+			break
 		}
 	}
 
 	var focusableIDs []string
-	if activeModal != nil {
-		focusableIDs = findFocusableIDs(activeModal.Child, a.componentStates)
-		// Ensure focus is inside modal
+	if trapFocusPortal != nil {
+		focusableIDs = findFocusableIDs(trapFocusPortal.Child, a.componentStates)
+		// Ensure the current focus is inside the portal; if not, move it in.
 		found := false
 		for _, id := range focusableIDs {
 			if id == a.focusedID {
@@ -122,26 +131,27 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 		}
 	}
 
-	// 2. Compute layout
-	w, h := a.screen.Size()
-	layout := Layout(root, 0, 0, Constraints{MaxW: w, MaxH: h})
-
-	// Update scroll offset for focused cursor provider based on up-to-date layout
+	// 5. Update scroll offset for the focused CursorProvider.
 	if a.focusedID != "" {
 		focusedNode := findNodeByID(root, a.focusedID)
 		if provider, ok := focusedNode.(CursorProvider); ok {
-			res := findLayoutResultByID(layout, a.focusedID)
+			res := a.findFocusedLayout(layout, a.focusedID)
 			if res != nil {
 				provider.UpdateScrollOffset(*res, a.componentStates[a.focusedID])
 			}
 		}
 	}
 
-	// 3. Render to grid
+	// 6. Render main tree.
 	grid := NewGrid(w, h)
 	Render(grid, layout, a.focusedID, statesCopy)
 
-	// Render overlays: walk the tree and let each component render itself.
+	// 7. Render portal content (in Z-order; later portals appear on top).
+	for _, cp := range portals {
+		Render(grid, cp.content, a.focusedID, statesCopy)
+	}
+
+	// 8. Render OverlayRenderer overlays (e.g. Dropdown, MenuBar dropdown).
 	_ = walkTree(root, func(n Node) error {
 		id := n.GetStyle().ID
 		if id == "" {
@@ -161,7 +171,7 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 		return nil
 	})
 
-	// 4. Diff and update screen
+	// 9. Diff and flush to the terminal.
 	if a.previousGrid == nil || a.previousGrid.W != w || a.previousGrid.H != h {
 		a.screen.Clear()
 		for y := 0; y < h; y++ {
@@ -184,22 +194,11 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 
 	a.previousGrid = grid
 
-	// Handle terminal cursor for focused component
+	// 10. Position the terminal hardware cursor for the focused CursorProvider.
 	if a.focusedID != "" {
 		focusedNode := findNodeByID(root, a.focusedID)
 		if provider, ok := focusedNode.(CursorProvider); ok {
-			var res *LayoutResult
-			for _, stateObj := range a.componentStates {
-				if state, ok := stateObj.(*ModalState); ok && state.Open {
-					res = findLayoutResultByID(state.OverlayLayout, a.focusedID)
-					if res != nil {
-						break
-					}
-				}
-			}
-			if res == nil {
-				res = findLayoutResultByID(layout, a.focusedID)
-			}
+			res := a.findFocusedLayout(layout, a.focusedID)
 			if res != nil {
 				cx, cy, show := provider.GetCursorPosition(*res, a.componentStates[a.focusedID])
 				if show {
@@ -220,6 +219,19 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 	a.screen.Show()
 
 	return grid, root, layout, focusableIDs, nil
+}
+
+// findFocusedLayout searches the main layout tree and all portal content
+// layouts for the LayoutResult of the currently-focused node.
+func (a *App) findFocusedLayout(mainLayout LayoutResult, id string) *LayoutResult {
+	// Check portal layouts first (they sit on top).
+	for i := len(a.portals) - 1; i >= 0; i-- {
+		if res := findLayoutResultByID(a.portals[i].content, id); res != nil {
+			return res
+		}
+	}
+	// Fall back to the main tree layout.
+	return findLayoutResultByID(mainLayout, id)
 }
 
 // GetComponentState retrieves state for a component by ID.
@@ -287,8 +299,6 @@ func (ctx *RenderContext) UseEffect(effect func() func()) {
 }
 
 // Run starts the application loop.
-// It takes a function that returns the root Node of the UI,
-// and a function to handle events and update state.
 func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Event)) error {
 	if err := a.screen.Init(); err != nil {
 		return err
@@ -297,13 +307,12 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 
 	a.screen.EnableMouse()
 
-	// Set default style
 	a.screen.SetStyle(tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset))
 
-	// Start animation ticker
+	// Animation ticker at 10 FPS.
 	go func() {
 		for {
-			time.Sleep(100 * time.Millisecond) // 10 FPS
+			time.Sleep(100 * time.Millisecond)
 			_ = a.screen.PostEvent(&EventTick{t: time.Now()})
 		}
 	}()
@@ -314,7 +323,6 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 			return err
 		}
 
-		// Event loop
 		ev := a.screen.PollEvent()
 		switch ev := ev.(type) {
 		case *tcell.EventKey:
@@ -322,15 +330,13 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 				return nil
 			}
 		case *EventTick:
-			// Continuous rendering for animations
+			// Continuous rendering for animations.
 		case *tcell.EventMouse:
 			a.handleMouseEvent(ev, root, layout)
-
 		case *tcell.EventResize:
 			a.screen.Sync()
 		}
 
-		// Call user update function to handle state changes
 		if updateFn != nil {
 			updateFn(ev)
 		}
@@ -346,6 +352,12 @@ func findFocusableIDs(node Node, componentStates map[string]any) []string {
 
 	if f, ok := node.(Focusable); ok && f.IsFocusable() && node.GetStyle().ID != "" {
 		ids = append(ids, node.GetStyle().ID)
+	}
+
+	// Portal children are not traversed for normal focus discovery;
+	// TrapFocus portals are handled separately in RenderFrame.
+	if _, ok := node.(*Portal); ok {
+		return ids
 	}
 
 	if scope, ok := node.(FocusScope); ok {
@@ -547,10 +559,11 @@ func (a *App) setFocus(id string, root Node) {
 func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult, focusableIDs []string) bool {
 	debugLog(fmt.Sprintf("Key Event: Key=%v, Rune=%v, Mod=%v", ev.Key(), ev.Rune(), ev.Modifiers()))
 
-	// Check if any popup is open
+	// Determine whether any popup-mode portal is open (used to suppress
+	// underlying TextInput navigation keys).
 	popupOpen := false
-	for _, stateObj := range a.componentStates {
-		if state, ok := stateObj.(*PopupState); ok && state.Open {
+	for _, cp := range a.portals {
+		if cp.portal.PopupMode {
 			popupOpen = true
 			break
 		}
@@ -568,20 +581,8 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 				state = stateObj
 			}
 
-			var res *LayoutResult
-			for _, stateObj := range a.componentStates {
-				if state, ok := stateObj.(*ModalState); ok && state.Open {
-					res = findLayoutResultByID(state.OverlayLayout, a.focusedID)
-					if res != nil {
-						break
-					}
-				}
-			}
-			if res == nil {
-				res = findLayoutResultByID(layout, a.focusedID)
-			}
-			var layoutRes LayoutResult
-			if res != nil {
+			layoutRes := LayoutResult{}
+			if res := a.findFocusedLayout(layout, a.focusedID); res != nil {
 				layoutRes = *res
 			}
 
@@ -598,11 +599,12 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 	}
 
 	if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
-		if popupOpen && ev.Key() == tcell.KeyEscape {
-			// Let falling through to updateFn handle closing the popup
+		// When any overlay is open, let Escape fall through to updateFn
+		// (component or user code handles closing it) rather than exiting.
+		if ev.Key() == tcell.KeyEscape && len(a.portals) > 0 {
 			return false
 		}
-		return true // Request exit
+		return true // request exit
 	}
 
 	if ev.Key() == tcell.KeyTab {
@@ -629,32 +631,83 @@ type MouseEvent interface {
 func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bool {
 	mx, my := ev.Position()
 
-	// Handle generic overlays
-	for id, stateObj := range a.componentStates {
-		if openable, ok := stateObj.(OpenableState); ok && openable.IsOpen() {
-			node := findNodeByID(root, id)
-			if handler, ok := node.(OverlayHandler); ok {
-				res := findLayoutResultByID(layout, id)
-				var compLayout LayoutResult
-				if res != nil {
-					compLayout = *res
-				}
+	// --- Portal Z-ordered hit testing (topmost portal first) ---
+	// Portals are collected in tree order; last = topmost.
+	for i := len(a.portals) - 1; i >= 0; i-- {
+		cp := a.portals[i]
+		p := cp.portal
+		content := cp.content
 
-				eventCtx := EventContext{
-					Layout: compLayout,
-				}
+		insidePortal := mx >= content.X && mx < content.X+content.W &&
+			my >= content.Y && my < content.Y+content.H
 
+		if ev.Buttons()&tcell.Button1 != 0 {
+			if insidePortal {
 				if tcellEv, ok := ev.(tcell.Event); ok {
-					handled, searchLayout := handler.HandleOverlayEvent(tcellEv, stateObj, eventCtx)
-					if handled {
-						a.dirty = true
-						return true
+					path := findNodePathAt(content, mx, my, a.componentStates)
+					if len(path) > 0 {
+						a.dispatchEventToPath(path, tcellEv, root, content)
 					}
-					if searchLayout != nil {
-						path := findNodePathAt(*searchLayout, mx, my, a.componentStates)
-						if len(path) > 0 {
-							a.dispatchEventToPath(path, tcellEv, root, *searchLayout)
+				}
+				a.dirty = true
+				return true
+			}
+			// Click outside portal bounds.
+			if p.OnOutsideClick != nil {
+				p.OnOutsideClick()
+				a.dirty = true
+			}
+			return true
+		} else if ev.Buttons()&(tcell.WheelUp|tcell.WheelDown) != 0 {
+			if insidePortal {
+				if tcellEv, ok := ev.(tcell.Event); ok {
+					path := findNodePathAt(content, mx, my, a.componentStates)
+					if len(path) > 0 {
+						targetNode := path[len(path)-1]
+						if handler, ok := targetNode.(EventHandler); ok {
+							state := a.componentStates[targetNode.GetStyle().ID]
+							res := findLayoutResultByID(content, targetNode.GetStyle().ID)
+							var targetLayout LayoutResult
+							if res != nil {
+								targetLayout = *res
+							}
+							if handler.HandleEvent(tcellEv, state, EventContext{Layout: targetLayout}) {
+								a.dirty = true
+							}
+						}
+					}
+				}
+				return true
+			}
+		}
+	}
+
+	// --- Generic OverlayHandler pass (Dropdown, MenuBar) ---
+	if ev.Buttons()&tcell.Button1 != 0 {
+		for id, stateObj := range a.componentStates {
+			if openable, ok := stateObj.(OpenableState); ok && openable.IsOpen() {
+				node := findNodeByID(root, id)
+				if handler, ok := node.(OverlayHandler); ok {
+					res := findLayoutResultByID(layout, id)
+					var compLayout LayoutResult
+					if res != nil {
+						compLayout = *res
+					}
+
+					eventCtx := EventContext{Layout: compLayout}
+
+					if tcellEv, ok := ev.(tcell.Event); ok {
+						handled, searchLayout := handler.HandleOverlayEvent(tcellEv, stateObj, eventCtx)
+						if handled {
+							a.dirty = true
 							return true
+						}
+						if searchLayout != nil {
+							path := findNodePathAt(*searchLayout, mx, my, a.componentStates)
+							if len(path) > 0 {
+								a.dispatchEventToPath(path, tcellEv, root, *searchLayout)
+								return true
+							}
 						}
 					}
 				}
@@ -662,156 +715,67 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 		}
 	}
 
+	// --- Main tree hit testing ---
 	if ev.Buttons()&tcell.Button1 != 0 {
-		handled := false
+		path := findNodePathAt(layout, mx, my, a.componentStates)
+		if len(path) > 0 {
+			debugLog(fmt.Sprintf("Mouse click at %d,%d. Path len: %d", mx, my, len(path)))
+			for i, n := range path {
+				debugLog(fmt.Sprintf("  Path[%d]: %T", i, n))
+			}
 
-		if !handled {
-			var openMenuBar *MenuBar
-			var openMenuBarID string
-			for id, stateObj := range a.componentStates {
-				if state, ok := stateObj.(*MenuBarState); ok && state.OpenMenuIndex >= 0 {
-					node := findNodeByID(root, id)
-					if mb, ok := node.(*MenuBar); ok {
-						openMenuBar = mb
-						openMenuBarID = id
+			// Filter out clicks targeting hidden tab content.
+			validPath := true
+			for i := 0; i < len(path)-1; i++ {
+				if tabs, ok := path[i].(*Tabs); ok && tabs.Style.ID != "" {
+					stateObj, ok := a.componentStates[tabs.Style.ID]
+					activeIdx := 0
+					if ok {
+						activeIdx = stateObj.(*TabsState).ActiveTab
+					}
+					activeChild := tabs.Tabs[activeIdx].Content
+					if path[i+1] != activeChild {
+						validPath = false
 						break
 					}
 				}
 			}
 
-			debugLog(fmt.Sprintf("handleMouseEvent: openMenuBar=%v", openMenuBar))
-
-			if openMenuBar != nil {
-				stateObj := a.componentStates[openMenuBarID]
-				state := stateObj.(*MenuBarState)
-				if state.OpenMenuIndex >= 0 {
-					res := findLayoutResultByID(layout, openMenuBarID)
-					if res != nil {
-						borderOffset := 0
-						if openMenuBar.Style.Border {
-							borderOffset = 1
-						}
-						curX := res.X + borderOffset + openMenuBar.Style.Padding.Left
-
-						menuX := curX
-						for i := 0; i < state.OpenMenuIndex; i++ {
-							menuX += len(openMenuBar.Menus[i].Title) + 4
-						}
-
-						openMenu := openMenuBar.Menus[state.OpenMenuIndex]
-						listY := res.Y + borderOffset + openMenuBar.Style.Padding.Top + 1
-						listW := 0
-						for _, item := range openMenu.Items {
-							if len(item.Label) > listW {
-								listW = len(item.Label)
-							}
-						}
-						listW += 4                       // +2 for padding, +2 for borders
-						listH := len(openMenu.Items) + 2 // +2 for borders
-
-						debugLog(fmt.Sprintf("handleMouseEvent: mx=%d, my=%d, menuX=%d, listY=%d, listW=%d, listH=%d", mx, my, menuX, listY, listW, listH))
-						if mx >= menuX && mx < menuX+listW && my >= listY && my < listY+listH {
-							clickedIndex := my - listY - 1 // -1 for top border
-							if clickedIndex >= 0 && clickedIndex < len(openMenu.Items) {
-								item := openMenu.Items[clickedIndex]
-								if item.Action != nil {
-									item.Action()
-									state.OpenMenuIndex = -1
-									a.dirty = true
-								}
-							}
-							handled = true
-						} else {
-							// Click outside menu closes it
-							state.OpenMenuIndex = -1
-							a.dirty = true
-						}
-					}
+			if validPath {
+				if tcellEv, ok := ev.(tcell.Event); ok {
+					a.dispatchEventToPath(path, tcellEv, root, layout)
 				}
 			}
 		}
-
-		if !handled {
-			path := findNodePathAt(layout, mx, my, a.componentStates)
-			if len(path) > 0 {
-				debugLog(fmt.Sprintf("Mouse click at %d,%d. Path len: %d", mx, my, len(path)))
-				if len(path) > 0 {
-					debugLog(fmt.Sprintf("Leaf node: %T", path[len(path)-1]))
-					for i, n := range path {
-						debugLog(fmt.Sprintf("  Path[%d]: %T", i, n))
-					}
-				}
-
-				// Filter out clicks targeting hidden tab content
-				validPath := true
-				for i := 0; i < len(path)-1; i++ {
-					if tabs, ok := path[i].(*Tabs); ok && tabs.Style.ID != "" {
-						stateObj, ok := a.componentStates[tabs.Style.ID]
-						activeIdx := 0
-						if ok {
-							activeIdx = stateObj.(*TabsState).ActiveTab
-						}
-						activeChild := tabs.Tabs[activeIdx].Content
-						if path[i+1] != activeChild {
-							validPath = false
-							break
-						}
-					}
-				}
-
-				if !validPath {
-					// Do nothing
-				} else {
-					if tcellEv, ok := ev.(tcell.Event); ok {
-						handled = a.dispatchEventToPath(path, tcellEv, root, layout)
-					}
-				}
-			}
-		}
-	} else if ev.Buttons()&tcell.Button4 != 0 || ev.Buttons()&tcell.WheelUp != 0 { // Wheel Up
+	} else if ev.Buttons()&(tcell.Button4|tcell.WheelUp) != 0 {
 		path := findNodePathAt(layout, mx, my, a.componentStates)
 		if len(path) > 0 {
-			targetNode := path[len(path)-1]
-			if handler, ok := targetNode.(EventHandler); ok {
-				state := a.componentStates[targetNode.GetStyle().ID]
-				res := findLayoutResultByID(layout, targetNode.GetStyle().ID)
-				var targetLayout LayoutResult
-				if res != nil {
-					targetLayout = *res
-				}
-				eventCtx := EventContext{
-					Layout: targetLayout,
-				}
-				if tcellEv, ok := ev.(tcell.Event); ok {
-					if handler.HandleEvent(tcellEv, state, eventCtx) {
-						a.dirty = true
-					}
-				}
-			}
+			a.dispatchWheelToPath(path, ev, layout)
 		}
-	} else if ev.Buttons()&tcell.Button5 != 0 || ev.Buttons()&tcell.WheelDown != 0 { // Wheel Down
+	} else if ev.Buttons()&(tcell.Button5|tcell.WheelDown) != 0 {
 		path := findNodePathAt(layout, mx, my, a.componentStates)
 		if len(path) > 0 {
-			targetNode := path[len(path)-1]
-			if handler, ok := targetNode.(EventHandler); ok {
-				state := a.componentStates[targetNode.GetStyle().ID]
-				res := findLayoutResultByID(layout, targetNode.GetStyle().ID)
-				var targetLayout LayoutResult
-				if res != nil {
-					targetLayout = *res
-				}
-				eventCtx := EventContext{
-					Layout: targetLayout,
-				}
-				if tcellEv, ok := ev.(tcell.Event); ok {
-					if handler.HandleEvent(tcellEv, state, eventCtx) {
-						a.dirty = true
-					}
-				}
-			}
+			a.dispatchWheelToPath(path, ev, layout)
 		}
 	}
 	return true
+}
+
+func (a *App) dispatchWheelToPath(path []Node, ev MouseEvent, searchLayout LayoutResult) {
+	targetNode := path[len(path)-1]
+	if handler, ok := targetNode.(EventHandler); ok {
+		state := a.componentStates[targetNode.GetStyle().ID]
+		res := findLayoutResultByID(searchLayout, targetNode.GetStyle().ID)
+		var targetLayout LayoutResult
+		if res != nil {
+			targetLayout = *res
+		}
+		if tcellEv, ok := ev.(tcell.Event); ok {
+			if handler.HandleEvent(tcellEv, state, EventContext{Layout: targetLayout}) {
+				a.dirty = true
+			}
+		}
+	}
 }
 
 func (a *App) dispatchEventToPath(path []Node, ev tcell.Event, root Node, searchLayout LayoutResult) bool {

@@ -322,3 +322,64 @@ func (n *MenuBar) RenderOverlay(grid *Grid, screenW, screenH int, mainLayout Lay
 func (n *MenuBar) IsFocusable() bool {
 	return n.Style.Focusable
 }
+
+// HandleOverlayEvent handles mouse events directed at the currently-open menu
+// dropdown.  It is called by the generic OverlayHandler loop in app.go before
+// normal hit-testing runs, so clicks on menu items and outside-click dismissal
+// are handled here rather than in app.go.
+func (n *MenuBar) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult) {
+	s, ok := state.(*MenuBarState)
+	if !ok || s.OpenMenuIndex < 0 {
+		return false, nil
+	}
+
+	mouse, ok := ev.(*tcell.EventMouse)
+	if !ok {
+		return false, nil
+	}
+
+	mx, my := mouse.Position()
+	res := ctx.Layout
+
+	borderOffset := 0
+	if n.Style.Border {
+		borderOffset = 1
+	}
+	curX := res.X + borderOffset + n.Style.Padding.Left
+
+	menuX := curX
+	for i := 0; i < s.OpenMenuIndex; i++ {
+		menuX += len(n.Menus[i].Title) + 4
+	}
+
+	openMenu := n.Menus[s.OpenMenuIndex]
+	listY := res.Y + borderOffset + n.Style.Padding.Top + 1
+
+	listW := 0
+	for _, item := range openMenu.Items {
+		if len(item.Label) > listW {
+			listW = len(item.Label)
+		}
+	}
+	listW += 4                       // +2 for padding, +2 for borders
+	listH := len(openMenu.Items) + 2 // +2 for borders
+
+	if mouse.Buttons()&tcell.Button1 != 0 {
+		if mx >= menuX && mx < menuX+listW && my >= listY && my < listY+listH {
+			clickedIndex := my - listY - 1 // -1 for top border
+			if clickedIndex >= 0 && clickedIndex < len(openMenu.Items) {
+				item := openMenu.Items[clickedIndex]
+				if !item.Disabled && item.Action != nil {
+					item.Action()
+				}
+				s.OpenMenuIndex = -1
+			}
+			return true, nil
+		}
+		// Click outside the open menu — dismiss.
+		s.OpenMenuIndex = -1
+		return true, nil
+	}
+
+	return false, nil
+}

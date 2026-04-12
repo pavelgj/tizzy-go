@@ -2,95 +2,45 @@ package tz
 
 import (
 	"fmt"
-
-	"github.com/gdamore/tcell/v2"
 )
 
-// Popup represents a floating overlay component positioned absolutely.
-type Popup struct {
-	Style Style
-	Child Node
-	X     int
-	Y     int
-}
+// NewPopup creates a portal positioned at an explicit absolute screen position.
+// When isOpen is false, nil is returned; NewBox silently drops nil children.
+//
+// PopupMode is set so that underlying TextInput components know to suppress
+// their navigation-key handling (Enter / Up / Down) while the popup is visible.
+//
+// One hook slot is always consumed regardless of isOpen so that callers keep
+// stable hook indices across renders.
+func NewPopup(ctx *RenderContext, style Style, child Node, x, y int, isOpen bool) Node {
+	// Consume one hook slot for stable hook ordering across renders.
+	id := fmt.Sprintf("hook-%d", ctx.hookIndex)
+	ctx.hookIndex++
 
-// NewPopup creates a new Popup component.
-func NewPopup(ctx *RenderContext, style Style, child Node, x, y int, isOpen bool) *Popup {
-	stateObj, _ := ctx.UseState(&PopupState{Open: isOpen})
-	state := stateObj.(*PopupState)
-	state.Open = isOpen // Sync with passed prop
-
-	// Derive hook ID and set it on style
-	id := fmt.Sprintf("hook-%d", ctx.hookIndex-1)
-	style.ID = id
-
-	return &Popup{
-		Style: style,
-		Child: child,
-		X:     x,
-		Y:     y,
-	}
-}
-
-// PopupState stores the interactive state of a Popup.
-type PopupState struct {
-	Open bool
-}
-
-func (s *PopupState) IsOpen() bool {
-	return s.Open
-}
-
-// GetStyle returns the style of the Popup node.
-func (p *Popup) GetStyle() Style {
-	return p.Style
-}
-
-// Layout calculates the layout for the Popup component.
-func (p *Popup) Layout(x, y int, c Constraints) LayoutResult {
-	// Popups do not take space in the parent layout
-	return LayoutResult{
-		Node: p,
-		X:    x,
-		Y:    y,
-		W:    0,
-		H:    0,
-	}
-}
-
-// Render draws the Popup component.
-func (p *Popup) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
-	// Do nothing, rendered as overlay via RenderOverlay.
-}
-
-// RenderOverlay renders the Popup at its absolute position on top of the main grid.
-func (p *Popup) RenderOverlay(grid *Grid, screenW, screenH int, mainLayout LayoutResult, focusedID string, componentStates map[string]any) {
-	state, ok := componentStates[p.Style.ID].(*PopupState)
-	if !ok || !state.Open {
-		return
+	if !isOpen {
+		return nil
 	}
 
-	maxPopupW := screenW - p.X
-	maxPopupH := screenH - p.Y
-	if maxPopupW < 0 {
-		maxPopupW = 0
-	}
-	if maxPopupH < 0 {
-		maxPopupH = 0
+	if style.ID == "" {
+		style.ID = id
 	}
 
-	popupConstraints := Constraints{MaxW: maxPopupW, MaxH: maxPopupH}
-	popupLayout := Layout(p.Child, p.X, p.Y, popupConstraints)
-
-	// Fill background to prevent see-through
-	style := tcell.StyleDefault.Foreground(p.Style.Color).Background(p.Style.Background)
-	for y := p.Y; y < p.Y+popupLayout.H; y++ {
-		for x := p.X; x < p.X+popupLayout.W; x++ {
-			if x < screenW && y < screenH {
-				grid.SetContent(x, y, ' ', style)
-			}
-		}
+	// Wrap the child with the popup's visual style (border, background, etc.)
+	// so the caller does not have to duplicate those style fields on their child.
+	wrapperStyle := Style{
+		Border:     style.Border,
+		Width:      style.Width,
+		Background: style.Background,
+		Color:      style.Color,
+		Padding:    style.Padding,
 	}
+	wrapped := NewBox(wrapperStyle, child)
 
-	Render(grid, popupLayout, focusedID, componentStates)
+	return &Portal{
+		Style:     style,
+		Child:     wrapped,
+		X:         x,
+		Y:         y,
+		PopupMode: true,
+	}
 }
