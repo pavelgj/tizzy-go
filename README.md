@@ -8,9 +8,11 @@ A declarative Terminal User Interface (TUI) library for Go, inspired by React's 
 
 - **Declarative UI**: Build UIs by composing components that return a virtual tree of nodes.
 - **Flexbox Layout**: Easy alignment and distribution of space with `row` and `column` directions, `JustifyContent`, and `FillWidth`/`FillHeight`.
-- **Isolated State**: Support for struct-based components with isolated mutable state.
+- **React-like Hooks**: `UseState` and `UseEffect` for local state and lifecycle effects, keeping logic close to where it is used.
+- **Animation System**: `UseAnimation`, `UseTween`, and `UseTweenColor` hooks backed by a single shared scheduler — no per-component goroutines or tickers.
 - **Rich Interactions**: Focus management, keyboard navigation, and mouse support.
-- **Extensible**: Easy to create custom components.
+- **Overlays & Portals**: Modals, dropdowns, and custom positioned popups rendered above the main tree.
+- **Extensible**: Easy to create custom components by implementing one or more narrow interfaces.
 
 ## How it Compares to Alternatives
 
@@ -38,38 +40,36 @@ Here is a minimal example of a counter application:
 package main
 
 import (
-	"log"
-	"strconv"
-	"github.com/pavelgj/tizzy-go/tz"
-
-	"github.com/gdamore/tcell/v2"
+    "log"
+    "strconv"
+    "github.com/pavelgj/tizzy-go/tz"
 )
 
 func main() {
-	app, err := tz.NewApp()
-	if err != nil {
-		log.Fatal(err)
-	}
+    app, err := tz.NewApp()
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	render := func(ctx *tz.RenderContext) tz.Node {
-		count, setCount := tz.UseState(ctx, 0)
+    render := func(ctx *tz.RenderContext) tz.Node {
+        count, setCount := tz.UseState(ctx, 0)
 
-		return tz.NewBox(
-			tz.Style{
-				Border:        true,
-				Padding:       tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
-				FlexDirection: "column",
-			},
-			tz.NewText(tz.Style{}, "Clicks: "+strconv.Itoa(count)),
-			tz.NewButton(tz.Style{Focusable: true, ID: "btn-increment"}, "Increment", func() {
-				setCount(count + 1)
-			}),
-		)
-	}
+        return tz.NewBox(
+            tz.Style{
+                Border:        true,
+                Padding:       tz.Padding{Top: 1, Bottom: 1, Left: 2, Right: 2},
+                FlexDirection: "column",
+            },
+            tz.NewText(tz.Style{}, "Clicks: "+strconv.Itoa(count)),
+            tz.NewButton(tz.Style{Focusable: true, ID: "btn-increment"}, "Increment", func() {
+                setCount(count + 1)
+            }),
+        )
+    }
 
-	if err := app.Run(render, func(ev tcell.Event) {}); err != nil {
-		log.Fatal(err)
-	}
+    if err := app.Run(render, nil); err != nil {
+        log.Fatal(err)
+    }
 }
 ```
 
@@ -81,16 +81,16 @@ Every component implements the `Node` interface (`GetStyle() Style`) and optiona
 
 Tizzy supports two authoring patterns:
 
-1.  **Functional Components**: Pure functions that take props and return a `Node`. Best for stateless or read-only UI.
-2.  **Stateful Components**: Constructor functions that call `UseState`/`UseEffect` hooks and return a `Node`. Best for interactive components that own internal state.
+1. **Functional Components**: Pure functions that take props and return a `Node`. Best for stateless or read-only UI.
+2. **Stateful Components**: Constructor functions that call `UseState`/`UseEffect` hooks and return a `Node`. Best for interactive components that own internal state.
 
 ### Layout
 
 Layout is handled by the `Box` component using a Flexbox-style system.
 
-- `FlexDirection`: "row" or "column".
+- `FlexDirection`: `"row"` or `"column"`.
 - `FillWidth` / `FillHeight`: Fill available space.
-- `JustifyContent`: "flex-start", "center", "flex-end".
+- `JustifyContent`: `"flex-start"`, `"center"`, `"flex-end"`.
 
 ## Styling
 
@@ -104,8 +104,8 @@ All components take a `Style` struct to define their appearance and layout.
 - `Width` (`int`): Fixed width in cells.
 - `Height` (`int`): Fixed height in cells.
 - `MaxHeight` (`int`): Maximum height in cells.
-- `FlexDirection` (`string`): "row" or "column" (default). Used by `Box`.
-- `JustifyContent` (`string`): "flex-start", "center", "flex-end". Used by `Box`.
+- `FlexDirection` (`string`): `"row"` or `"column"` (default). Used by `Box`.
+- `JustifyContent` (`string`): `"flex-start"`, `"center"`, `"flex-end"`. Used by `Box`.
 - `Border` (`bool`): If true, draws a border around the component.
 - `Padding` (`Padding`): Inward spacing.
 - `Margin` (`Margin`): Outward spacing.
@@ -119,48 +119,83 @@ All components take a `Style` struct to define their appearance and layout.
 
 ## Hooks and Lifecycle
 
-Tizzy supports React-like hooks for state management and lifecycle effects within the render function.
+Tizzy supports React-like hooks for state management, lifecycle effects, and animations inside the render function.
+
+> [!NOTE]
+> Hooks rely on call order to identify state across renders. Do not call hooks inside loops or conditions.
 
 ### UseState
 
 Allows components to have local state that persists across renders. Tizzy provides a generic wrapper for type safety.
 
 ```go
-app.Run(func(ctx *tz.RenderContext) tz.Node {
-    count, setCount := tz.UseState(ctx, 0) // T is inferred as int
-
-    return tz.NewButton(tz.Style{}, "Clicks: "+strconv.Itoa(count), func() {
-        setCount(count + 1)
-    })
-}, func(ev tcell.Event) {})
+count, setCount := tz.UseState(ctx, 0) // T inferred as int
+setCount(count + 1)                     // triggers a re-render
 ```
 
 ### UseEffect
 
-Allows performing side effects (like starting background tasks) when a component mounts, and cleaning up when it unmounts.
+Performs side effects when a component mounts and cleans up when it unmounts.
 
 ```go
-app.Run(func(ctx *tz.RenderContext) tz.Node {
-    ctx.UseEffect(func() func() {
-        // OnInit / OnMount
-        // Start a background goroutine or timer...
+ctx.UseEffect(func() func() {
+    ticker := time.NewTicker(500 * time.Millisecond)
+    go func() { /* ... */ }()
+    return func() { ticker.Stop() } // cleanup on unmount
+})
+```
 
-        return func() {
-            // OnUnmount
-            // Stop the goroutine or cleanup resources...
-        }
-    })
+### UseAnimation
 
-    return tz.NewText(tz.Style{}, "I keep track of my lifecycle")
-}, func(ev tcell.Event) {})
+Returns a progress value in `[0.0, 1.0]` that advances over the given duration using the chosen easing function. Backed by a single shared scheduler — no goroutine is created per call.
+
+```go
+// Animate from 0 → 1 on mount
+progress := tz.UseAnimation(ctx, 400*time.Millisecond, tz.EaseOut)
+width := int(progress * 40)
+
+// Loop indefinitely (e.g. for a custom spinner)
+progress := tz.UseAnimation(ctx, 600*time.Millisecond, tz.Linear, tz.WithLoop())
+
+// Trigger manually from an event handler
+progress, trigger := tz.UseAnimation(ctx, 300*time.Millisecond, tz.EaseOut,
+    tz.WithManualTrigger())
+// call trigger() from a button's onPress or HandleEvent
+```
+
+**Built-in easing functions**: `tz.Linear`, `tz.EaseIn`, `tz.EaseOut`, `tz.EaseInOut`.
+
+### UseTween
+
+Smoothly interpolates a typed value toward a target whenever the target changes — equivalent to a CSS `transition`. When the target changes mid-animation, the tween picks up from the current value.
+
+```go
+// Animate a panel width open/closed
+targetW := 0
+if open { targetW = 40 }
+w := tz.UseTween(ctx, targetW, 200*time.Millisecond, tz.EaseOut)
+// w is an int that smoothly follows targetW
+
+// Works with float64 too
+opacity := tz.UseTween(ctx, targetOpacity, 300*time.Millisecond, tz.EaseInOut)
+```
+
+### UseTweenColor
+
+Smoothly interpolates between two RGB colors.
+
+```go
+target := tcell.NewRGBColor(40, 40, 40)
+if focused {
+    target = tcell.NewRGBColor(0, 120, 215)
+}
+borderColor := tz.UseTweenColor(ctx, target, 120*time.Millisecond, tz.EaseOut)
 ```
 
 > [!NOTE]
-> `UseEffect` relies on call order to identify effects across renders. Do not call hooks inside loops or conditions.
+> `UseTweenColor` requires RGB colors created with `tcell.NewRGBColor`. Named palette colors (e.g. `tcell.ColorBlue`) are not interpolatable and fall back to showing the target immediately.
 
 ## Components Reference
-
-Here are all the available components in Tizzy:
 
 ### Containers & Layout
 
@@ -181,11 +216,7 @@ tz.NewBox(
 A container that allows scrolling its content if it exceeds available size.
 
 ```go
-tz.NewScrollView(
-    ctx,
-    tz.Style{Height: 10},
-    largeContentNode,
-)
+tz.NewScrollView(ctx, tz.Style{Height: 10}, largeContentNode)
 ```
 
 #### Modal
@@ -193,12 +224,7 @@ tz.NewScrollView(
 A centered overlay that traps focus. Returns `nil` when closed (safe to include in `NewBox` children unconditionally).
 
 ```go
-tz.NewModal(
-    ctx,
-    tz.Style{Background: tcell.ColorBlue},
-    modalContentNode,
-    isOpen,
-)
+tz.NewModal(ctx, tz.Style{Background: tcell.ColorBlue}, modalContentNode, isOpen)
 ```
 
 #### Popup
@@ -206,13 +232,13 @@ tz.NewModal(
 A floating overlay anchored to an explicit screen position. Returns `nil` when closed.
 
 ```go
-tz.NewPopup(
-    ctx,
+tz.NewPopup(ctx,
     tz.Style{Border: true, Background: tcell.ColorGray},
     popupContentNode,
     x, y,   // absolute screen position
     isOpen,
 )
+```
 
 ### Basic Components
 
@@ -254,15 +280,13 @@ Displays a list of selectable items.
 tz.NewList(
     ctx,
     tz.Style{Focusable: true},
-    "state-key",          // key: resets cursor/scroll when it changes
-    items,                // []any
-    0,                    // initial selected index (-1 for none)
+    "state-key",       // resets cursor/scroll when changed
+    items,             // []any
+    0,                 // initial selected index (-1 for none)
     func(item any, index int, selected bool, cursor bool) tz.Node {
         return tz.NewListItem(item.(string), selected, cursor)
     },
-    func(idx int) {
-        // handle selection (Enter key or click)
-    },
+    func(idx int) { /* handle selection */ },
 )
 ```
 
@@ -301,9 +325,7 @@ tz.NewDropdown(
     tz.Style{Focusable: true},
     []string{"Option A", "Option B", "Option C"},
     selectedIndex,
-    func(idx int) {
-        // handle selection
-    },
+    func(idx int) { /* handle selection */ },
 )
 ```
 
@@ -311,15 +333,15 @@ tz.NewDropdown(
 
 #### Tabs
 
-A tabbed interface for switching between views.
+A tabbed interface for switching between views. Use `←` / `→` (when focused) or click a tab header to switch.
 
 ```go
 tz.NewTabs(
     ctx,
-    tz.Style{Focusable: true},
+    tz.Style{ID: "tabs", Focusable: true},
     []tz.Tab{
-        {Title: "Home", Content: homeNode},
-        {Title: "Settings", Content: settingsNode},
+        {Label: "Home",     Content: homeNode},
+        {Label: "Settings", Content: settingsNode},
     },
 )
 ```
@@ -337,7 +359,7 @@ tz.NewMenuBar(
             Title:   "File",
             AltRune: 'f',
             Items: []tz.MenuItem{
-                {Label: "New", Action: func() {}},
+                {Label: "New",  Action: func() {}},
                 {Label: "Exit", Action: func() {}},
             },
         },
@@ -352,15 +374,22 @@ tz.NewMenuBar(
 A horizontal progress bar.
 
 ```go
-tz.NewProgressBar(tz.Style{}, 0.75) // 75%
+tz.NewProgressBar(tz.Style{Width: 40, Color: tcell.ColorGreen}, 0.75) // 75%
 ```
 
 #### Spinner
 
-An animated loading spinner.
+An animated loading spinner, driven by the shared animation scheduler.
 
 ```go
-tz.NewSpinner(ctx, tz.Style{Color: tcell.ColorCyan})
+// Default frames (|/-\) at 100ms per frame
+tz.NewSpinner(ctx, tz.Style{Color: tcell.ColorYellow})
+
+// Custom frames and speed
+tz.NewSpinnerCustom(ctx, tz.Style{Color: tcell.ColorGreen},
+    []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
+    60*time.Millisecond,
+)
 ```
 
 #### Table
@@ -373,9 +402,35 @@ tz.NewTable(
     []string{"Name", "Age", "Role"},
     [][]string{
         {"Alice", "30", "Dev"},
-        {"Bob", "25", "Designer"},
+        {"Bob",   "25", "Designer"},
     },
 )
+```
+
+## Samples
+
+The `samples/` directory contains runnable examples for every major feature:
+
+| Sample | Description |
+|--------|-------------|
+| `animation` | `UseAnimation`, `UseTween`, easing curves, flash & slide transitions |
+| `spinner` | `NewSpinner` and `NewSpinnerCustom` with various frame sets |
+| `tabs` | `NewTabs` with interactive content per tab |
+| `dashboard` | Multi-panel layout with live data |
+| `kitchensink` | All form controls in one screen |
+| `menubar` | Full menu bar with submenus |
+| `modal` | Modal overlays and focus trapping |
+| `dropdown` | Dropdown selection component |
+| `progressbar` | Progress bar display |
+| `scrollview` | Scrollable content containers |
+| `table` | Tabular data display |
+| `grid` | Grid layout system |
+| `flexbox` | Flexbox alignment options |
+
+Run any sample with:
+
+```bash
+go run ./samples/animation
 ```
 
 ## Installation

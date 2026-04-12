@@ -31,6 +31,7 @@ func main() {
 				{Label: "Spinners", Content: spinnersPage(ctx)},
 				{Label: "Progress", Content: progressPage(ctx)},
 				{Label: "Transitions", Content: transitionsPage(ctx)},
+				{Label: "Modal", Content: modalPage(ctx)},
 			}),
 		)
 	}, nil)
@@ -145,8 +146,8 @@ func progressPage(ctx *tz.RenderContext) tz.Node {
 }
 
 // ── Transitions page ──────────────────────────────────────────────────────────
-// Shows UseAnimation with WithManualTrigger for a flash effect and UseTween
-// for a slide-open panel.
+// Shows UseAnimation with WithManualTrigger, UseTween for a slide panel, and
+// UseTweenColor for smooth palette transitions.
 
 func transitionsPage(ctx *tz.RenderContext) tz.Node {
 	return tz.NewBox(
@@ -156,7 +157,11 @@ func transitionsPage(ctx *tz.RenderContext) tz.Node {
 			flashDemo(ctx),
 			slideDemo(ctx),
 		),
-		easingDemo(ctx),
+		tz.NewBox(
+			tz.Style{FlexDirection: "column"},
+			easingDemo(ctx),
+			colorTweenDemo(ctx),
+		),
 	)
 }
 
@@ -270,6 +275,119 @@ func easingDemo(ctx *tz.RenderContext) tz.Node {
 		bar(p4, "EaseInOut"),
 		tz.NewButton(tz.Style{ID: "btn-replay", Focusable: true, Border: true, Margin: tz.Margin{Top: 1}},
 			" Replay ", replay),
+	)
+}
+
+// colorTweenDemo — three swatches toggle between warm and cool palettes.
+// Staggered durations make the wave-like transition visible.
+func colorTweenDemo(ctx *tz.RenderContext) tz.Node {
+	warm, setWarm := tz.UseState(ctx, true)
+
+	type palette struct{ r, g, b int32 }
+	swatchColors := [3][2]palette{
+		{{220, 80, 30}, {30, 100, 220}},
+		{{230, 160, 20}, {20, 170, 150}},
+		{{200, 40, 100}, {110, 40, 210}},
+	}
+	durations := []time.Duration{350, 500, 650}
+
+	target := func(i int) tcell.Color {
+		idx := 0
+		if !warm {
+			idx = 1
+		}
+		p := swatchColors[i][idx]
+		return tcell.NewRGBColor(p.r, p.g, p.b)
+	}
+
+	c0 := tz.UseTweenColor(ctx, target(0), durations[0]*time.Millisecond, tz.EaseInOut)
+	c1 := tz.UseTweenColor(ctx, target(1), durations[1]*time.Millisecond, tz.EaseInOut)
+	c2 := tz.UseTweenColor(ctx, target(2), durations[2]*time.Millisecond, tz.EaseInOut)
+
+	swatch := func(color tcell.Color) tz.Node {
+		return tz.NewBox(
+			tz.Style{Width: 10, Height: 2, Background: color, Margin: tz.Margin{Right: 1}},
+		)
+	}
+
+	label := "→ Cool"
+	if !warm {
+		label = "→ Warm"
+	}
+
+	return tz.NewBox(
+		tz.Style{FlexDirection: "column", Margin: tz.Margin{Top: 2}},
+		tz.NewText(tz.Style{Color: tcell.ColorWhite}, "UseTweenColor — palette transition"),
+		tz.NewBox(
+			tz.Style{FlexDirection: "row", Margin: tz.Margin{Top: 1}},
+			swatch(c0),
+			swatch(c1),
+			swatch(c2),
+		),
+		tz.NewButton(
+			tz.Style{ID: "btn-palette", Focusable: true, Border: true, Margin: tz.Margin{Top: 1}},
+			" "+label+" ", func() { setWarm(!warm) },
+		),
+	)
+}
+
+// ── Modal page ────────────────────────────────────────────────────────────────
+// Shows a modal that grows from 0×0 to full size using UseTween on Width/Height.
+// Hooks are called unconditionally; the Portal is only inserted into the tree
+// while at least one dimension is nonzero (so it vanishes cleanly after closing).
+
+func modalPage(ctx *tz.RenderContext) tz.Node {
+	isOpen, setOpen := tz.UseState(ctx, false)
+
+	const fullW, fullH = 44, 10
+
+	targetW := 0
+	targetH := 0
+	if isOpen {
+		targetW = fullW
+		targetH = fullH
+	}
+
+	w := tz.UseTween(ctx, targetW, 280*time.Millisecond, tz.EaseOut)
+	h := tz.UseTween(ctx, targetH, 280*time.Millisecond, tz.EaseOut)
+
+	// Only insert the portal while the modal has visible size.
+	var modal tz.Node
+	if w > 0 || h > 0 {
+		modal = &tz.Portal{
+			X:         -1, // auto-center
+			Y:         -1,
+			TrapFocus: isOpen,
+			OnOutsideClick: func() { setOpen(false) },
+			Child: tz.NewBox(
+				tz.Style{
+					Width:      w,
+					Height:     h,
+					Border:     true,
+					Background: tcell.ColorDarkBlue,
+					Padding:    tz.Padding{Left: 2, Top: 1},
+				},
+				tz.NewText(tz.Style{Color: tcell.ColorYellow}, "Animated Modal"),
+				tz.NewText(tz.Style{Color: tcell.ColorGray},
+					fmt.Sprintf("growing: %d × %d", w, h)),
+				tz.NewButton(tz.Style{
+					ID: "btn-modal-close", Focusable: true, Border: true,
+					Margin: tz.Margin{Top: 1},
+				}, " Close ", func() { setOpen(false) }),
+			),
+		}
+	}
+
+	return tz.NewBox(
+		tz.Style{FlexDirection: "column", Padding: tz.Padding{Top: 2, Left: 4}},
+		tz.NewText(tz.Style{Color: tcell.ColorWhite}, "UseTween — animated modal open / close"),
+		tz.NewText(tz.Style{Color: tcell.ColorGray, Margin: tz.Margin{Bottom: 1}},
+			"Width and Height tween independently from 0 → full on open and back on close."),
+		tz.NewButton(tz.Style{ID: "btn-modal-open", Focusable: true, Border: true},
+			" Open Modal ", func() { setOpen(true) }),
+		tz.NewText(tz.Style{Color: tcell.ColorGray, Margin: tz.Margin{Top: 1}},
+			"Click outside or press Close to dismiss."),
+		modal,
 	)
 }
 
