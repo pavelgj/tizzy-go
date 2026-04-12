@@ -162,10 +162,16 @@ func (d *Dropdown) visibleItemCount() int {
 // Render draws the Dropdown component to the grid.
 func (n *Dropdown) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	borderOffset := 0
+	focused := n.Style.ID != "" && n.Style.ID == focusedID
+
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
 	borderStyle := style
-	if n.Style.ID != "" && n.Style.ID == focusedID {
-		borderStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow)
+	focusColor := tcell.ColorYellow
+	if n.Style.FocusColor != tcell.ColorDefault {
+		focusColor = n.Style.FocusColor
+	}
+	if focused {
+		borderStyle = tcell.StyleDefault.Foreground(focusColor).Background(n.Style.Background)
 	}
 	if n.Style.Border {
 		borderOffset = 1
@@ -176,14 +182,33 @@ func (n *Dropdown) Render(grid *Grid, layout LayoutResult, focusedID string, com
 	curX := layout.X + pad.Left + borderOffset
 	curY := layout.Y + pad.Top + borderOffset
 
+	hasSelection := n.SelectedIndex >= 0 && n.SelectedIndex < len(n.Options)
 	selectedText := n.Placeholder
-	if n.SelectedIndex >= 0 && n.SelectedIndex < len(n.Options) {
+	if hasSelection {
 		selectedText = n.Options[n.SelectedIndex]
 	}
 
-	drawText(grid, curX, curY, "[ ", style)
+	// Brackets and chevron match the border color when focused.
+	decorStyle := style
+	if focused {
+		decorStyle = borderStyle
+	}
+
+	// Placeholder is dimmed to distinguish it from an actual selection.
+	contentStyle := style
+	if !hasSelection {
+		contentStyle = tcell.StyleDefault.Foreground(tcell.ColorGray).Background(n.Style.Background)
+	}
+
+	// Chevron flips to reflect open/closed state.
+	chevron := "▼"
+	if n.state != nil && n.state.Open {
+		chevron = "▲"
+	}
+
+	drawText(grid, curX, curY, "[ ", decorStyle)
 	curX += 2
-	drawText(grid, curX, curY, selectedText, style)
+	drawText(grid, curX, curY, selectedText, contentStyle)
 	curX += len(selectedText)
 
 	remaining := layout.W - borderOffset*2 - pad.Left - pad.Right - 2 - len(selectedText) - 4
@@ -194,7 +219,7 @@ func (n *Dropdown) Render(grid *Grid, layout LayoutResult, focusedID string, com
 		curX += remaining
 	}
 
-	drawText(grid, curX, curY, " v ]", style)
+	drawText(grid, curX, curY, " "+chevron+" ]", decorStyle)
 }
 
 func (d *Dropdown) DefaultState() any {
@@ -363,6 +388,14 @@ func (n *dropdownListNode) Render(grid *Grid, layout LayoutResult, focusedID str
 
 	drawBorder(grid, listX, listY, listW, popupH, "", style)
 
+	// Scroll indicators: show ▲/▼ in the border when items are hidden above/below.
+	if n.State.ScrollOffset > 0 && listW >= 3 {
+		grid.SetContent(listX+listW-2, listY, '▲', style)
+	}
+	if n.State.ScrollOffset+listH < len(n.Dropdown.Options) && listW >= 3 {
+		grid.SetContent(listX+listW-2, listY+popupH-1, '▼', style)
+	}
+
 	for i := 0; i < listH; i++ {
 		optIdx := i + n.State.ScrollOffset
 		if optIdx >= len(n.Dropdown.Options) {
@@ -373,12 +406,17 @@ func (n *dropdownListNode) Render(grid *Grid, layout LayoutResult, focusedID str
 		if optIdx == n.State.FocusedIndex {
 			optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
 		}
-		label := " " + opt
-		for len(label) < listW-2 {
-			label += " "
+		// Mark the currently selected item with a checkmark.
+		prefix := ' '
+		if optIdx == n.Dropdown.SelectedIndex {
+			prefix = '✓'
+		}
+		labelRunes := append([]rune{prefix}, []rune(opt)...)
+		for len(labelRunes) < listW-2 {
+			labelRunes = append(labelRunes, ' ')
 		}
 		curX := listX + 1
-		for _, r := range label {
+		for _, r := range labelRunes {
 			if listY+1+i < grid.H && curX < grid.W && curX < listX+listW-1 {
 				grid.SetContent(curX, listY+1+i, r, optStyle)
 				curX++

@@ -112,6 +112,48 @@ func (g *Grid) DumpToPNG(filename string, cellW, cellH int) error {
 					cy := cellH / 2
 					for y2 := 0; y2 <= cy; y2++ { img.Set(x*cellW+cx, y*cellH+y2, fgColor) }
 					for x2 := cx; x2 < cellW; x2++ { img.Set(x*cellW+x2, y*cellH+cy, fgColor) }
+				case '▼':
+					// Filled triangle pointing down (widest at top, narrows to point at bottom)
+					for cy := 0; cy < cellH; cy++ {
+						halfW := (cellW/2) * (cellH - 1 - cy) / (cellH - 1)
+						midX := cellW / 2
+						for cx := midX - halfW; cx <= midX+halfW; cx++ {
+							img.Set(x*cellW+cx, y*cellH+cy, fgColor)
+						}
+					}
+				case '▲':
+					// Filled triangle pointing up (point at top, widest at bottom)
+					for cy := 0; cy < cellH; cy++ {
+						halfW := (cellW / 2) * cy / (cellH - 1)
+						midX := cellW / 2
+						for cx := midX - halfW; cx <= midX+halfW; cx++ {
+							img.Set(x*cellW+cx, y*cellH+cy, fgColor)
+						}
+					}
+				case '✓':
+					// Checkmark: short left leg down-right to pivot, long right leg up-right
+					pivot := cellW / 3
+					drawSeg := func(x0, y0, x1, y1 int) {
+						dx, dy := x1-x0, y1-y0
+						steps := dx
+						if dy > steps { steps = dy }
+						if dy < -steps { steps = -dy }
+						if dx < -steps { steps = -dx }
+						if steps == 0 {
+							img.Set(x*cellW+x0, y*cellH+y0, fgColor)
+							return
+						}
+						for i := 0; i <= steps; i++ {
+							px := x0 + dx*i/steps
+							py := y0 + dy*i/steps
+							img.Set(x*cellW+px, y*cellH+py, fgColor)
+							if px+1 < cellW {
+								img.Set(x*cellW+px+1, y*cellH+py, fgColor)
+							}
+						}
+					}
+					drawSeg(0, cellH/2, pivot, cellH-1)
+					drawSeg(pivot, cellH-1, cellW-1, 1)
 				default:
 					// Fallback for other characters (fill whole cell)
 					for cy := 0; cy < cellH; cy++ {
