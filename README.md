@@ -77,10 +77,12 @@ func main() {
 
 ### Components
 
-Tizzy supports two patterns for components:
+Every component implements the `Node` interface (`GetStyle() Style`) and optionally implements additional interfaces for layout, rendering, event handling, focus, and overlays. The framework detects capabilities at runtime — a component only needs to implement what it actually uses.
 
-1.  **Functional Components**: Pure functions that take props and return a `Node`. Best for stateless or read-only UIs.
-2.  **Struct Components**: Structs that hold state and have a `Render() Node` method. Best for stateful, interactive parts of the UI.
+Tizzy supports two authoring patterns:
+
+1.  **Functional Components**: Pure functions that take props and return a `Node`. Best for stateless or read-only UI.
+2.  **Stateful Components**: Constructor functions that call `UseState`/`UseEffect` hooks and return a `Node`. Best for interactive components that own internal state.
 
 ### Layout
 
@@ -188,16 +190,29 @@ tz.NewScrollView(
 
 #### Modal
 
-An overlay that traps focus and blocks interaction with the background. Controlled by `isOpen` boolean.
+A centered overlay that traps focus. Returns `nil` when closed (safe to include in `NewBox` children unconditionally).
 
 ```go
 tz.NewModal(
     ctx,
-    tz.Style{},
+    tz.Style{Background: tcell.ColorBlue},
     modalContentNode,
     isOpen,
 )
 ```
+
+#### Popup
+
+A floating overlay anchored to an explicit screen position. Returns `nil` when closed.
+
+```go
+tz.NewPopup(
+    ctx,
+    tz.Style{Border: true, Background: tcell.ColorGray},
+    popupContentNode,
+    x, y,   // absolute screen position
+    isOpen,
+)
 
 ### Basic Components
 
@@ -239,13 +254,14 @@ Displays a list of selectable items.
 tz.NewList(
     ctx,
     tz.Style{Focusable: true},
-    "state-key", // Key to identify list state across renders
-    items,       // []any
+    "state-key",          // key: resets cursor/scroll when it changes
+    items,                // []any
+    0,                    // initial selected index (-1 for none)
     func(item any, index int, selected bool, cursor bool) tz.Node {
-        return tz.NewListItem(label, selected, cursor)
+        return tz.NewListItem(item.(string), selected, cursor)
     },
     func(idx int) {
-        // handle selection
+        // handle selection (Enter key or click)
     },
 )
 ```
@@ -310,7 +326,7 @@ tz.NewTabs(
 
 #### MenuBar
 
-A top-level specific menu bar with support for Alt shortcuts and dropdowns. Uses internal hooks for state.
+A top-level menu bar with keyboard navigation and Alt-key shortcuts.
 
 ```go
 tz.NewMenuBar(
@@ -318,10 +334,11 @@ tz.NewMenuBar(
     tz.Style{Focusable: true},
     []tz.Menu{
         {
-            Title: "File",
+            Title:   "File",
+            AltRune: 'f',
             Items: []tz.MenuItem{
-                {Title: "New", Action: func() {}},
-                {Title: "Exit", Action: func() {}},
+                {Label: "New", Action: func() {}},
+                {Label: "Exit", Action: func() {}},
             },
         },
     },
@@ -366,3 +383,9 @@ tz.NewTable(
 ```bash
 go get github.com/pavelgj/tizzy-go
 ```
+
+## Further Reading
+
+- [Architecture & Internals](docs/architecture.md) — render pipeline, Portal mechanism, overlay model, interface catalogue
+- [Creating New Components](docs/new-component.md) — step-by-step guide with layout, render, event, and overlay examples
+- [Contributing](CONTRIBUTING.md) — visual regression testing workflow
