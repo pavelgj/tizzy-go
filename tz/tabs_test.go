@@ -72,3 +72,69 @@ func TestTabsInteraction(t *testing.T) {
 		t.Errorf("Expected active tab 0, got %d", state.ActiveTab)
 	}
 }
+
+// TestTabsLastVisible verifies the visible range calculation for overflow tabs.
+func TestTabsLastVisible(t *testing.T) {
+	// Each tab slot = len(label) + 4.
+	// "Tab A"=5+4=9, "Tab B"=5+4=9, "Tab C"=5+4=9, "Tab D"=5+4=9 → total 36
+	tabs := []Tab{
+		{Label: "Tab A"},
+		{Label: "Tab B"},
+		{Label: "Tab C"},
+		{Label: "Tab D"},
+	}
+
+	// availW=20, scrollOffset=0: no left arrow.
+	// Without right arrow: 9+9=18 ≤ 20, next 9 would make 27 > 20 → last=1 (need right arrow)
+	// With right arrow (reserve 1): 9+9=18, 18+9+1=28 > 20 → last=1 still
+	last := tabsLastVisible(tabs, 0, 20)
+	if last != 1 {
+		t.Errorf("scrollOffset=0 availW=20: expected last=1, got %d", last)
+	}
+
+	// scrollOffset=1: left arrow costs 1. Available for tabs = 20-1=19, minus right arrow=18.
+	// 9 ≤ 18, next 9+9=18 ≤ 18 fits! but then no more tabs after index 2... wait index 3 remains.
+	// With left arrow (1) + right arrow (1): 20-2=18. Tabs 1,2 = 9+9=18 fits. Tab 3 = 9 > 0 remaining → last=2
+	last = tabsLastVisible(tabs, 1, 20)
+	if last != 2 {
+		t.Errorf("scrollOffset=1 availW=20: expected last=2, got %d", last)
+	}
+
+	// scrollOffset=2: left arrow costs 1. Tabs 2,3 = 9+9=18, need right? No, tab 3 is last.
+	// Without right arrow: 1+9+9=19 ≤ 20 → last=3 (all remaining fit)
+	last = tabsLastVisible(tabs, 2, 20)
+	if last != 3 {
+		t.Errorf("scrollOffset=2 availW=20: expected last=3, got %d", last)
+	}
+}
+
+// TestTabsScrollOffset verifies that ensureActiveVisible adjusts ScrollOffset correctly.
+func TestTabsScrollOffset(t *testing.T) {
+	ctx := makeTestContext()
+	tabs := NewTabs(ctx, Style{ID: "tabs"}, []Tab{
+		{Label: "Tab A"},
+		{Label: "Tab B"},
+		{Label: "Tab C"},
+		{Label: "Tab D"},
+	})
+	// availW=20, scrollOffset=0 shows tabs 0-1 (plus right arrow)
+
+	t.Run("navigate right scrolls into view", func(t *testing.T) {
+		s := &TabsState{ActiveTab: 1, ScrollOffset: 0}
+		// Move to tab 2 — it's not visible at offset=0 with availW=20
+		s.ActiveTab = 2
+		tabs.ensureActiveVisible(s, 20)
+		if s.ScrollOffset == 0 {
+			t.Error("Expected ScrollOffset to advance so tab 2 is visible")
+		}
+	})
+
+	t.Run("navigate left scrolls back", func(t *testing.T) {
+		s := &TabsState{ActiveTab: 2, ScrollOffset: 1}
+		s.ActiveTab = 0
+		tabs.ensureActiveVisible(s, 20)
+		if s.ScrollOffset != 0 {
+			t.Errorf("Expected ScrollOffset=0, got %d", s.ScrollOffset)
+		}
+	})
+}

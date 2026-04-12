@@ -450,6 +450,56 @@ func TestGenerateMenuBarVisual(t *testing.T) {
 	verifyVisual(t, grid, "menu_bar")
 }
 
+func TestGenerateTabsOverflowVisual(t *testing.T) {
+	// Tabs with a fixed narrow width so the header overflows and shows < / > arrows.
+	// Scenario 1: scrollOffset=0 (left edge, only '>' shown)
+	// Scenario 2: scrollOffset=2 (middle, both '<' and '>' shown)
+	// Scenario 3: scrollOffset=4 (right edge, only '<' shown)
+	ctx := makeTestContext()
+
+	makeTabs := func(id string) *Tabs {
+		return NewTabs(ctx, Style{
+			ID:        id,
+			Width:     24,
+			Color:     tcell.ColorWhite,
+			Focusable: true,
+		}, []Tab{
+			{Label: "Alpha", Content: NewText(Style{Color: tcell.ColorWhite}, "Alpha content")},
+			{Label: "Beta", Content: NewText(Style{Color: tcell.ColorWhite}, "Beta content")},
+			{Label: "Gamma", Content: NewText(Style{Color: tcell.ColorWhite}, "Gamma content")},
+			{Label: "Delta", Content: NewText(Style{Color: tcell.ColorWhite}, "Delta content")},
+			{Label: "Epsilon", Content: NewText(Style{Color: tcell.ColorWhite}, "Epsilon content")},
+		})
+	}
+
+	tabs1 := makeTabs("otabs1") // scroll=0, active=0
+	tabs2 := makeTabs("otabs2") // scroll=2, active=2
+	tabs3 := makeTabs("otabs3") // scroll=3, active=4
+
+	root := NewBox(
+		Style{Width: 30, Height: 18, FlexDirection: "column", Padding: Padding{Top: 1, Left: 1}},
+		NewText(Style{Color: tcell.ColorGray}, "Scroll=0, Active=0:"),
+		tabs1,
+		NewText(Style{Color: tcell.ColorGray}, "Scroll=2, Active=2:"),
+		tabs2,
+		NewText(Style{Color: tcell.ColorGray}, "Scroll=3, Active=4:"),
+		tabs3,
+	)
+
+	layout := Layout(root, 0, 0, Constraints{MaxW: 30, MaxH: 18})
+	grid := NewGrid(30, 18)
+
+	compStates := map[string]any{
+		"otabs1": &TabsState{ActiveTab: 0, ScrollOffset: 0},
+		"otabs2": &TabsState{ActiveTab: 2, ScrollOffset: 2},
+		"otabs3": &TabsState{ActiveTab: 4, ScrollOffset: 3},
+	}
+
+	Render(grid, layout, "", compStates)
+
+	verifyVisual(t, grid, "tabs_overflow")
+}
+
 func TestGenerateTabsVisual(t *testing.T) {
 	// Three scenarios rendered side-by-side:
 	//  1. First tab active, not focused
