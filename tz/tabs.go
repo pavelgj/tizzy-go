@@ -25,11 +25,17 @@ type TabsState struct {
 
 // NewTabs creates a new Tabs component.
 func NewTabs(ctx *RenderContext, style Style, tabs []Tab) *Tabs {
-	_, _ = UseState[*TabsState](ctx, &TabsState{ActiveTab: 0})
-
 	if style.ID == "" {
-		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex-1)
+		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex)
 	}
+	ctx.hookIndex++ // keep the hookIndex advancing as if UseState was called
+
+	// Store state under style.ID — the same key used by Render and HandleEvent.
+	ctx.app.mu.Lock()
+	if ctx.app.componentStates[style.ID] == nil {
+		ctx.app.componentStates[style.ID] = &TabsState{}
+	}
+	ctx.app.mu.Unlock()
 
 	return &Tabs{
 		Style: style,

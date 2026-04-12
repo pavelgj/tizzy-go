@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -16,10 +17,11 @@ type App struct {
 	componentStates map[string]any
 	previousGrid    *Grid
 	activeCleanups  map[string]func()
-	dirty           bool
+	dirty           atomic.Bool
 	previousRoot    Node
 	portals         []collectedPortal // portals collected after each layout pass
 	mu              sync.Mutex
+	scheduler       *animationScheduler
 }
 
 // NewApp creates a new App instance.
@@ -32,25 +34,27 @@ func NewApp() (*App, error) {
 }
 
 func NewAppWithScreen(s tcell.Screen) *App {
-	return &App{
+	a := &App{
 		screen:          s,
 		componentStates: make(map[string]any),
 		activeCleanups:  make(map[string]func()),
-		dirty:           true,
+		scheduler:       newAnimationScheduler(),
 	}
+	a.dirty.Store(true)
+	return a
 }
 
 func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, LayoutResult, []string, error) {
 	// 1. Build (or reuse) the UI tree.
 	var root Node
-	if a.dirty || a.previousRoot == nil {
+	if a.dirty.Load() || a.previousRoot == nil {
 		ctx := &RenderContext{app: a}
 		root = renderFn(ctx)
 		if err := validateUniqueIDs(root); err != nil {
 			return nil, nil, LayoutResult{}, nil, err
 		}
 		a.previousRoot = root
-		a.dirty = false
+		a.dirty.Store(false)
 
 		// Collect all effect IDs requested in this frame.
 		requestedEffects := make(map[string]bool)
@@ -235,13 +239,13 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 
 	a.screen.SetStyle(tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset))
 
-	// Animation ticker at 10 FPS.
-	go func() {
-		for {
-			time.Sleep(100 * time.Millisecond)
-			_ = a.screen.PostEvent(&EventTick{t: time.Now()})
-		}
-	}()
+	// Ensure a scheduler exists even when App is constructed directly in tests.
+	if a.scheduler == nil {
+		a.scheduler = newAnimationScheduler()
+	}
+	// Single goroutine drives all UseAnimation/UseTween animations. Step
+	// functions call state setters → MarkDirty → PostEvent(EventTick).
+	go a.scheduler.run(10)
 
 	for {
 		_, root, layout, focusableIDs, err := a.RenderFrame(renderFn)
@@ -295,9 +299,14 @@ func (e *EventTick) When() time.Time {
 	return e.t
 }
 
-// MarkDirty forces a re-render on the next frame.
+// MarkDirty forces a re-render on the next frame. Safe to call from any
+// goroutine. When called from a background goroutine (e.g. an animation step
+// function) it posts an EventTick the first time the flag transitions from
+// clean to dirty, waking up PollEvent promptly without flooding the queue.
 func (a *App) MarkDirty() {
-	a.dirty = true
+	if !a.dirty.Swap(true) && a.screen != nil {
+		_ = a.screen.PostEvent(&EventTick{t: time.Now()})
+	}
 }
 
 func (a *App) setFocus(id string, root Node) {
@@ -305,7 +314,7 @@ func (a *App) setFocus(id string, root Node) {
 		return
 	}
 	a.focusedID = id
-	a.dirty = true
+	a.dirty.Store(true)
 
 	a.dismissOthers(id, root)
 
@@ -354,7 +363,7 @@ func (a *App) handleKeyEvent(ev *tcell.EventKey, root Node, layout LayoutResult,
 			}
 
 			if handler.HandleEvent(ev, state, eventCtx) {
-				a.dirty = true
+				a.dirty.Store(true)
 				return false
 			}
 		}
@@ -417,10 +426,10 @@ func (a *App) handlePortalMouseEvent(ev MouseEvent, mx, my int, root Node) bool 
 						a.dispatchEventToPath(path, tcellEv, root, content)
 					}
 				}
-				a.dirty = true
+				a.dirty.Store(true)
 			} else if p.OnOutsideClick != nil {
 				p.OnOutsideClick()
-				a.dirty = true
+				a.dirty.Store(true)
 			}
 			return true
 		}
@@ -438,7 +447,7 @@ func (a *App) handlePortalMouseEvent(ev MouseEvent, mx, my int, root Node) bool 
 							targetLayout = *res
 						}
 						if handler.HandleEvent(tcellEv, state, EventContext{Layout: targetLayout}) {
-							a.dirty = true
+							a.dirty.Store(true)
 						}
 					}
 				}
@@ -484,7 +493,7 @@ func (a *App) dispatchWheelToPath(path []Node, ev MouseEvent, searchLayout Layou
 		}
 		if tcellEv, ok := ev.(tcell.Event); ok {
 			if handler.HandleEvent(tcellEv, state, EventContext{Layout: targetLayout}) {
-				a.dirty = true
+				a.dirty.Store(true)
 			}
 		}
 	}
@@ -514,6 +523,12 @@ func (a *App) dispatchEventToPath(path []Node, ev tcell.Event, root Node, search
 	handled := false
 	if handler, ok := clickedNode.(EventHandler); ok {
 		state := a.componentStates[clickedNode.GetStyle().ID]
+		if state == nil {
+			state = handler.DefaultState()
+			a.mu.Lock()
+			a.componentStates[clickedNode.GetStyle().ID] = state
+			a.mu.Unlock()
+		}
 		res := findLayoutResultByID(searchLayout, clickedNode.GetStyle().ID)
 		var clickedLayout LayoutResult
 		if res != nil {
@@ -523,7 +538,7 @@ func (a *App) dispatchEventToPath(path []Node, ev tcell.Event, root Node, search
 			Layout: clickedLayout,
 		}
 		if handler.HandleEvent(ev, state, eventCtx) {
-			a.dirty = true
+			a.dirty.Store(true)
 		}
 		handled = true
 	}

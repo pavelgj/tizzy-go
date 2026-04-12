@@ -1,58 +1,29 @@
 package tz
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
 
-// Spinner is a node that displays a loading animation.
+// Spinner is a node that displays a looping loading animation.
 type Spinner struct {
 	Style    Style
 	Frames   []string
-	Interval time.Duration
+	frameIdx int // computed from UseAnimation progress during render
 }
 
-// NewSpinner creates a new Spinner node.
+// NewSpinner creates a Spinner with the default frames (|/-\) at 100ms per frame.
 func NewSpinner(ctx *RenderContext, style Style) *Spinner {
-	hookId := fmt.Sprintf("hook-%d", ctx.hookIndex)
-	_, setFrameIdx := UseState(ctx, 0)
+	return NewSpinnerCustom(ctx, style, []string{"|", "/", "-", "\\"}, 100*time.Millisecond)
+}
 
-	if style.ID == "" {
-		style.ID = hookId
-	}
-
-	s := &Spinner{
-		Style:    style,
-		Frames:   []string{"|", "/", "-", "\\"},
-		Interval: 100 * time.Millisecond,
-	}
-
-	ctx.UseEffect(func() func() {
-		ticker := time.NewTicker(s.Interval)
-		done := make(chan bool)
-		go func() {
-			for {
-				select {
-				case <-ticker.C:
-					currentVal := 0
-					if stateObj, ok := ctx.app.componentStates[style.ID]; ok {
-						currentVal = stateObj.(int)
-					}
-					setFrameIdx((currentVal + 1) % len(s.Frames))
-				case <-done:
-					ticker.Stop()
-					return
-				}
-			}
-		}()
-		return func() {
-			done <- true
-		}
-	})
-
-	return s
+// NewSpinnerCustom creates a Spinner with custom frames and a per-frame interval.
+func NewSpinnerCustom(ctx *RenderContext, style Style, frames []string, interval time.Duration) *Spinner {
+	duration := time.Duration(len(frames)) * interval
+	progress, _ := UseAnimation(ctx, duration, Linear, WithLoop())
+	frameIdx := int(progress*float64(len(frames))) % len(frames)
+	return &Spinner{Style: style, Frames: frames, frameIdx: frameIdx}
 }
 
 // Layout calculates the layout for the Spinner node.
@@ -99,16 +70,11 @@ func (n *Spinner) Render(grid *Grid, layout LayoutResult, focusedID string, comp
 		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
 	}
 
-	frameIdx := 0
-	if stateObj, ok := componentStates[n.Style.ID]; ok {
-		frameIdx = stateObj.(int)
-	}
+	frameIdx := n.frameIdx
 	if frameIdx >= len(n.Frames) {
 		frameIdx = 0
 	}
-	val := n.Frames[frameIdx]
-
-	drawText(grid, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, val, style)
+	drawText(grid, layout.X+n.Style.Padding.Left+borderOffset, layout.Y+n.Style.Padding.Top+borderOffset, n.Frames[frameIdx], style)
 }
 
 // GetStyle returns the style of the Spinner node.

@@ -33,8 +33,10 @@ func (ctx *RenderContext) UseState(initial any) (any, func(any)) {
 		ctx.app.componentStates[id] = state
 	}
 	setter := func(newVal any) {
+		ctx.app.mu.Lock()
 		ctx.app.componentStates[id] = newVal
-		ctx.app.dirty = true
+		ctx.app.mu.Unlock()
+		ctx.app.MarkDirty()
 	}
 	return state, setter
 }
