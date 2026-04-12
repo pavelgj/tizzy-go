@@ -617,19 +617,25 @@ type MouseEvent interface {
 
 func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bool {
 	mx, my := ev.Position()
+	if a.handlePortalMouseEvent(ev, mx, my, root) {
+		return true
+	}
+	return a.handleMainTreeMouseEvent(ev, mx, my, root, layout)
+}
 
-	// --- Portal Z-ordered hit testing (topmost portal first) ---
-	// Portals are collected in tree order; last = topmost.
+// handlePortalMouseEvent routes mouse events through portals in Z-order
+// (topmost portal first). Returns true if the event was consumed.
+func (a *App) handlePortalMouseEvent(ev MouseEvent, mx, my int, root Node) bool {
 	for i := len(a.portals) - 1; i >= 0; i-- {
 		cp := a.portals[i]
 		p := cp.portal
 		content := cp.content
 
-		insidePortal := mx >= content.X && mx < content.X+content.W &&
+		inside := mx >= content.X && mx < content.X+content.W &&
 			my >= content.Y && my < content.Y+content.H
 
 		if ev.Buttons()&tcell.Button1 != 0 {
-			if insidePortal {
+			if inside {
 				if tcellEv, ok := ev.(tcell.Event); ok {
 					path := findNodePathAt(content, mx, my, a.componentStates)
 					if len(path) > 0 {
@@ -637,42 +643,41 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 					}
 				}
 				a.dirty = true
-				return true
-			}
-			// Click outside portal bounds.
-			if p.OnOutsideClick != nil {
+			} else if p.OnOutsideClick != nil {
 				p.OnOutsideClick()
 				a.dirty = true
 			}
 			return true
-		} else if ev.Buttons()&(tcell.WheelUp|tcell.WheelDown) != 0 {
-			if insidePortal {
-				if tcellEv, ok := ev.(tcell.Event); ok {
-					path := findNodePathAt(content, mx, my, a.componentStates)
-					if len(path) > 0 {
-						targetNode := path[len(path)-1]
-						if handler, ok := targetNode.(EventHandler); ok {
-							state := a.componentStates[targetNode.GetStyle().ID]
-							res := findLayoutResultByID(content, targetNode.GetStyle().ID)
-							var targetLayout LayoutResult
-							if res != nil {
-								targetLayout = *res
-							}
-							if handler.HandleEvent(tcellEv, state, EventContext{Layout: targetLayout}) {
-								a.dirty = true
-							}
+		}
+
+		if ev.Buttons()&(tcell.WheelUp|tcell.WheelDown) != 0 && inside {
+			if tcellEv, ok := ev.(tcell.Event); ok {
+				path := findNodePathAt(content, mx, my, a.componentStates)
+				if len(path) > 0 {
+					targetNode := path[len(path)-1]
+					if handler, ok := targetNode.(EventHandler); ok {
+						state := a.componentStates[targetNode.GetStyle().ID]
+						res := findLayoutResultByID(content, targetNode.GetStyle().ID)
+						var targetLayout LayoutResult
+						if res != nil {
+							targetLayout = *res
+						}
+						if handler.HandleEvent(tcellEv, state, EventContext{Layout: targetLayout}) {
+							a.dirty = true
 						}
 					}
 				}
-				return true
 			}
+			return true
 		}
 	}
+	return false
+}
 
-
-	// --- Main tree hit testing ---
-	// Note: Tabs.FindNodePathAt (CustomHitTester) already filters inactive tab
-	// content, so no Tabs-specific guard is needed here.
+// handleMainTreeMouseEvent routes mouse events through the main layout tree.
+// Note: Tabs.FindNodePathAt (CustomHitTester) already filters inactive tab
+// content, so no Tabs-specific guard is needed here.
+func (a *App) handleMainTreeMouseEvent(ev MouseEvent, mx, my int, root Node, layout LayoutResult) bool {
 	if ev.Buttons()&tcell.Button1 != 0 {
 		path := findNodePathAt(layout, mx, my, a.componentStates)
 		if len(path) > 0 {
@@ -684,12 +689,7 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 				a.dispatchEventToPath(path, tcellEv, root, layout)
 			}
 		}
-	} else if ev.Buttons()&(tcell.Button4|tcell.WheelUp) != 0 {
-		path := findNodePathAt(layout, mx, my, a.componentStates)
-		if len(path) > 0 {
-			a.dispatchWheelToPath(path, ev, layout)
-		}
-	} else if ev.Buttons()&(tcell.Button5|tcell.WheelDown) != 0 {
+	} else if ev.Buttons()&(tcell.Button4|tcell.WheelUp|tcell.Button5|tcell.WheelDown) != 0 {
 		path := findNodePathAt(layout, mx, my, a.componentStates)
 		if len(path) > 0 {
 			a.dispatchWheelToPath(path, ev, layout)
