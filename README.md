@@ -113,6 +113,7 @@ All components take a `Style` struct to define their appearance and layout.
 - `Background` (`tcell.Color`): Background color.
 - `FocusColor` (`tcell.Color`): Foreground color when focused. Falls back to yellow if not set.
 - `FocusBackground` (`tcell.Color`): Background color when focused.
+- `TextAttrs` (`tcell.AttrMask`): Terminal text attributes — bold, italic, underline, etc. — expressed as a bitmask. Combine `tcell` constants directly or populate this field via the `tzlipgloss` adapter (see below). Example: `tcell.AttrBold | tcell.AttrUnderline`.
 - `FillWidth` (`bool`): If true, fills available width.
 - `FillHeight` (`bool`): If true, fills available height.
 - `GridRow`, `GridCol`, `GridRowSpan`, `GridColSpan` (`int`): Used by `GridBox` layout.
@@ -249,6 +250,29 @@ Displays static text.
 ```go
 tz.NewText(tz.Style{Color: tcell.ColorGreen}, "Hello World")
 ```
+
+#### ANSIText
+
+Renders a string that contains ANSI SGR escape sequences — for example the output of `lipgloss.Render()` or `glamour.Render()` — inside the Tizzy layout tree. The string is parsed once at construction time; each visible rune is written to the grid with its embedded style.
+
+```go
+// Inline ANSI escape sequences
+tz.NewANSIText(tz.Style{}, "\x1b[1;31mError:\x1b[0m something went wrong")
+
+// Output of lipgloss.Render embedded as-is
+bold := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FF71EF"))
+tz.NewANSIText(tz.Style{}, bold.Render("Lip Gloss"))
+
+// Glamour markdown in a scroll view
+rendered, _ := glamour.Render(markdownSource, "dark")
+tz.NewScrollView(ctx, tz.Style{FillWidth: true, FillHeight: true},
+    tz.NewANSIText(tz.Style{}, rendered),
+)
+```
+
+Supported ANSI sequences: basic foreground/background colors (30–37, 40–47), bright variants (90–97, 100–107), 256-color palette (`38;5;n` / `48;5;n`), true-color RGB (`38;2;r;g;b` / `48;2;r;g;b`), and text attributes bold, dim, italic, underline, blink, reverse, strikethrough. OSC sequences (e.g. hyperlinks) and non-SGR CSI sequences are skipped cleanly.
+
+Layout properties on the wrapping `tz.Style` (`Width`, `Padding`, `Margin`) work exactly as with `NewText`.
 
 #### Button
 
@@ -407,12 +431,76 @@ tz.NewTable(
 )
 ```
 
+## Lipgloss Integration
+
+Tizzy provides two opt-in integration points with the [Charmbracelet Lipgloss](https://github.com/charmbracelet/lipgloss) styling library. Neither requires changes to code that doesn't use them.
+
+### `ANSIText` — embed Lipgloss-rendered content
+
+`tz.NewANSIText` (in the core `tz` package, no Lipgloss dependency) renders any ANSI-escaped string inside the layout tree. Pass `lipgloss.Render()` output directly:
+
+```go
+import "github.com/charmbracelet/lipgloss"
+
+badge := lipgloss.NewStyle().
+    Bold(true).
+    Foreground(lipgloss.Color("#FFFFFF")).
+    Background(lipgloss.Color("#7C3AED")).
+    Padding(0, 1).
+    Render("NEW")
+
+tz.NewANSIText(tz.Style{}, badge)
+```
+
+This is also the right approach for [Glamour](https://github.com/charmbracelet/glamour) markdown output:
+
+```go
+import "github.com/charmbracelet/glamour"
+
+rendered, _ := glamour.Render(markdownSource, "dark")
+tz.NewScrollView(ctx, tz.Style{FillWidth: true, FillHeight: true},
+    tz.NewANSIText(tz.Style{}, rendered),
+)
+```
+
+### `tzlipgloss` — reuse Lipgloss design tokens on Tizzy components
+
+The optional `tzlipgloss` sub-package converts a `lipgloss.Style` into a `tz.Style` so that a shared color/typography system drives both Lipgloss-rendered content and Tizzy-native components without duplication.
+
+```bash
+go get github.com/pavelgj/tizzy-go/tzlipgloss
+```
+
+```go
+import (
+    "github.com/charmbracelet/lipgloss"
+    "github.com/pavelgj/tizzy-go/tzlipgloss"
+)
+
+// Define tokens once with Lipgloss…
+var primary = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7C3AED"))
+var muted   = lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("#6B7280"))
+
+// …use them on Tizzy-native components via the adapter.
+tz.NewText(tzlipgloss.Style(primary), "Dashboard")
+tz.NewText(tzlipgloss.Style(muted),   "Last updated: just now")
+
+// Color conversion is also available standalone.
+tz.Style{Color: tzlipgloss.Color(lipgloss.Color("#FF71EF"))}
+```
+
+**What is mapped:** foreground color, background color, bold, italic, underline, strikethrough, blink, dim, reverse.
+
+**What is not mapped:** padding, margin, border, width, height, alignment — express those via `tz.Style` directly, since Tizzy owns the layout pass.
+
 ## Samples
 
 The `samples/` directory contains runnable examples for every major feature:
 
 | Sample | Description |
 |--------|-------------|
+| `ansitext` | `NewANSIText` — basic/256/true-color swatches, text attributes, inline mixed styles in a scroll view |
+| `lipgloss` | `tzlipgloss.Style()` adapter + `NewANSIText` with `lipgloss.Render()` output; tabbed demo |
 | `animation` | `UseAnimation`, `UseTween`, easing curves, flash & slide transitions |
 | `spinner` | `NewSpinner` and `NewSpinnerCustom` with various frame sets |
 | `tabs` | `NewTabs` with interactive content per tab |
@@ -443,4 +531,5 @@ go get github.com/pavelgj/tizzy-go
 
 - [Architecture & Internals](docs/architecture.md) — render pipeline, Portal mechanism, overlay model, interface catalogue
 - [Creating New Components](docs/new-component.md) — step-by-step guide with layout, render, event, and overlay examples
+- [Lipgloss Integration](docs/lipgloss.md) — design rationale, `ANSIText` implementation notes, `tzlipgloss` adapter API reference
 - [Contributing](CONTRIBUTING.md) — visual regression testing workflow

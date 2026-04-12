@@ -110,6 +110,11 @@ type Style struct {
 	Background      tcell.Color
 	FocusColor      tcell.Color
 	FocusBackground tcell.Color
+	// TextAttrs holds terminal text attributes (bold, italic, underline, etc.)
+	// expressed as a tcell.AttrMask. Use the tzlipgloss adapter to populate
+	// this from a lipgloss.Style, or set it directly with tcell attribute
+	// constants (e.g. tcell.AttrBold | tcell.AttrUnderline).
+	TextAttrs       tcell.AttrMask
 	FillWidth       bool
 	FillHeight      bool
 	GridRow         int

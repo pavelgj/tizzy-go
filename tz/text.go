@@ -37,6 +37,9 @@ func (n *Text) Layout(x, y int, c Constraints) LayoutResult {
 func (n *Text) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	focused := n.Style.ID != "" && n.Style.ID == focusedID
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+	if n.Style.TextAttrs != 0 {
+		style = style.Attributes(n.Style.TextAttrs)
+	}
 	if focused {
 		style = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
 	}
