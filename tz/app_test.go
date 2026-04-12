@@ -56,62 +56,6 @@ func TestNextPrevFocus(t *testing.T) {
 	}
 }
 
-func TestOffsetToLineCol(t *testing.T) {
-	text := "abc\ndef\nghi"
-
-	tests := []struct {
-		offset int
-		line   int
-		col    int
-	}{
-		{0, 0, 0},
-		{1, 0, 1},
-		{3, 0, 3},
-		{4, 1, 0},
-		{5, 1, 1},
-		{7, 1, 3},
-		{8, 2, 0},
-		{9, 2, 1},
-		{11, 2, 3},
-		{12, 2, 3}, // Beyond end
-	}
-
-	for _, tc := range tests {
-		l, c := offsetToLineCol(text, tc.offset)
-		if l != tc.line || c != tc.col {
-			t.Errorf("For offset %d, expected line %d, col %d; got line %d, col %d", tc.offset, tc.line, tc.col, l, c)
-		}
-	}
-}
-
-func TestLineColToOffset(t *testing.T) {
-	text := "abc\ndef\nghi"
-
-	tests := []struct {
-		line   int
-		col    int
-		offset int
-	}{
-		{0, 0, 0},
-		{0, 1, 1},
-		{0, 3, 3},
-		{0, 5, 3}, // Clamped
-		{1, 0, 4},
-		{1, 1, 5},
-		{1, 3, 7},
-		{2, 0, 8},
-		{2, 3, 11},
-		{3, 0, 11}, // Beyond lines
-	}
-
-	for _, tc := range tests {
-		off := lineColToOffset(text, tc.line, tc.col)
-		if off != tc.offset {
-			t.Errorf("For line %d, col %d, expected offset %d; got %d", tc.line, tc.col, tc.offset, off)
-		}
-	}
-}
-
 func TestScrollViewKeyboardScrolling(t *testing.T) {
 	app := &App{
 		componentStates: make(map[string]any),

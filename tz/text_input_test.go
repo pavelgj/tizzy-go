@@ -101,3 +101,55 @@ func TestTextInputHandleEvent(t *testing.T) {
 		t.Errorf("Expected cursorOffset 5, got %d", state.cursorOffset)
 	}
 }
+
+func TestOffsetToLineCol(t *testing.T) {
+	text := "abc\ndef\nghi"
+	tests := []struct {
+		offset     int
+		wantLine   int
+		wantCol    int
+	}{
+		{0, 0, 0},
+		{1, 0, 1},
+		{3, 0, 3},
+		{4, 1, 0},
+		{5, 1, 1},
+		{7, 1, 3},
+		{8, 2, 0},
+		{9, 2, 1},
+		{11, 2, 3},
+		{12, 2, 3}, // beyond end — clamps to last position
+	}
+	for _, tc := range tests {
+		l, c := offsetToLineCol(text, tc.offset)
+		if l != tc.wantLine || c != tc.wantCol {
+			t.Errorf("offsetToLineCol(%d): got (%d,%d), want (%d,%d)", tc.offset, l, c, tc.wantLine, tc.wantCol)
+		}
+	}
+}
+
+func TestLineColToOffset(t *testing.T) {
+	text := "abc\ndef\nghi"
+	tests := []struct {
+		line       int
+		col        int
+		wantOffset int
+	}{
+		{0, 0, 0},
+		{0, 1, 1},
+		{0, 3, 3},
+		{0, 5, 3},  // col clamped to line length
+		{1, 0, 4},
+		{1, 1, 5},
+		{1, 3, 7},
+		{2, 0, 8},
+		{2, 3, 11},
+		{3, 0, 11}, // line beyond end — clamps to len(text)
+	}
+	for _, tc := range tests {
+		off := lineColToOffset(text, tc.line, tc.col)
+		if off != tc.wantOffset {
+			t.Errorf("lineColToOffset(%d,%d): got %d, want %d", tc.line, tc.col, off, tc.wantOffset)
+		}
+	}
+}
