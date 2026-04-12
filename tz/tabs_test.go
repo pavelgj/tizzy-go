@@ -22,9 +22,9 @@ func TestTabsLayout(t *testing.T) {
 	if res.W != 17 {
 		t.Errorf("Expected width 17, got %d", res.W)
 	}
-	// Height: header (1) + content (1) = 2!
-	if res.H != 2 {
-		t.Errorf("Expected height 2, got %d", res.H)
+	// Height: header (2 rows: label + separator) + content (1) = 3!
+	if res.H != 3 {
+		t.Errorf("Expected height 3, got %d", res.H)
 	}
 }
 

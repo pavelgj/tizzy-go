@@ -450,6 +450,52 @@ func TestGenerateMenuBarVisual(t *testing.T) {
 	verifyVisual(t, grid, "menu_bar")
 }
 
+func TestGenerateTabsVisual(t *testing.T) {
+	// Three scenarios rendered side-by-side:
+	//  1. First tab active, not focused
+	//  2. Second tab active, not focused
+	//  3. First tab active, focused
+	ctx := makeTestContext()
+
+	makeTabs := func(id string) *Tabs {
+		return NewTabs(ctx, Style{
+			ID:        id,
+			Color:     tcell.ColorWhite,
+			Focusable: true,
+		}, []Tab{
+			{Label: "Home", Content: NewText(Style{Color: tcell.ColorWhite}, "Home content")},
+			{Label: "Settings", Content: NewText(Style{Color: tcell.ColorWhite}, "Settings content")},
+		})
+	}
+
+	tabs1 := makeTabs("tabs1") // tab 0 active, unfocused
+	tabs2 := makeTabs("tabs2") // tab 1 active, unfocused
+	tabs3 := makeTabs("tabs3") // tab 0 active, focused
+
+	root := NewBox(
+		Style{Width: 60, Height: 15, FlexDirection: "column", Padding: Padding{Top: 1, Left: 1}},
+		NewText(Style{Color: tcell.ColorGray}, "Tab 0 active (unfocused):"),
+		tabs1,
+		NewText(Style{Color: tcell.ColorGray}, "Tab 1 active (unfocused):"),
+		tabs2,
+		NewText(Style{Color: tcell.ColorGray}, "Tab 0 active (focused):"),
+		tabs3,
+	)
+
+	layout := Layout(root, 0, 0, Constraints{MaxW: 60, MaxH: 15})
+	grid := NewGrid(60, 15)
+
+	compStates := map[string]any{
+		"tabs1": &TabsState{ActiveTab: 0},
+		"tabs2": &TabsState{ActiveTab: 1},
+		"tabs3": &TabsState{ActiveTab: 0},
+	}
+
+	Render(grid, layout, "tabs3", compStates)
+
+	verifyVisual(t, grid, "tabs")
+}
+
 func TestGenerateModalVisual(t *testing.T) {
 	screen := tcell.NewSimulationScreen("UTF-8")
 	err := screen.Init()

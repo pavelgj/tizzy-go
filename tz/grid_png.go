@@ -91,6 +91,27 @@ func (g *Grid) DumpToPNG(filename string, cellW, cellH int) error {
 					cy := cellH / 2
 					for y2 := 0; y2 <= cy; y2++ { img.Set(x*cellW+cx, y*cellH+y2, fgColor) }
 					for x2 := 0; x2 <= cx; x2++ { img.Set(x*cellW+x2, y*cellH+cy, fgColor) }
+				// Rounded corner variants (╭╮╯╰) — rendered identically to square corners
+				case '╭':
+					cx := cellW / 2
+					cy := cellH / 2
+					for x2 := cx; x2 < cellW; x2++ { img.Set(x*cellW+x2, y*cellH+cy, fgColor) }
+					for y2 := cy; y2 < cellH; y2++ { img.Set(x*cellW+cx, y*cellH+y2, fgColor) }
+				case '╮':
+					cx := cellW / 2
+					cy := cellH / 2
+					for x2 := 0; x2 <= cx; x2++ { img.Set(x*cellW+x2, y*cellH+cy, fgColor) }
+					for y2 := cy; y2 < cellH; y2++ { img.Set(x*cellW+cx, y*cellH+y2, fgColor) }
+				case '╯':
+					cx := cellW / 2
+					cy := cellH / 2
+					for y2 := 0; y2 <= cy; y2++ { img.Set(x*cellW+cx, y*cellH+y2, fgColor) }
+					for x2 := 0; x2 <= cx; x2++ { img.Set(x*cellW+x2, y*cellH+cy, fgColor) }
+				case '╰':
+					cx := cellW / 2
+					cy := cellH / 2
+					for y2 := 0; y2 <= cy; y2++ { img.Set(x*cellW+cx, y*cellH+y2, fgColor) }
+					for x2 := cx; x2 < cellW; x2++ { img.Set(x*cellW+x2, y*cellH+cy, fgColor) }
 				default:
 					// Fallback for other characters (fill whole cell)
 					for cy := 0; cy < cellH; cy++ {

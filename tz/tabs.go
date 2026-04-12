@@ -50,10 +50,10 @@ func (n *Tabs) Layout(x, y int, c Constraints) LayoutResult {
 	boxX := x + margin.Left
 	boxY := y + margin.Top
 
-	headerH := 1
+	headerH := 2 // row 0: labels/top-borders, row 1: separator line
 	headersW := 0
 	for _, tab := range n.Tabs {
-		headersW += len(tab.Label) + 4 // "[ " + label + " ]"
+		headersW += len(tab.Label) + 4 // ╭ + space + label + space + ╮
 	}
 
 	childConstraints := Constraints{
@@ -112,7 +112,7 @@ func (n *Tabs) Layout(x, y int, c Constraints) LayoutResult {
 
 // Render draws the Tabs component to the grid.
 func (n *Tabs) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
-	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
+	baseStyle := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
 
 	activeTabIndex := 0
 	if n.Style.ID != "" && componentStates != nil {
@@ -125,22 +125,66 @@ func (n *Tabs) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 
 	isFocused := n.Style.ID != "" && n.Style.ID == focusedID
 
-	// Draw headers
-	curX := layout.X + n.Style.Padding.Left
-	curY := layout.Y + n.Style.Padding.Top
+	var activeStyle tcell.Style
+	if isFocused {
+		activeStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
+	} else {
+		activeStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
+	}
 
+	// Row positions
+	topY := layout.Y + n.Style.Padding.Top
+	sepY := topY + 1
+	startX := layout.X + n.Style.Padding.Left
+	endX := layout.X + layout.W - n.Style.Padding.Right
+
+	// Compute slot positions (each slot = ╭ + space + label + space + ╮)
+	type tabSlot struct {
+		x     int
+		width int
+	}
+	slots := make([]tabSlot, len(n.Tabs))
+	curX := startX
 	for i, tab := range n.Tabs {
-		label := "[ " + tab.Label + " ]"
-		itemStyle := style
+		slotW := len(tab.Label) + 4
+		slots[i] = tabSlot{x: curX, width: slotW}
+		curX += slotW
+	}
+
+	// Row 0: label row
+	for i, tab := range n.Tabs {
+		slot := slots[i]
 		if i == activeTabIndex {
-			if isFocused {
-				itemStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
-			} else {
-				itemStyle = tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(n.Style.Background)
+			// Draw: ╭ space label space ╮
+			grid.SetContent(slot.x, topY, '╭', activeStyle)
+			grid.SetContent(slot.x+1, topY, ' ', activeStyle)
+			drawText(grid, slot.x+2, topY, tab.Label, activeStyle)
+			grid.SetContent(slot.x+2+len(tab.Label), topY, ' ', activeStyle)
+			grid.SetContent(slot.x+slot.width-1, topY, '╮', activeStyle)
+		} else {
+			// Draw: space space label space space (same width as active slot)
+			drawText(grid, slot.x, topY, "  "+tab.Label+"  ", baseStyle)
+		}
+	}
+
+	// Row 1: separator line, with a break (╯...╰) under the active tab
+	for i, slot := range slots {
+		if i == activeTabIndex {
+			grid.SetContent(slot.x, sepY, '╯', activeStyle)
+			for x := slot.x + 1; x < slot.x+slot.width-1; x++ {
+				grid.SetContent(x, sepY, ' ', activeStyle)
+			}
+			grid.SetContent(slot.x+slot.width-1, sepY, '╰', activeStyle)
+		} else {
+			for x := slot.x; x < slot.x+slot.width; x++ {
+				grid.SetContent(x, sepY, '─', baseStyle)
 			}
 		}
-		drawText(grid, curX, curY, label, itemStyle)
-		curX += len(label)
+	}
+	// Extend separator to fill remaining component width
+	lastSlotEnd := slots[len(slots)-1].x + slots[len(slots)-1].width
+	for x := lastSlotEnd; x < endX; x++ {
+		grid.SetContent(x, sepY, '─', baseStyle)
 	}
 
 	// Render ONLY the active child content
