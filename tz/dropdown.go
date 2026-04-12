@@ -14,15 +14,27 @@ type Dropdown struct {
 	OnChange      func(int)
 	MaxListHeight int
 	Placeholder   string
+	state         *DropdownState // live pointer; set by NewDropdown
 }
 
 // NewDropdown creates a new Dropdown component.
 func NewDropdown(ctx *RenderContext, style Style, options []string, selectedIndex int, onChange func(int), maxListHeight ...int) *Dropdown {
-	_, _ = UseState[*DropdownState](ctx, &DropdownState{Open: false, FocusedIndex: selectedIndex})
-
+	// Consume a hook slot so that sibling components keep stable hook indices.
 	if style.ID == "" {
-		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex-1)
+		style.ID = fmt.Sprintf("hook-%d", ctx.hookIndex)
 	}
+	ctx.hookIndex++
+
+	// Store state under the component's ID (not the hook index) so that
+	// n.state and componentStates[id] always refer to the same object.
+	// Layout() reads n.state to decide whether to embed the portal child,
+	// while event handlers look up componentStates[id] — they must agree.
+	stateObj, ok := ctx.app.componentStates[style.ID]
+	if !ok || stateObj == nil {
+		stateObj = &DropdownState{Open: false, FocusedIndex: selectedIndex}
+		ctx.app.componentStates[style.ID] = stateObj
+	}
+	state := stateObj.(*DropdownState)
 
 	mlh := 0
 	if len(maxListHeight) > 0 {
@@ -34,6 +46,7 @@ func NewDropdown(ctx *RenderContext, style Style, options []string, selectedInde
 		SelectedIndex: selectedIndex,
 		OnChange:      onChange,
 		MaxListHeight: mlh,
+		state:         state,
 	}
 }
 
@@ -45,16 +58,14 @@ type DropdownState struct {
 	OpenAbove    bool
 }
 
-func (s *DropdownState) IsOpen() bool {
-	return s.Open
-}
-
 // GetStyle returns the style of the Dropdown node.
 func (d *Dropdown) GetStyle() Style {
 	return d.Style
 }
 
 // Layout calculates the layout for the Dropdown component.
+// When the dropdown is open, the portal is embedded as a zero-size child so
+// that collectPortals can find it during the layout-tree walk.
 func (n *Dropdown) Layout(x, y int, c Constraints) LayoutResult {
 	pad := n.Style.Padding
 	margin := n.Style.Margin
@@ -85,13 +96,67 @@ func (n *Dropdown) Layout(x, y int, c Constraints) LayoutResult {
 		layoutH = n.Style.MaxHeight
 	}
 
-	return LayoutResult{
+	result := LayoutResult{
 		Node: n,
 		X:    boxX,
 		Y:    boxY,
 		W:    w + pad.Left + pad.Right + borderSize,
 		H:    layoutH,
 	}
+
+	// Embed the portal as a zero-size child so collectPortals picks it up.
+	if n.state != nil && n.state.Open {
+		portalLayout := Layout(n.buildListPortal(), boxX, boxY, c)
+		result.Children = append(result.Children, portalLayout)
+	}
+
+	return result
+}
+
+// buildListPortal creates the Portal that renders the open dropdown list.
+func (d *Dropdown) buildListPortal() *Portal {
+	myID := d.Style.ID
+	state := d.state
+
+	return &Portal{
+		Child: &dropdownListNode{Dropdown: d, State: state},
+		PositionFn: func(screenW, screenH int, mainLayout LayoutResult) (x, y, maxW, maxH int) {
+			res := findLayoutResultByID(mainLayout, myID)
+			if res == nil {
+				return 0, 0, screenW, screenH
+			}
+			popupH := d.visibleItemCount() + 2 // +2 for border
+			spaceBelow := screenH - (res.Y + res.H)
+			if spaceBelow < popupH && res.Y >= popupH {
+				state.OpenAbove = true
+			} else {
+				state.OpenAbove = false
+			}
+			listY := res.Y + res.H
+			if state.OpenAbove {
+				listY = res.Y - popupH
+			}
+			remaining := screenH - listY
+			if remaining < 0 {
+				remaining = 0
+			}
+			return res.X, listY, res.W, remaining
+		},
+		OnOutsideClick: func() {
+			state.Open = false
+		},
+	}
+}
+
+func (d *Dropdown) visibleItemCount() int {
+	maxH := d.MaxListHeight
+	if maxH <= 0 {
+		maxH = 5
+	}
+	if maxH > len(d.Options) {
+		maxH = len(d.Options)
+	}
+	return maxH
 }
 
 // Render draws the Dropdown component to the grid.
@@ -136,6 +201,13 @@ func (d *Dropdown) DefaultState() any {
 	return &DropdownState{}
 }
 
+// Dismiss closes the dropdown when another component gains focus.
+func (d *Dropdown) Dismiss(state any) {
+	if s, ok := state.(*DropdownState); ok {
+		s.Open = false
+	}
+}
+
 // IsFocusable indicates that a node can receive focus.
 func (d *Dropdown) IsFocusable() bool {
 	return d.Style.Focusable
@@ -160,6 +232,7 @@ func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 	}
 
 	dirty := false
+	n := d.visibleItemCount()
 
 	if key.Key() == tcell.KeyEnter {
 		if s.Open {
@@ -182,20 +255,11 @@ func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 			if s.FocusedIndex > 0 {
 				s.FocusedIndex--
 			}
-
-			maxH := d.MaxListHeight
-			if maxH <= 0 {
-				maxH = 5
-			}
-			if maxH > len(d.Options) {
-				maxH = len(d.Options)
-			}
-
 			if s.FocusedIndex < s.ScrollOffset {
 				s.ScrollOffset = s.FocusedIndex
 			}
-			if s.FocusedIndex >= s.ScrollOffset+maxH {
-				s.ScrollOffset = s.FocusedIndex - maxH + 1
+			if s.FocusedIndex >= s.ScrollOffset+n {
+				s.ScrollOffset = s.FocusedIndex - n + 1
 			}
 			dirty = true
 		}
@@ -204,17 +268,8 @@ func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 			if s.FocusedIndex < len(d.Options)-1 {
 				s.FocusedIndex++
 			}
-
-			maxH := d.MaxListHeight
-			if maxH <= 0 {
-				maxH = 5
-			}
-			if maxH > len(d.Options) {
-				maxH = len(d.Options)
-			}
-
-			if s.FocusedIndex >= s.ScrollOffset+maxH {
-				s.ScrollOffset = s.FocusedIndex - maxH + 1
+			if s.FocusedIndex >= s.ScrollOffset+n {
+				s.ScrollOffset = s.FocusedIndex - n + 1
 			}
 			if s.FocusedIndex < s.ScrollOffset {
 				s.ScrollOffset = 0
@@ -223,20 +278,11 @@ func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 		}
 	} else if key.Key() == tcell.KeyPgUp {
 		if s.Open {
-			maxH := d.MaxListHeight
-			if maxH <= 0 {
-				maxH = 5
-			}
-			if maxH > len(d.Options) {
-				maxH = len(d.Options)
-			}
-
-			s.FocusedIndex -= maxH
+			s.FocusedIndex -= n
 			if s.FocusedIndex < 0 {
 				s.FocusedIndex = 0
 			}
-
-			s.ScrollOffset -= maxH
+			s.ScrollOffset -= n
 			if s.ScrollOffset < 0 {
 				s.ScrollOffset = 0
 			}
@@ -244,22 +290,13 @@ func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 		}
 	} else if key.Key() == tcell.KeyPgDn {
 		if s.Open {
-			maxH := d.MaxListHeight
-			if maxH <= 0 {
-				maxH = 5
-			}
-			if maxH > len(d.Options) {
-				maxH = len(d.Options)
-			}
-
-			s.FocusedIndex += maxH
+			s.FocusedIndex += n
 			if s.FocusedIndex >= len(d.Options) {
 				s.FocusedIndex = len(d.Options) - 1
 			}
-
-			s.ScrollOffset += maxH
-			if s.ScrollOffset+maxH > len(d.Options) {
-				s.ScrollOffset = len(d.Options) - maxH
+			s.ScrollOffset += n
+			if s.ScrollOffset+n > len(d.Options) {
+				s.ScrollOffset = len(d.Options) - n
 				if s.ScrollOffset < 0 {
 					s.ScrollOffset = 0
 				}
@@ -271,90 +308,78 @@ func (d *Dropdown) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool
 	return dirty
 }
 
-// RenderOverlay renders the Dropdown's open list on top of the main grid.
-func (d *Dropdown) RenderOverlay(grid *Grid, screenW, screenH int, mainLayout LayoutResult, focusedID string, componentStates map[string]any) {
-	state, ok := componentStates[d.Style.ID].(*DropdownState)
-	if !ok || !state.Open {
-		return
-	}
+// ---------------------------------------------------------------------------
+// dropdownListNode — renders the open list and handles all mouse events on it.
+// ---------------------------------------------------------------------------
 
-	res := findLayoutResultByID(mainLayout, d.Style.ID)
-	if res == nil {
-		return
-	}
+type dropdownListNode struct {
+	Style    Style
+	Dropdown *Dropdown
+	State    *DropdownState
+}
 
-	listY := res.Y + res.H
-	listW := res.W
+func (n *dropdownListNode) GetStyle() Style { return n.Style }
 
-	maxH := d.MaxListHeight
-	if maxH <= 0 {
-		maxH = 5
+func (n *dropdownListNode) Layout(x, y int, c Constraints) LayoutResult {
+	w := c.MaxW
+	if w <= 0 {
+		w = 20
 	}
-	if maxH > len(d.Options) {
-		maxH = len(d.Options)
-	}
-	listH := maxH
+	h := n.Dropdown.visibleItemCount() + 2 // +2 for border
+	return LayoutResult{Node: n, X: x, Y: y, W: w, H: h}
+}
 
-	style := tcell.StyleDefault.Foreground(d.Style.Color).Background(tcell.ColorBlack)
+func (n *dropdownListNode) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
+	listH := n.Dropdown.visibleItemCount()
+	listW := layout.W
+	listX := layout.X
+	listY := layout.Y
 	popupH := listH + 2
 
-	spaceBelow := screenH - (res.Y + res.H)
-	if spaceBelow < popupH && res.Y >= popupH {
-		state.OpenAbove = true
-	} else {
-		state.OpenAbove = false
-	}
+	style := tcell.StyleDefault.Foreground(n.Dropdown.Style.Color).Background(tcell.ColorBlack)
 
-	if state.OpenAbove {
-		listY = res.Y - popupH
-	}
-
-	// Draw shadow (right and bottom edges only)
+	// Shadow (right and bottom edges)
 	for i := 1; i <= popupH; i++ {
-		if listY+i < screenH && res.X+listW < screenW {
-			currentCell := grid.Cells[listY+i][res.X+listW]
-			grid.SetContent(res.X+listW, listY+i, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+		if listY+i < grid.H && listX+listW < grid.W {
+			cell := grid.Cells[listY+i][listX+listW]
+			grid.SetContent(listX+listW, listY+i, cell.Rune, cell.Style.Background(tcell.ColorDarkGray))
 		}
 	}
 	for j := 1; j <= listW; j++ {
-		if listY+popupH < screenH && res.X+j < screenW {
-			currentCell := grid.Cells[listY+popupH][res.X+j]
-			grid.SetContent(res.X+j, listY+popupH, currentCell.Rune, currentCell.Style.Background(tcell.ColorDarkGray))
+		if listY+popupH < grid.H && listX+j < grid.W {
+			cell := grid.Cells[listY+popupH][listX+j]
+			grid.SetContent(listX+j, listY+popupH, cell.Rune, cell.Style.Background(tcell.ColorDarkGray))
 		}
 	}
 
-	// Fill background
-	for y := 0; y < popupH; y++ {
-		for x := 0; x < listW; x++ {
-			if listY+y < screenH && res.X+x < screenW {
-				grid.SetContent(res.X+x, listY+y, ' ', style)
+	// Background fill
+	for row := 0; row < popupH; row++ {
+		for col := 0; col < listW; col++ {
+			if listY+row < grid.H && listX+col < grid.W {
+				grid.SetContent(listX+col, listY+row, ' ', style)
 			}
 		}
 	}
 
-	// Draw border
-	drawBorder(grid, res.X, listY, listW, popupH, "", style)
+	drawBorder(grid, listX, listY, listW, popupH, "", style)
 
-	// Draw items
 	for i := 0; i < listH; i++ {
-		optIdx := i + state.ScrollOffset
-		if optIdx >= len(d.Options) {
+		optIdx := i + n.State.ScrollOffset
+		if optIdx >= len(n.Dropdown.Options) {
 			break
 		}
-		opt := d.Options[optIdx]
+		opt := n.Dropdown.Options[optIdx]
 		optStyle := style
-		if optIdx == state.FocusedIndex {
+		if optIdx == n.State.FocusedIndex {
 			optStyle = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
 		}
-
 		label := " " + opt
 		for len(label) < listW-2 {
 			label += " "
 		}
-
-		curX := res.X + 1
+		curX := listX + 1
 		for _, r := range label {
-			if listY+1+i < screenH && curX < screenW && curX < res.X+listW-1 {
+			if listY+1+i < grid.H && curX < grid.W && curX < listX+listW-1 {
 				grid.SetContent(curX, listY+1+i, r, optStyle)
 				curX++
 			}
@@ -362,71 +387,56 @@ func (d *Dropdown) RenderOverlay(grid *Grid, screenW, screenH int, mainLayout La
 	}
 }
 
-func (d *Dropdown) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult) {
-	s, ok := state.(*DropdownState)
-	if !ok || !s.Open {
-		return false, nil
-	}
+func (n *dropdownListNode) DefaultState() any { return nil }
 
-	mouse, ok := ev.(*tcell.EventMouse)
+func (n *dropdownListNode) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
+	mouse, ok := ev.(MouseEvent)
 	if !ok {
-		return false, nil
+		return false
 	}
 
 	mx, my := mouse.Position()
-	res := ctx.Layout
-	listY := res.Y + res.H
-	listW := res.W
-
-	maxH := d.MaxListHeight
-	if maxH <= 0 {
-		maxH = 5
-	}
-	if maxH > len(d.Options) {
-		maxH = len(d.Options)
-	}
-	listH := maxH
-	if s.OpenAbove {
-		listY = res.Y - (listH + 2)
-	}
+	listH := n.Dropdown.visibleItemCount()
+	listX := ctx.Layout.X
+	listY := ctx.Layout.Y
+	listW := ctx.Layout.W
 
 	if mouse.Buttons()&tcell.Button1 != 0 {
-		if mx >= res.X && mx < res.X+listW && my >= listY+1 && my < listY+1+listH {
-			clickedIndex := my - listY - 1 + s.ScrollOffset
-			if clickedIndex >= 0 && clickedIndex < len(d.Options) {
-				d.SelectedIndex = clickedIndex
-				if d.OnChange != nil {
-					d.OnChange(clickedIndex)
+		if mx >= listX && mx < listX+listW && my >= listY+1 && my < listY+1+listH {
+			clickedIndex := my - listY - 1 + n.State.ScrollOffset
+			if clickedIndex >= 0 && clickedIndex < len(n.Dropdown.Options) {
+				n.Dropdown.SelectedIndex = clickedIndex
+				if n.Dropdown.OnChange != nil {
+					n.Dropdown.OnChange(clickedIndex)
 				}
-				s.Open = false
-				return true, nil
-			}
-		} else {
-			if !(mx >= res.X && mx < res.X+res.W && my >= res.Y && my < res.Y+res.H) {
-				s.Open = false
-				return true, nil
+				n.State.Open = false
+				return true
 			}
 		}
-	} else if mouse.Buttons()&tcell.WheelUp != 0 {
-		if mx >= res.X && mx < res.X+listW && my >= listY+1 && my < listY+1+listH {
-			s.ScrollOffset--
-			if s.ScrollOffset < 0 {
-				s.ScrollOffset = 0
+		return false
+	}
+
+	if mouse.Buttons()&tcell.WheelUp != 0 {
+		if mx >= listX && mx < listX+listW && my >= listY+1 && my < listY+1+listH {
+			n.State.ScrollOffset--
+			if n.State.ScrollOffset < 0 {
+				n.State.ScrollOffset = 0
 			}
-			return true, nil
+			return true
 		}
 	} else if mouse.Buttons()&tcell.WheelDown != 0 {
-		if mx >= res.X && mx < res.X+listW && my >= listY+1 && my < listY+1+listH {
-			s.ScrollOffset++
-			if s.ScrollOffset+maxH > len(d.Options) {
-				s.ScrollOffset = len(d.Options) - maxH
-				if s.ScrollOffset < 0 {
-					s.ScrollOffset = 0
+		if mx >= listX && mx < listX+listW && my >= listY+1 && my < listY+1+listH {
+			maxH := n.Dropdown.visibleItemCount()
+			n.State.ScrollOffset++
+			if n.State.ScrollOffset+maxH > len(n.Dropdown.Options) {
+				n.State.ScrollOffset = len(n.Dropdown.Options) - maxH
+				if n.State.ScrollOffset < 0 {
+					n.State.ScrollOffset = 0
 				}
 			}
-			return true, nil
+			return true
 		}
 	}
 
-	return false, nil
+	return false
 }

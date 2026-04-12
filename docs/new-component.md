@@ -26,9 +26,7 @@ That is the only _required_ interface. All other behaviours — layout, renderin
 | `FocusScope` | `FocusableChildren(states) []Node` | Component controls which children participate in Tab traversal (e.g. Tabs) |
 | `FocusGainHandler` | `OnFocusGained(state any)` | Component reacts when it gains focus |
 | `CursorProvider` | `UpdateScrollOffset`, `GetCursorPosition` | Component manages the hardware terminal cursor (e.g. TextInput) |
-| `OverlayRenderer` | `RenderOverlay(grid, screenW, screenH, mainLayout, focusedID, states)` | Component draws a popup above the main grid after the main pass (e.g. Dropdown) |
-| `OverlayHandler` | `HandleOverlayEvent(ev, state, ctx) (bool, *LayoutResult)` | Component handles mouse events aimed at its overlay |
-| `OpenableState` | `IsOpen() bool` (on the _state_ struct) | Required alongside `OverlayRenderer`; tells the framework when to call `RenderOverlay` |
+| `Dismissable` | `Dismiss(state any)` | Component resets/closes when another component gains focus (e.g. Dropdown) |
 | `CustomHitTester` | `FindNodePathAt(x, y, res, states) []Node` | Component overrides mouse hit-testing for its children |
 
 ---
@@ -179,7 +177,7 @@ portal := &Portal{
 }
 ```
 
-Alternatively, implement `OverlayRenderer` when the component's open state is managed internally and the overlay must always be positioned relative to the main layout (see `Dropdown` for a complete example).
+See `tz/dropdown.go` and `tz/menubar.go` for complete Portal-based overlay examples.
 
 ---
 

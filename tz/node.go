@@ -41,27 +41,6 @@ type EventHandler interface {
 	DefaultState() any
 }
 
-// OpenableState allows app.go to check if a component has an open overlay
-type OpenableState interface {
-	IsOpen() bool
-}
-
-// OverlayHandler allows app.go to delegate events to the overlay
-type OverlayHandler interface {
-	HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult)
-}
-
-// OverlayRenderer allows a component to render an additional layer on top of
-// the main grid (e.g. Modal, Dropdown, MenuBar dropdown, Popup). It is called
-// after the main Render pass for every node whose state satisfies
-// OpenableState.IsOpen() == true.
-//
-// RenderOverlay should also store the computed overlay LayoutResult in the
-// component's state so that event handlers can use it without re-running layout.
-type OverlayRenderer interface {
-	RenderOverlay(grid *Grid, screenW, screenH int, mainLayout LayoutResult, focusedID string, componentStates map[string]any)
-}
-
 // CursorProvider allows a component to manage the terminal hardware cursor.
 // The framework calls UpdateScrollOffset after layout and GetCursorPosition
 // after rendering, then calls screen.ShowCursor with the result.
@@ -79,6 +58,13 @@ type CursorProvider interface {
 // The framework calls this after updating the focused ID.
 type FocusGainHandler interface {
 	OnFocusGained(state any)
+}
+
+// Dismissable allows a component to be closed/reset when another component
+// gains focus. The framework calls Dismiss on every Dismissable node (except
+// the one that just received focus) whenever focus changes.
+type Dismissable interface {
+	Dismiss(state any)
 }
 
 // FocusScope allows a component to control which of its children participate

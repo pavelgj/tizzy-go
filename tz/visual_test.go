@@ -417,27 +417,35 @@ func TestGenerateScrollViewVisual(t *testing.T) {
 }
 
 func TestGenerateMenuBarVisual(t *testing.T) {
-	ctx := makeTestContext()
-
 	menus := []Menu{
 		{Title: "File", Items: []MenuItem{{Label: "New"}, {Label: "Open"}}},
 		{Title: "Edit", Items: []MenuItem{{Label: "Cut"}, {Label: "Copy"}}},
 	}
 
-	mb := NewMenuBar(ctx, Style{ID: "menubar", Width: 50, Color: tcell.ColorWhite, Background: tcell.ColorBlue}, menus)
+	screen := tcell.NewSimulationScreen("UTF-8")
+	err := screen.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer screen.Fini()
+	screen.SetSize(50, 8)
 
-	root := NewBox(
-		Style{Width: 50, Height: 5, FlexDirection: "column"},
-		mb,
-		NewText(Style{Color: tcell.ColorWhite}, "Content below menu"),
-	)
+	app := NewAppWithScreen(screen)
+	app.componentStates["menubar"] = &MenuBarState{OpenMenuIndex: 0}
 
-	layout := Layout(root, 0, 0, Constraints{MaxW: 50, MaxH: 5})
-	grid := NewGrid(50, 5)
+	renderFn := func(ctx *RenderContext) Node {
+		mb := NewMenuBar(ctx, Style{ID: "menubar", Width: 50, Color: tcell.ColorWhite, Background: tcell.ColorBlue}, menus)
+		return NewBox(
+			Style{Width: 50, Height: 8, FlexDirection: "column"},
+			mb,
+			NewText(Style{Color: tcell.ColorWhite}, "Content below menu"),
+		)
+	}
 
-	compStates := map[string]any{"menubar": &MenuBarState{OpenMenuIndex: 0}}
-
-	Render(grid, layout, "", compStates)
+	grid, _, _, _, err := app.RenderFrame(renderFn)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	verifyVisual(t, grid, "menu_bar")
 }

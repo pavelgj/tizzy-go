@@ -151,27 +151,7 @@ func (a *App) RenderFrame(renderFn func(ctx *RenderContext) Node) (*Grid, Node, 
 		Render(grid, cp.content, a.focusedID, statesCopy)
 	}
 
-	// 8. Render OverlayRenderer overlays (e.g. Dropdown, MenuBar dropdown).
-	_ = walkTree(root, func(n Node) error {
-		id := n.GetStyle().ID
-		if id == "" {
-			return nil
-		}
-		stateObj, ok := statesCopy[id]
-		if !ok {
-			return nil
-		}
-		openable, ok := stateObj.(OpenableState)
-		if !ok || !openable.IsOpen() {
-			return nil
-		}
-		if overlay, ok := n.(OverlayRenderer); ok {
-			overlay.RenderOverlay(grid, w, h, layout, a.focusedID, statesCopy)
-		}
-		return nil
-	})
-
-	// 9. Diff and flush to the terminal.
+	// 8. Diff and flush to the terminal.
 	if a.previousGrid == nil || a.previousGrid.W != w || a.previousGrid.H != h {
 		a.screen.Clear()
 		for y := 0; y < h; y++ {
@@ -462,15 +442,22 @@ func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
 	return nil
 }
 
-func (a *App) closeOtherDropdowns(keepID string) {
-	for id, stateObj := range a.componentStates {
-		if id == keepID {
-			continue
+// dismissOthers calls Dismiss on every Dismissable component except the one
+// that just gained focus. This lets components like Dropdown close themselves
+// when the user focuses something else.
+func (a *App) dismissOthers(keepID string, root Node) {
+	_ = walkTree(root, func(n Node) error {
+		id := n.GetStyle().ID
+		if id == "" || id == keepID {
+			return nil
 		}
-		if state, ok := stateObj.(*DropdownState); ok {
-			state.Open = false
+		if d, ok := n.(Dismissable); ok {
+			if state, ok := a.componentStates[id]; ok {
+				d.Dismiss(state)
+			}
 		}
-	}
+		return nil
+	})
 }
 
 func offsetToLineCol(text string, offset int) (int, int) {
@@ -545,7 +532,7 @@ func (a *App) setFocus(id string, root Node) {
 	a.focusedID = id
 	a.dirty = true
 
-	a.closeOtherDropdowns(id)
+	a.dismissOthers(id, root)
 
 	if id != "" && root != nil {
 		node := findNodeByID(root, id)
@@ -682,40 +669,10 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 		}
 	}
 
-	// --- Generic OverlayHandler pass (Dropdown, MenuBar) ---
-	if ev.Buttons()&tcell.Button1 != 0 {
-		for id, stateObj := range a.componentStates {
-			if openable, ok := stateObj.(OpenableState); ok && openable.IsOpen() {
-				node := findNodeByID(root, id)
-				if handler, ok := node.(OverlayHandler); ok {
-					res := findLayoutResultByID(layout, id)
-					var compLayout LayoutResult
-					if res != nil {
-						compLayout = *res
-					}
-
-					eventCtx := EventContext{Layout: compLayout}
-
-					if tcellEv, ok := ev.(tcell.Event); ok {
-						handled, searchLayout := handler.HandleOverlayEvent(tcellEv, stateObj, eventCtx)
-						if handled {
-							a.dirty = true
-							return true
-						}
-						if searchLayout != nil {
-							path := findNodePathAt(*searchLayout, mx, my, a.componentStates)
-							if len(path) > 0 {
-								a.dispatchEventToPath(path, tcellEv, root, *searchLayout)
-								return true
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 
 	// --- Main tree hit testing ---
+	// Note: Tabs.FindNodePathAt (CustomHitTester) already filters inactive tab
+	// content, so no Tabs-specific guard is needed here.
 	if ev.Buttons()&tcell.Button1 != 0 {
 		path := findNodePathAt(layout, mx, my, a.componentStates)
 		if len(path) > 0 {
@@ -723,28 +680,8 @@ func (a *App) handleMouseEvent(ev MouseEvent, root Node, layout LayoutResult) bo
 			for i, n := range path {
 				debugLog(fmt.Sprintf("  Path[%d]: %T", i, n))
 			}
-
-			// Filter out clicks targeting hidden tab content.
-			validPath := true
-			for i := 0; i < len(path)-1; i++ {
-				if tabs, ok := path[i].(*Tabs); ok && tabs.Style.ID != "" {
-					stateObj, ok := a.componentStates[tabs.Style.ID]
-					activeIdx := 0
-					if ok {
-						activeIdx = stateObj.(*TabsState).ActiveTab
-					}
-					activeChild := tabs.Tabs[activeIdx].Content
-					if path[i+1] != activeChild {
-						validPath = false
-						break
-					}
-				}
-			}
-
-			if validPath {
-				if tcellEv, ok := ev.(tcell.Event); ok {
-					a.dispatchEventToPath(path, tcellEv, root, layout)
-				}
+			if tcellEv, ok := ev.(tcell.Event); ok {
+				a.dispatchEventToPath(path, tcellEv, root, layout)
 			}
 		}
 	} else if ev.Buttons()&(tcell.Button4|tcell.WheelUp) != 0 {

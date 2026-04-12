@@ -39,9 +39,7 @@ type Node interface {
 | `FocusGainHandler` | Node reacts when it gains focus |
 | `CursorProvider` | Node manages the terminal hardware cursor |
 | `CustomHitTester` | Node overrides mouse hit-testing for its children |
-| `OverlayRenderer` | Node renders an additional layer above the main grid |
-| `OverlayHandler` | Node handles mouse events directed at its overlay |
-| `OpenableState` | Node state exposes an `IsOpen() bool` flag |
+| `Dismissable` | Node closes/resets when another component gains focus |
 
 New components only implement the interfaces they actually need. Adding a component never requires editing the core framework.
 
@@ -66,9 +64,8 @@ Every frame executed by `App.RenderFrame` goes through these steps in order:
 5. Scroll offset     CursorProvider.UpdateScrollOffset for the focused node
 6. Render            Render(grid, layout) for the main tree
 7. Render portals    Render each portal's content layout (Z-ordered, last on top)
-8. Render overlays   OverlayRenderer.RenderOverlay for any open overlay (Dropdown, MenuBar)
-9. Diff & flush      Compare grid against previousGrid, push changed cells to tcell
-10. Cursor           CursorProvider.GetCursorPosition → screen.ShowCursor / HideCursor
+8. Diff & flush      Compare grid against previousGrid, push changed cells to tcell
+9. Cursor            CursorProvider.GetCursorPosition → screen.ShowCursor / HideCursor
 ```
 
 ### 4. The Portal Mechanism
@@ -113,8 +110,7 @@ return tz.NewBox(style,
 **Mouse click events** are routed in Z-order:
 
 1. Portals (topmost first): inside → dispatch to content; outside → `OnOutsideClick`.
-2. OverlayHandler components (Dropdown, MenuBar): `HandleOverlayEvent` decides whether the click is consumed or forwarded.
-3. Main tree: `findNodePathAt` walks the `LayoutResult` tree to build a path of nodes under the cursor, then `dispatchEventToPath` sends the event to the leaf node.
+2. Main tree: `findNodePathAt` walks the `LayoutResult` tree to build a path of nodes under the cursor, then `dispatchEventToPath` sends the event to the leaf node.
 
 **Wheel events** follow the same Z-order but always dispatch to the leaf node under the cursor.
 
@@ -126,12 +122,6 @@ Focusable IDs are collected each frame by walking the node tree via `ParentNode.
 - `*Portal` nodes — skipped during normal traversal; when a `TrapFocus` portal is present, only that portal's subtree is searched.
 
 When focus changes, `FocusGainHandler.OnFocusGained` is called on the newly focused node (used by `List` to call its `OnFocus` callback).
-
-### 7. Overlay Rendering (OverlayRenderer)
-
-Components whose open state is independent of whether they are in the tree — notably `Dropdown` and `MenuBar`, which are always present but conditionally show a popup list — implement `OverlayRenderer`. After the main render pass, the framework walks the node tree and calls `RenderOverlay` on any component whose state satisfies `OpenableState.IsOpen() == true`.
-
-This is distinct from Portal: `OverlayRenderer` is appropriate when the overlay position is computed relative to the component's own layout result (which is only available after the main pass).
 
 ---
 
@@ -146,8 +136,8 @@ This is distinct from Portal: `OverlayRenderer` is appropriate when the overlay 
 | `tz/portal.go` | `Portal` node, `collectPortals`, `computePortalLayout` |
 | `tz/modal.go` | `NewModal` factory (returns Portal or nil) |
 | `tz/popup.go` | `NewPopup` factory (returns Portal or nil) |
-| `tz/dropdown.go` | `Dropdown` widget + `OverlayRenderer` + `OverlayHandler` |
-| `tz/menubar.go` | `MenuBar` widget + `OverlayRenderer` + `OverlayHandler` |
+| `tz/dropdown.go` | `Dropdown` widget + Portal-based list overlay |
+| `tz/menubar.go` | `MenuBar` widget + Portal-based menu overlay |
 | `tz/text_input.go` | `TextInput`, implements `CursorProvider` |
 | `tz/list.go` | `List`, implements `FocusGainHandler` |
 | `tz/tabs.go` | `Tabs`, implements `FocusScope` + `CustomHitTester` |
