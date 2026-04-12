@@ -423,3 +423,41 @@ func (n *TextInput) HandleEvent(ev tcell.Event, state any, ctx EventContext) boo
 
 	return dirty
 }
+
+// offsetToLineCol converts a flat byte offset into a (line, col) pair within
+// a multiline string.
+func offsetToLineCol(text string, offset int) (int, int) {
+	lines := strings.Split(text, "\n")
+	currentOffset := 0
+	for lineIdx, line := range lines {
+		if offset <= currentOffset+len(line) {
+			return lineIdx, offset - currentOffset
+		}
+		currentOffset += len(line) + 1 // +1 for \n
+	}
+	if len(lines) == 0 {
+		return 0, 0
+	}
+	return len(lines) - 1, len(lines[len(lines)-1])
+}
+
+// lineColToOffset converts a (line, col) pair into a flat byte offset within
+// a multiline string.
+func lineColToOffset(text string, line, col int) int {
+	lines := strings.Split(text, "\n")
+	if line < 0 {
+		return 0
+	}
+	if line >= len(lines) {
+		return len(text)
+	}
+	offset := 0
+	for i := 0; i < line; i++ {
+		offset += len(lines[i]) + 1
+	}
+	c := col
+	if c > len(lines[line]) {
+		c = len(lines[line])
+	}
+	return offset + c
+}

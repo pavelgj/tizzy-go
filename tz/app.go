@@ -3,7 +3,6 @@ package tz
 import (
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -225,59 +224,6 @@ func (a *App) GetFocusedID() string {
 	return a.focusedID
 }
 
-// EffectRecord stores an effect and its ID.
-type EffectRecord struct {
-	ID     string
-	Effect func() func()
-}
-
-// RenderContext provides hooks and state scoping during rendering.
-type RenderContext struct {
-	app       *App
-	effects   []EffectRecord
-	hookIndex int
-}
-
-// GetFocusedID returns the ID of the currently focused component.
-func (ctx *RenderContext) GetFocusedID() string {
-	return ctx.app.GetFocusedID()
-}
-
-// UseState retrieves or initializes state.
-// It returns the current state and a setter function.
-func (ctx *RenderContext) UseState(initial any) (any, func(any)) {
-	id := fmt.Sprintf("hook-%d", ctx.hookIndex)
-	ctx.hookIndex++
-
-	state := ctx.app.componentStates[id]
-	if state == nil {
-		state = initial
-		ctx.app.componentStates[id] = state
-	}
-	setter := func(newVal any) {
-		ctx.app.componentStates[id] = newVal
-		ctx.app.dirty = true
-	}
-	return state, setter
-}
-
-// UseState is a type-safe wrapper around RenderContext.UseState.
-func UseState[T any](ctx *RenderContext, initial T) (T, func(T)) {
-	stateObj, setter := ctx.UseState(initial)
-	return stateObj.(T), func(newVal T) {
-		setter(newVal)
-	}
-}
-
-// UseEffect registers a lifecycle effect.
-// The effect function should return a cleanup function (or nil).
-func (ctx *RenderContext) UseEffect(effect func() func()) {
-	id := fmt.Sprintf("hook-%d", ctx.hookIndex)
-	ctx.hookIndex++
-
-	ctx.effects = append(ctx.effects, EffectRecord{ID: id, Effect: effect})
-}
-
 // Run starts the application loop.
 func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Event)) error {
 	if err := a.screen.Init(); err != nil {
@@ -323,125 +269,6 @@ func (a *App) Run(renderFn func(ctx *RenderContext) Node, updateFn func(tcell.Ev
 	}
 }
 
-func findFocusableIDs(node Node, componentStates map[string]any) []string {
-	var ids []string
-
-	if node == nil {
-		return ids
-	}
-
-	if f, ok := node.(Focusable); ok && f.IsFocusable() && node.GetStyle().ID != "" {
-		ids = append(ids, node.GetStyle().ID)
-	}
-
-	// Portal children are not traversed for normal focus discovery;
-	// TrapFocus portals are handled separately in RenderFrame.
-	if _, ok := node.(*Portal); ok {
-		return ids
-	}
-
-	if scope, ok := node.(FocusScope); ok {
-		for _, child := range scope.FocusableChildren(componentStates) {
-			ids = append(ids, findFocusableIDs(child, componentStates)...)
-		}
-	} else if p, ok := node.(ParentNode); ok {
-		for _, child := range p.GetChildren() {
-			ids = append(ids, findFocusableIDs(child, componentStates)...)
-		}
-	}
-	return ids
-}
-
-func nextFocus(current string, ids []string) string {
-	if len(ids) == 0 {
-		return ""
-	}
-	if current == "" {
-		return ids[0]
-	}
-	for i, id := range ids {
-		if id == current {
-			return ids[(i+1)%len(ids)]
-		}
-	}
-	return ids[0]
-}
-
-func prevFocus(current string, ids []string) string {
-	if len(ids) == 0 {
-		return ""
-	}
-	if current == "" {
-		return ids[len(ids)-1]
-	}
-	for i, id := range ids {
-		if id == current {
-			return ids[(i-1+len(ids))%len(ids)]
-		}
-	}
-	return ids[len(ids)-1]
-}
-
-func findNodeByID(node Node, id string) Node {
-	if node == nil {
-		return nil
-	}
-	if node.GetStyle().ID == id {
-		return node
-	}
-	if p, ok := node.(ParentNode); ok {
-		for _, child := range p.GetChildren() {
-			if found := findNodeByID(child, id); found != nil {
-				return found
-			}
-		}
-	}
-	return nil
-}
-
-func validateUniqueIDs(node Node) error {
-	seen := make(map[string]bool)
-	return walkTree(node, func(n Node) error {
-		id := n.GetStyle().ID
-		if id != "" {
-			if seen[id] {
-				return fmt.Errorf("duplicate component ID: %s", id)
-			}
-			seen[id] = true
-		}
-		return nil
-	})
-}
-
-func walkTree(node Node, fn func(Node) error) error {
-	if node == nil {
-		return nil
-	}
-	if err := fn(node); err != nil {
-		return err
-	}
-	if p, ok := node.(ParentNode); ok {
-		for _, child := range p.GetChildren() {
-			if err := walkTree(child, fn); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func findLayoutResultByID(res LayoutResult, id string) *LayoutResult {
-	if res.Node.GetStyle().ID == id {
-		return &res
-	}
-	for _, child := range res.Children {
-		if found := findLayoutResultByID(child, id); found != nil {
-			return found
-		}
-	}
-	return nil
-}
-
 // dismissOthers calls Dismiss on every Dismissable component except the one
 // that just gained focus. This lets components like Dropdown close themselves
 // when the user focuses something else.
@@ -460,64 +287,12 @@ func (a *App) dismissOthers(keepID string, root Node) {
 	})
 }
 
-func offsetToLineCol(text string, offset int) (int, int) {
-	lines := strings.Split(text, "\n")
-	currentOffset := 0
-	for lineIdx, line := range lines {
-		if offset <= currentOffset+len(line) {
-			return lineIdx, offset - currentOffset
-		}
-		currentOffset += len(line) + 1 // +1 for \n
-	}
-	if len(lines) == 0 {
-		return 0, 0
-	}
-	return len(lines) - 1, len(lines[len(lines)-1])
-}
-
-func lineColToOffset(text string, line, col int) int {
-	lines := strings.Split(text, "\n")
-	if line < 0 {
-		return 0
-	}
-	if line >= len(lines) {
-		return len(text)
-	}
-
-	offset := 0
-	for i := 0; i < line; i++ {
-		offset += len(lines[i]) + 1
-	}
-
-	c := col
-	if c > len(lines[line]) {
-		c = len(lines[line])
-	}
-	return offset + c
-}
-
 type EventTick struct {
 	t time.Time
 }
 
 func (e *EventTick) When() time.Time {
 	return e.t
-}
-
-func findNodePathAt(res LayoutResult, x, y int, componentStates map[string]any) []Node {
-	if x >= res.X && x < res.X+res.W && y >= res.Y && y < res.Y+res.H {
-		if hitTester, ok := res.Node.(CustomHitTester); ok {
-			return hitTester.FindNodePathAt(x, y, res, componentStates)
-		}
-
-		for _, child := range res.Children {
-			if path := findNodePathAt(child, x, y, componentStates); path != nil {
-				return append([]Node{res.Node}, path...)
-			}
-		}
-		return []Node{res.Node}
-	}
-	return nil
 }
 
 // MarkDirty forces a re-render on the next frame.
