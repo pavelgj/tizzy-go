@@ -1,56 +1,46 @@
 package tz
 
-import "fmt"
+import (
+	"fmt"
+)
 
-// Popup represents a floating overlay component positioned absolutely.
-type Popup struct {
-	Style Style
-	Child Node
-	X     int
-	Y     int
-}
+// NewPopup creates a portal positioned at an explicit absolute screen position.
+// When isOpen is false, nil is returned; NewBox silently drops nil children.
+//
+// PopupMode is set so that underlying TextInput components know to suppress
+// their navigation-key handling (Enter / Up / Down) while the popup is visible.
+//
+// One hook slot is always consumed regardless of isOpen so that callers keep
+// stable hook indices across renders.
+func NewPopup(ctx *RenderContext, style Style, child Node, x, y int, isOpen bool) Node {
+	// Consume one hook slot for stable hook ordering across renders.
+	id := fmt.Sprintf("hook-%d", ctx.hookIndex)
+	ctx.hookIndex++
 
-// NewPopup creates a new Popup component.
-func NewPopup(ctx *RenderContext, style Style, child Node, x, y int, isOpen bool) *Popup {
-	stateObj, _ := ctx.UseState(&PopupState{Open: isOpen})
-	state := stateObj.(*PopupState)
-	state.Open = isOpen // Sync with passed prop
-
-	// Derive hook ID and set it on style
-	id := fmt.Sprintf("hook-%d", ctx.hookIndex-1)
-	style.ID = id
-
-	return &Popup{
-		Style: style,
-		Child: child,
-		X:     x,
-		Y:     y,
+	if !isOpen {
+		return nil
 	}
-}
 
-// PopupState stores the interactive state of a Popup.
-type PopupState struct {
-	Open bool
-}
-
-// GetStyle returns the style of the Popup node.
-func (p *Popup) GetStyle() Style {
-	return p.Style
-}
-
-// Layout calculates the layout for the Popup component.
-func (p *Popup) Layout(x, y int, c Constraints) LayoutResult {
-	// Popups do not take space in the parent layout
-	return LayoutResult{
-		Node: p,
-		X:    x,
-		Y:    y,
-		W:    0,
-		H:    0,
+	if style.ID == "" {
+		style.ID = id
 	}
-}
 
-// Render draws the Popup component.
-func (p *Popup) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
-	// Do nothing, rendered as overlay in App.Run
+	// Wrap the child with the popup's visual style (border, background, etc.)
+	// so the caller does not have to duplicate those style fields on their child.
+	wrapperStyle := Style{
+		Border:     style.Border,
+		Width:      style.Width,
+		Background: style.Background,
+		Color:      style.Color,
+		Padding:    style.Padding,
+	}
+	wrapped := NewBox(wrapperStyle, child)
+
+	return &Portal{
+		Style:     style,
+		Child:     wrapped,
+		X:         x,
+		Y:         y,
+		PopupMode: true,
+	}
 }

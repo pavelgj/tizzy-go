@@ -2,96 +2,45 @@ package tz
 
 import (
 	"fmt"
-
-	"github.com/gdamore/tcell/v2"
 )
 
-// Modal represents a dialog overlay component.
-type Modal struct {
-	Style Style
-	Child Node
-}
+// NewModal creates a centered overlay portal with focus trapping.
+// When isOpen is false, nil is returned; NewBox silently drops nil children,
+// so callers can always pass NewModal into a box without an if-guard.
+//
+// The caller controls open/close via normal UseState — the modal is simply
+// absent from the tree when closed.  No internal ModalState is stored.
+//
+// One hook slot is always consumed regardless of isOpen so that callers who
+// place NewModal alongside other hook-using constructors keep stable indices.
+func NewModal(ctx *RenderContext, style Style, child Node, isOpen bool) Node {
+	// Consume one hook slot for stable hook ordering across renders.
+	id := fmt.Sprintf("hook-%d", ctx.hookIndex)
+	ctx.hookIndex++
 
-// NewModal creates a new Modal component.
-func NewModal(ctx *RenderContext, style Style, child Node, isOpen bool) *Modal {
-	stateObj, _ := ctx.UseState(&ModalState{Open: isOpen})
-	state := stateObj.(*ModalState)
-	state.Open = isOpen // Sync with passed prop
-
-	// Derive hook ID and set it on style
-	id := fmt.Sprintf("hook-%d", ctx.hookIndex-1)
-	style.ID = id
-
-	return &Modal{
-		Style: style,
-		Child: child,
-	}
-}
-
-// ModalState stores the interactive state of a Modal.
-type ModalState struct {
-	Open bool
-}
-
-func (s *ModalState) IsOpen() bool {
-	return s.Open
-}
-
-// GetStyle returns the style of the Modal node.
-func (m *Modal) GetStyle() Style {
-	return m.Style
-}
-
-// GetChildren returns the children of the Modal node.
-func (m *Modal) GetChildren() []Node {
-	if m.Child != nil {
-		return []Node{m.Child}
-	}
-	return nil
-}
-
-// Layout calculates the layout for the Modal component.
-func (n *Modal) Layout(x, y int, c Constraints) LayoutResult {
-	return LayoutResult{
-		Node: n,
-		X:    x,
-		Y:    y,
-		W:    0,
-		H:    0,
-	}
-}
-
-// Render draws the Modal component to the grid.
-func (n *Modal) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
-	// Do nothing, rendered as overlay in App.Run
-}
-
-func (m *Modal) HandleOverlayEvent(ev tcell.Event, state any, ctx EventContext) (bool, *LayoutResult) {
-	s, ok := state.(*ModalState)
-	if !ok || !s.Open {
-		return false, nil
+	if !isOpen {
+		return nil
 	}
 
-	mouse, ok := ev.(*tcell.EventMouse)
-	if !ok {
-		return false, nil
+	if style.ID == "" {
+		style.ID = id
 	}
 
-	mx, my := mouse.Position()
-	res := ctx.OverlayLayout
+	// Wrap the caller-supplied child in a styled border box so the modal has
+	// its own background and border drawn from style.
+	wrapper := NewBox(Style{
+		Border:          true,
+		Color:           style.Color,
+		Background:      style.Background,
+		FocusColor:      style.FocusColor,
+		FocusBackground: style.FocusBackground,
+	}, child)
 
-	if mouse.Buttons()&tcell.Button1 != 0 {
-		// Check if click is inside modal content
-		if mx >= res.X && mx < res.X+res.W && my >= res.Y && my < res.Y+res.H {
-			// Click is inside modal content!
-			// Tell app.go to search this layout!
-			return false, &ctx.OverlayLayout
-		}
-
-		// Click is OUTSIDE modal content!
-		// Trap it!
-		return true, nil
+	return &Portal{
+		Style:     style,
+		Child:     wrapper,
+		X:         -1, // auto-center
+		Y:         -1,
+		TrapFocus: true,
 	}
-
-	return false, nil
 }
