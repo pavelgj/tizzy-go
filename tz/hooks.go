@@ -27,8 +27,8 @@ func (ctx *RenderContext) UseState(initial any) (any, func(any)) {
 	id := fmt.Sprintf("hook-%d", ctx.hookIndex)
 	ctx.hookIndex++
 
-	state := ctx.app.componentStates[id]
-	if state == nil {
+	state, exists := ctx.app.componentStates[id]
+	if !exists {
 		state = initial
 		ctx.app.componentStates[id] = state
 	}
