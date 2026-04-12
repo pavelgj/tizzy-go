@@ -112,6 +112,13 @@ func (g *Grid) DumpToPNG(filename string, cellW, cellH int) error {
 					cy := cellH / 2
 					for y2 := 0; y2 <= cy; y2++ { img.Set(x*cellW+cx, y*cellH+y2, fgColor) }
 					for x2 := cx; x2 < cellW; x2++ { img.Set(x*cellW+x2, y*cellH+cy, fgColor) }
+				case '█':
+					// Full block — fill entire cell with foreground color.
+					for cy := 0; cy < cellH; cy++ {
+						for cx := 0; cx < cellW; cx++ {
+							img.Set(x*cellW+cx, y*cellH+cy, fgColor)
+						}
+					}
 				case '▼':
 					// Filled triangle pointing down (widest at top, narrows to point at bottom)
 					for cy := 0; cy < cellH; cy++ {

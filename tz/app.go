@@ -482,19 +482,28 @@ func (a *App) handleMainTreeMouseEvent(ev MouseEvent, mx, my int, root Node, lay
 	return true
 }
 
+// dispatchWheelToPath delivers a wheel event to the deepest node in the path
+// that handles it, bubbling up toward the root until one returns true.
 func (a *App) dispatchWheelToPath(path []Node, ev MouseEvent, searchLayout LayoutResult) {
-	targetNode := path[len(path)-1]
-	if handler, ok := targetNode.(EventHandler); ok {
+	tcellEv, ok := ev.(tcell.Event)
+	if !ok {
+		return
+	}
+	for i := len(path) - 1; i >= 0; i-- {
+		targetNode := path[i]
+		handler, ok := targetNode.(EventHandler)
+		if !ok {
+			continue
+		}
 		state := a.componentStates[targetNode.GetStyle().ID]
 		res := findLayoutResultByID(searchLayout, targetNode.GetStyle().ID)
 		var targetLayout LayoutResult
 		if res != nil {
 			targetLayout = *res
 		}
-		if tcellEv, ok := ev.(tcell.Event); ok {
-			if handler.HandleEvent(tcellEv, state, EventContext{Layout: targetLayout}) {
-				a.dirty.Store(true)
-			}
+		if handler.HandleEvent(tcellEv, state, EventContext{Layout: targetLayout}) {
+			a.dirty.Store(true)
+			return
 		}
 	}
 }

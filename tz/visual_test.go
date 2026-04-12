@@ -416,6 +416,66 @@ func TestGenerateScrollViewVisual(t *testing.T) {
 	verifyVisual(t, grid, "scroll_view")
 }
 
+func TestGenerateScrollViewFocusedVisual(t *testing.T) {
+	screen := tcell.NewSimulationScreen("UTF-8")
+	err := screen.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer screen.Fini()
+	screen.SetSize(30, 15)
+
+	app := NewAppWithScreen(screen)
+	app.componentStates["sv"] = &ScrollViewState{ScrollOffset: 5}
+	app.focusedID = "sv"
+
+	renderFn := func(ctx *RenderContext) Node {
+		child := NewBox(
+			Style{FlexDirection: "column"},
+			NewText(Style{Color: tcell.ColorWhite}, "Line 1"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 2"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 3"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 4"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 5"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 6"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 7"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 8"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 9"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 10"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 11"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 12"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 13"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 14"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 15"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 16"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 17"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 18"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 19"),
+			NewText(Style{Color: tcell.ColorWhite}, "Line 20"),
+		)
+		sv := NewScrollView(ctx, Style{
+			ID:        "sv",
+			Width:     20,
+			Height:    10,
+			Border:    true,
+			Title:     "Scroll",
+			Color:     tcell.ColorWhite,
+			Focusable: true,
+		}, child)
+		return NewBox(
+			Style{Width: 30, Height: 15, JustifyContent: "center"},
+			sv,
+		)
+	}
+
+	grid, _, _, _, err := app.RenderFrame(renderFn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	verifyVisual(t, grid, "scroll_view_focused")
+}
+
 func TestGenerateMenuBarVisual(t *testing.T) {
 	menus := []Menu{
 		{Title: "File", Items: []MenuItem{{Label: "New"}, {Label: "Open"}}},

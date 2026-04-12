@@ -111,14 +111,15 @@ func (n *ScrollView) Layout(x, y int, c Constraints) LayoutResult {
 // Render draws the ScrollView component to the grid.
 func (n *ScrollView) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	borderOffset := 0
+	focused := n.Style.ID != "" && n.Style.ID == focusedID
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
-	if n.Style.ID != "" && n.Style.ID == focusedID {
+	if focused {
 		focusColor := tcell.ColorYellow
-		if n.Style.FocusColor != tcell.ColorReset {
+		if n.Style.FocusColor != tcell.ColorDefault {
 			focusColor = n.Style.FocusColor
 		}
 		focusBg := n.Style.Background
-		if n.Style.FocusBackground != tcell.ColorReset {
+		if n.Style.FocusBackground != tcell.ColorDefault {
 			focusBg = n.Style.FocusBackground
 		}
 		borderStyle = tcell.StyleDefault.Foreground(focusColor).Background(focusBg)
@@ -132,27 +133,73 @@ func (n *ScrollView) Render(grid *Grid, layout LayoutResult, focusedID string, c
 	viewportW := layout.W - pad.Left - pad.Right - borderOffset*2
 	viewportH := layout.H - pad.Top - pad.Bottom - borderOffset*2
 
-	scrollOffset := 0
+	var state *ScrollViewState
 	if n.Style.ID != "" && componentStates != nil {
 		if stateObj, ok := componentStates[n.Style.ID]; ok {
-			state := stateObj.(*ScrollViewState)
-			scrollOffset = state.ScrollOffset
+			state = stateObj.(*ScrollViewState)
 		}
+	}
+	scrollOffset := 0
+	if state != nil {
+		scrollOffset = state.ScrollOffset
 	}
 
 	if len(layout.Children) > 0 {
 		childLayout := layout.Children[0]
+		contentH := childLayout.H
+
+		// Clamp scroll offset so we never scroll past the content.
+		if state != nil && contentH > viewportH {
+			maxOffset := contentH - viewportH
+			if state.ScrollOffset > maxOffset {
+				state.ScrollOffset = maxOffset
+				scrollOffset = maxOffset
+			}
+		} else if state != nil {
+			state.ScrollOffset = 0
+			scrollOffset = 0
+		}
 
 		tempGrid := NewGrid(viewportW, viewportH)
-
 		shiftedLayout := shiftLayout(childLayout, -childLayout.X, -childLayout.Y-scrollOffset)
-
 		Render(tempGrid, shiftedLayout, focusedID, componentStates)
 
 		for y := 0; y < viewportH; y++ {
 			for x := 0; x < viewportW; x++ {
 				cell := tempGrid.Cells[y][x]
 				grid.SetContent(layout.X+pad.Left+borderOffset+x, layout.Y+pad.Top+borderOffset+y, cell.Rune, cell.Style)
+			}
+		}
+
+		// Scrollbar in the right border column (only when border is on and content overflows).
+		if n.Style.Border && contentH > viewportH {
+			trackH := layout.H - 2 // rows between the two corner characters
+			scrollBarX := layout.X + layout.W - 1
+
+			// Proportional thumb.
+			thumbSize := trackH * viewportH / contentH
+			if thumbSize < 1 {
+				thumbSize = 1
+			}
+			thumbStart := 0
+			if contentH > viewportH {
+				thumbStart = (trackH - thumbSize) * scrollOffset / (contentH - viewportH)
+			}
+
+			for i := 0; i < trackH; i++ {
+				ry := layout.Y + 1 + i
+				if i >= thumbStart && i < thumbStart+thumbSize {
+					grid.SetContent(scrollBarX, ry, '█', borderStyle)
+				}
+				// else: leave the existing │ border character
+			}
+
+			// ▲/▼ in the corner characters when there is hidden content.
+			if scrollOffset > 0 {
+				grid.SetContent(scrollBarX, layout.Y, '▲', borderStyle)
+			}
+			if scrollOffset+viewportH < contentH {
+				grid.SetContent(scrollBarX, layout.Y+layout.H-1, '▼', borderStyle)
 			}
 		}
 	}
@@ -175,7 +222,7 @@ func (n *ScrollView) HandleEvent(ev tcell.Event, state any, ctx EventContext) bo
 		return false
 	}
 
-	if mouse, ok := ev.(*tcell.EventMouse); ok {
+	if mouse, ok := ev.(MouseEvent); ok {
 		if mouse.Buttons()&tcell.WheelUp != 0 {
 			s.ScrollOffset--
 			if s.ScrollOffset < 0 {
