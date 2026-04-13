@@ -68,9 +68,14 @@ func NewListItem(label string, selected bool, cursor bool) Node {
 		style.Background = tcell.ColorBlue
 		textColor = tcell.ColorWhite
 	}
-	if cursor {
+	if cursor && !selected {
 		style.Background = tcell.ColorGray
 		textColor = tcell.ColorWhite
+	}
+	if cursor && selected {
+		// Cursor resting on the selected item: brighter blue so selection stays visible.
+		style.Background = tcell.ColorNavy
+		textColor = tcell.ColorYellow
 	}
 	return NewBox(style, NewText(Style{Color: textColor, Background: style.Background}, label))
 }
@@ -119,9 +124,9 @@ func (l *List) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 	}
 
 	borderOffset := 0
+	borderStyle := tcell.StyleDefault.Foreground(l.Style.Color).Background(l.Style.Background)
 	if l.Style.Border {
 		borderOffset = 1
-		borderStyle := tcell.StyleDefault.Foreground(l.Style.Color).Background(l.Style.Background)
 		if l.Style.ID == focusedID {
 			focusColor := tcell.ColorYellow
 			if l.Style.FocusColor != tcell.ColorReset {
@@ -142,7 +147,18 @@ func (l *List) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 	curY := layout.Y + borderOffset
 	curX := layout.X + borderOffset
 
-	for i := 0; i < viewportH; i++ {
+	// Empty state
+	if len(l.Items) == 0 {
+		emptyStyle := tcell.StyleDefault.Foreground(tcell.ColorGray).Background(l.Style.Background)
+		drawText(grid, curX, curY, "(no items)", emptyStyle)
+	}
+
+	visibleItems := viewportH / l.getItemHeight()
+	if visibleItems <= 0 {
+		visibleItems = 1
+	}
+
+	for i := 0; i < visibleItems; i++ {
 		idx := state.ScrollOffset + i
 		if idx >= len(l.Items) {
 			break
@@ -165,6 +181,16 @@ func (l *List) Render(grid *Grid, layout LayoutResult, focusedID string, compone
 		Render(grid, itemLayout, focusedID, componentStates)
 
 		curY += l.getItemHeight()
+	}
+
+	// Scroll indicators in the border corners when items are hidden above/below.
+	if l.Style.Border && layout.W >= 3 {
+		if state.ScrollOffset > 0 {
+			grid.SetContent(layout.X+layout.W-2, layout.Y, '▲', borderStyle)
+		}
+		if state.ScrollOffset+visibleItems < len(l.Items) {
+			grid.SetContent(layout.X+layout.W-2, layout.Y+layout.H-1, '▼', borderStyle)
+		}
 	}
 }
 
@@ -305,6 +331,26 @@ func (l *List) HandleEvent(ev tcell.Event, state any, ctx EventContext) bool {
 				if s.ScrollOffset < 0 {
 					s.ScrollOffset = 0
 				}
+			}
+			dirty = true
+			if l.OnSelectionChange != nil {
+				l.OnSelectionChange(s.CursorIndex)
+			}
+		}
+	} else if key.Key() == tcell.KeyHome {
+		if len(l.Items) > 0 {
+			s.CursorIndex = 0
+			s.ScrollOffset = 0
+			dirty = true
+			if l.OnSelectionChange != nil {
+				l.OnSelectionChange(s.CursorIndex)
+			}
+		}
+	} else if key.Key() == tcell.KeyEnd {
+		if len(l.Items) > 0 {
+			s.CursorIndex = len(l.Items) - 1
+			if s.CursorIndex >= s.ScrollOffset+visibleItems {
+				s.ScrollOffset = s.CursorIndex - visibleItems + 1
 			}
 			dirty = true
 			if l.OnSelectionChange != nil {
