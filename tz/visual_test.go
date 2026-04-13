@@ -606,6 +606,57 @@ func TestGenerateTabsVisual(t *testing.T) {
 	verifyVisual(t, grid, "tabs")
 }
 
+func TestGenerateTableVariantsVisual(t *testing.T) {
+	headers := []string{"ID", "Name", "Role", "Status"}
+	rows := [][]string{
+		{"1", "Alice", "Developer", "Active"},
+		{"2", "Bob", "Designer", "Away"},
+		{"3", "Charlie", "Manager", "Busy"},
+		{"4", "David", "DevOps", "Offline"},
+	}
+
+	numHeaders := []string{"#", "Item", "Qty", "Price"}
+	numRows := [][]string{
+		{"1", "Widget", "100", "$9.99"},
+		{"2", "Gadget", "50", "$24.99"},
+		{"3", "Doohickey", "200", "$4.49"},
+		{"4", "Thingamajig", "75", "$14.99"},
+	}
+
+	plain := NewTable(Style{Color: tcell.ColorWhite}, headers, rows)
+
+	withDividers := NewTable(Style{Color: tcell.ColorWhite, Border: true}, headers, rows)
+	withDividers.Dividers = true
+
+	zebra := NewTable(Style{Color: tcell.ColorWhite, Border: true, FillWidth: true, Title: "Employees"}, headers, rows)
+	zebra.Dividers = true
+	zebra.StripeBackground = tcell.NewRGBColor(40, 40, 60)
+
+	aligned := NewTable(Style{Color: tcell.ColorWhite, Border: true, FillWidth: true}, numHeaders, numRows)
+	aligned.ColAligns = []string{"right", "left", "right", "right"}
+	aligned.StripeBackground = tcell.NewRGBColor(30, 40, 30)
+
+	root := NewBox(
+		Style{Width: 65, Height: 42, FlexDirection: "column", Padding: Padding{Top: 1, Left: 2, Right: 2}},
+		NewText(Style{Color: tcell.ColorGray}, "Plain:"),
+		plain,
+		NewText(Style{Color: tcell.ColorWhite}, ""),
+		NewText(Style{Color: tcell.ColorGray}, "Border + dividers:"),
+		withDividers,
+		NewText(Style{Color: tcell.ColorWhite}, ""),
+		NewText(Style{Color: tcell.ColorGray}, "Zebra striped, fill width:"),
+		zebra,
+		NewText(Style{Color: tcell.ColorWhite}, ""),
+		NewText(Style{Color: tcell.ColorGray}, "Column alignment (right #/Qty/Price):"),
+		aligned,
+	)
+
+	layout := Layout(root, 0, 0, Constraints{MaxW: 65, MaxH: 42})
+	grid := NewGrid(65, 42)
+	Render(grid, layout, "", nil)
+	verifyVisual(t, grid, "table_variants")
+}
+
 func TestGenerateModalVisual(t *testing.T) {
 	screen := tcell.NewSimulationScreen("UTF-8")
 	err := screen.Init()

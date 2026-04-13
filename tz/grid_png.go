@@ -71,6 +71,33 @@ func (g *Grid) DumpToPNG(filename string, cellW, cellH int) error {
 					for cy := 0; cy < cellH; cy++ {
 						img.Set(x*cellW+cx, y*cellH+cy, fgColor)
 					}
+				case '┼':
+					cx, cy := cellW/2, cellH/2
+					for i := 0; i < cellW; i++ { img.Set(x*cellW+i, y*cellH+cy, fgColor) }
+					for i := 0; i < cellH; i++ { img.Set(x*cellW+cx, y*cellH+i, fgColor) }
+				case '├':
+					cx, cy := cellW/2, cellH/2
+					for i := cx; i < cellW; i++ { img.Set(x*cellW+i, y*cellH+cy, fgColor) }
+					for i := 0; i < cellH; i++ { img.Set(x*cellW+cx, y*cellH+i, fgColor) }
+				case '┤':
+					cx, cy := cellW/2, cellH/2
+					for i := 0; i <= cx; i++ { img.Set(x*cellW+i, y*cellH+cy, fgColor) }
+					for i := 0; i < cellH; i++ { img.Set(x*cellW+cx, y*cellH+i, fgColor) }
+				case '┬':
+					cx, cy := cellW/2, cellH/2
+					for i := 0; i < cellW; i++ { img.Set(x*cellW+i, y*cellH+cy, fgColor) }
+					for i := cy; i < cellH; i++ { img.Set(x*cellW+cx, y*cellH+i, fgColor) }
+				case '┴':
+					cx, cy := cellW/2, cellH/2
+					for i := 0; i < cellW; i++ { img.Set(x*cellW+i, y*cellH+cy, fgColor) }
+					for i := 0; i <= cy; i++ { img.Set(x*cellW+cx, y*cellH+i, fgColor) }
+				case '…':
+					// Three evenly-spaced dots on the baseline.
+					dotY := cellH*3/4
+					for _, dotX := range []int{cellW / 5, cellW / 2, cellW * 4 / 5} {
+						img.Set(x*cellW+dotX, y*cellH+dotY, fgColor)
+						img.Set(x*cellW+dotX, y*cellH+dotY-1, fgColor)
+					}
 				case '┌':
 					cx := cellW / 2
 					cy := cellH / 2

@@ -9,8 +9,11 @@ type Table struct {
 	Style               Style
 	Headers             []string
 	Rows                [][]string
-	ColWidths           []int // Optional, if empty calculate based on content
-	CalculatedColWidths []int // Set during layout
+	ColWidths           []int       // Optional, if empty calculate based on content
+	ColAligns           []string    // Optional, "left", "center", "right" per column
+	StripeBackground    tcell.Color // Optional, alternating row background color
+	Dividers            bool        // Optional, draw vertical column dividers
+	CalculatedColWidths []int       // Set during layout
 }
 
 // NewTable creates a new Table node.
@@ -22,6 +25,15 @@ func NewTable(style Style, headers []string, rows [][]string) *Table {
 	}
 }
 
+// runeLen returns the number of runes (terminal columns) in a string.
+func runeLen(s string) int {
+	n := 0
+	for range s {
+		n++
+	}
+	return n
+}
+
 // Layout calculates the layout for the Table.
 func (n *Table) Layout(x, y int, c Constraints) LayoutResult {
 	pad := n.Style.Padding
@@ -31,17 +43,18 @@ func (n *Table) Layout(x, y int, c Constraints) LayoutResult {
 
 	colWidths := make([]int, len(n.Headers))
 	for i, h := range n.Headers {
-		colWidths[i] = len(h)
+		colWidths[i] = runeLen(h)
 	}
 
 	for _, row := range n.Rows {
 		for i, cell := range row {
+			cw := runeLen(cell)
 			if i < len(colWidths) {
-				if len(cell) > colWidths[i] {
-					colWidths[i] = len(cell)
+				if cw > colWidths[i] {
+					colWidths[i] = cw
 				}
 			} else {
-				colWidths = append(colWidths, len(cell))
+				colWidths = append(colWidths, cw)
 			}
 		}
 	}
@@ -54,19 +67,14 @@ func (n *Table) Layout(x, y int, c Constraints) LayoutResult {
 		}
 	}
 
-	n.CalculatedColWidths = colWidths
-
-	w := 0
-	for _, cw := range colWidths {
-		w += cw
-	}
+	sepWidth := 0
 	if len(colWidths) > 1 {
-		w += len(colWidths) - 1
+		sepWidth = len(colWidths) - 1
 	}
 
-	h := len(n.Rows)
-	if len(n.Headers) > 0 {
-		h += 2
+	naturalW := sepWidth
+	for _, cw := range colWidths {
+		naturalW += cw
 	}
 
 	borderSize := 0
@@ -74,15 +82,40 @@ func (n *Table) Layout(x, y int, c Constraints) LayoutResult {
 		borderSize = 2
 	}
 
+	w := naturalW
 	if n.Style.Width > 0 {
 		w = n.Style.Width
 	}
 
 	if n.Style.FillWidth {
-		w = c.MaxW - pad.Left - pad.Right - margin.Left - margin.Right - borderSize
-		if w < 0 {
-			w = 0
+		availW := c.MaxW - pad.Left - pad.Right - margin.Left - margin.Right - borderSize
+		if availW < 0 {
+			availW = 0
 		}
+		// Distribute extra width proportionally among columns.
+		colsNatural := naturalW - sepWidth
+		colsAvail := availW - sepWidth
+		if colsAvail > colsNatural && colsNatural > 0 {
+			extra := colsAvail - colsNatural
+			distributed := 0
+			for i := range colWidths {
+				if i < len(colWidths)-1 {
+					add := extra * colWidths[i] / colsNatural
+					colWidths[i] += add
+					distributed += add
+				} else {
+					colWidths[i] += extra - distributed
+				}
+			}
+		}
+		w = availW
+	}
+
+	n.CalculatedColWidths = colWidths
+
+	h := len(n.Rows)
+	if len(n.Headers) > 0 {
+		h += 2
 	}
 
 	layoutH := h + pad.Top + pad.Bottom + borderSize
@@ -99,6 +132,45 @@ func (n *Table) Layout(x, y int, c Constraints) LayoutResult {
 	}
 }
 
+// renderCell draws a single table cell with alignment, padding, and truncation.
+func renderCell(grid *Grid, x, y int, text string, colWidth int, align string, style tcell.Style) {
+	runes := []rune(text)
+	if len(runes) > colWidth {
+		if colWidth > 1 {
+			runes = append(runes[:colWidth-1], '…')
+		} else {
+			runes = runes[:colWidth]
+		}
+	}
+
+	textWidth := len(runes)
+	extra := colWidth - textWidth
+	if extra < 0 {
+		extra = 0
+	}
+
+	var leftPad int
+	switch align {
+	case "right":
+		leftPad = extra
+	case "center":
+		leftPad = extra / 2
+	default: // "left"
+		leftPad = 0
+	}
+	rightPad := extra - leftPad
+
+	for i := 0; i < leftPad; i++ {
+		grid.SetContent(x+i, y, ' ', style)
+	}
+	for i, r := range runes {
+		grid.SetContent(x+leftPad+i, y, r, style)
+	}
+	for i := 0; i < rightPad; i++ {
+		grid.SetContent(x+leftPad+textWidth+i, y, ' ', style)
+	}
+}
+
 // Render draws the Table to the grid.
 func (n *Table) Render(grid *Grid, layout LayoutResult, focusedID string, componentStates map[string]any) {
 	style := tcell.StyleDefault.Foreground(n.Style.Color).Background(n.Style.Background)
@@ -107,51 +179,89 @@ func (n *Table) Render(grid *Grid, layout LayoutResult, focusedID string, compon
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
 	if n.Style.Border {
 		borderOffset = 1
-		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, "", borderStyle)
+		drawBorder(grid, layout.X, layout.Y, layout.W, layout.H, n.Style.Title, borderStyle)
 	}
 
 	pad := n.Style.Padding
+	contentX := layout.X + pad.Left + borderOffset
+	contentEndX := layout.X + layout.W - pad.Right - borderOffset
 	curY := layout.Y + pad.Top + borderOffset
 
-	// Draw headers
-	if len(n.Headers) > 0 {
-		curX := layout.X + pad.Left + borderOffset
-		headerStyle := style.Bold(true)
+	colAlign := func(i int) string {
+		if i < len(n.ColAligns) && n.ColAligns[i] != "" {
+			return n.ColAligns[i]
+		}
+		return "left"
+	}
 
+	divChar := ' '
+	if n.Dividers {
+		divChar = '│'
+	}
+
+	// Draw headers.
+	if len(n.Headers) > 0 {
+		headerStyle := style.Bold(true)
+		curX := contentX
 		for i, h := range n.Headers {
-			drawText(grid, curX, curY, h, headerStyle)
-			for j := len(h); j < n.CalculatedColWidths[i]; j++ {
-				grid.SetContent(curX+j, curY, ' ', headerStyle)
+			renderCell(grid, curX, curY, h, n.CalculatedColWidths[i], colAlign(i), headerStyle)
+			curX += n.CalculatedColWidths[i]
+			if i < len(n.CalculatedColWidths)-1 {
+				grid.SetContent(curX, curY, divChar, headerStyle)
+				curX++
 			}
-			curX += n.CalculatedColWidths[i] + 1
+		}
+		// Fill remainder of header row.
+		for ; curX < contentEndX; curX++ {
+			grid.SetContent(curX, curY, ' ', headerStyle)
 		}
 		curY++
 
-		// Draw separator line
-		curX = layout.X + pad.Left + borderOffset
+		// Draw separator line.
+		curX = contentX
 		for i, cw := range n.CalculatedColWidths {
 			for j := 0; j < cw; j++ {
-				grid.SetContent(curX+j, curY, '-', style)
+				grid.SetContent(curX+j, curY, '─', style)
 			}
+			curX += cw
 			if i < len(n.CalculatedColWidths)-1 {
-				grid.SetContent(curX+cw, curY, '+', style)
+				sep := '─'
+				if n.Dividers {
+					sep = '┼'
+				}
+				grid.SetContent(curX, curY, sep, style)
+				curX++
 			}
-			curX += cw + 1
+		}
+		// Fill remainder of separator.
+		for ; curX < contentEndX; curX++ {
+			grid.SetContent(curX, curY, '─', style)
 		}
 		curY++
 	}
 
-	// Draw rows
-	for _, row := range n.Rows {
-		curX := layout.X + pad.Left + borderOffset
+	// Draw rows.
+	for rowIdx, row := range n.Rows {
+		rowStyle := style
+		if n.StripeBackground != 0 && rowIdx%2 == 1 {
+			rowStyle = rowStyle.Background(n.StripeBackground)
+		}
+
+		curX := contentX
 		for i, cell := range row {
-			if i < len(n.CalculatedColWidths) {
-				drawText(grid, curX, curY, cell, style)
-				for j := len(cell); j < n.CalculatedColWidths[i]; j++ {
-					grid.SetContent(curX+j, curY, ' ', style)
-				}
-				curX += n.CalculatedColWidths[i] + 1
+			if i >= len(n.CalculatedColWidths) {
+				break
 			}
+			renderCell(grid, curX, curY, cell, n.CalculatedColWidths[i], colAlign(i), rowStyle)
+			curX += n.CalculatedColWidths[i]
+			if i < len(n.CalculatedColWidths)-1 {
+				grid.SetContent(curX, curY, divChar, rowStyle)
+				curX++
+			}
+		}
+		// Fill remainder of row (needed for striped backgrounds and FillWidth).
+		for ; curX < contentEndX; curX++ {
+			grid.SetContent(curX, curY, ' ', rowStyle)
 		}
 		curY++
 	}
